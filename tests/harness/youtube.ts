@@ -6,6 +6,8 @@ import { join } from 'node:path';
 export interface SavedPage {
   /** The page's main video, driven the way YouTube's player drives it. */
   video: FakeVideo;
+  /** YouTube's player, whose speed API is faked unless the page opened without one. */
+  player: FakePlayer;
   /** YouTube's sidebar column on a watch page. */
   sidebar: Element;
   /**
@@ -15,16 +17,23 @@ export interface SavedPage {
   withhold(element: Element): () => void;
 }
 
+export interface PageOptions {
+  /** Whether YouTube's player exposes the speed API Chrono knows. Defaults to true. */
+  playerApi?: boolean;
+}
+
 /** Loads `tests/pages/<name>.html` as the current document, at `url`. */
-export function openSavedPage(name: string, url: string): SavedPage {
+export function openSavedPage(name: string, url: string, { playerApi = true }: PageOptions = {}): SavedPage {
   const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
   history.replaceState(null, '', url);
   const saved = new DOMParser().parseFromString(html, 'text/html');
   document.documentElement.remove();
   document.appendChild(document.importNode(saved.documentElement, true));
 
+  const video = new FakeVideo(required('ytd-watch-flexy #movie_player video'));
   return {
-    video: new FakeVideo(required('ytd-watch-flexy #movie_player video')),
+    video,
+    player: new FakePlayer(required('ytd-watch-flexy #movie_player'), video, playerApi),
     sidebar: required('ytd-watch-flexy #secondary-inner'),
     withhold(element) {
       const parent = element.parentNode!;
@@ -119,5 +128,36 @@ export class FakeVideo {
 
   #fire(...types: string[]): void {
     for (const type of types) this.element.dispatchEvent(new Event(type));
+  }
+}
+
+/**
+ * YouTube's player element and the part of its API that reads and sets speed. Like
+ * YouTube's, it applies its speed to the video element.
+ */
+export class FakePlayer {
+  #speed = 1;
+
+  constructor(
+    readonly element: Element,
+    readonly video: FakeVideo,
+    api: boolean,
+  ) {
+    if (!api) return;
+    Object.defineProperties(element, {
+      getPlaybackRate: { configurable: true, value: () => this.#speed },
+      setPlaybackRate: { configurable: true, value: (speed: number) => this.setSpeed(speed) },
+    });
+  }
+
+  /** The speed YouTube's own speed menu shows. */
+  get speed(): number {
+    return this.#speed;
+  }
+
+  /** Changes speed the way YouTube's speed menu and its Shift+< / Shift+> shortcuts do. */
+  setSpeed(speed: number): void {
+    this.#speed = speed;
+    this.video.setSpeed(speed);
   }
 }

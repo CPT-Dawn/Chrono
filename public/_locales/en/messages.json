@@ -32,5 +32,13 @@
     "placeholders": {
       "time": { "content": "$1", "example": "3:45 PM" }
     }
+  },
+  "slower": {
+    "message": "Slower",
+    "description": "Accessible name of the Panel's − button, which lowers the speed by 0.25×."
+  },
+  "faster": {
+    "message": "Faster",
+    "description": "Accessible name of the Panel's + button, which raises the speed by 0.25×."
   }
 }

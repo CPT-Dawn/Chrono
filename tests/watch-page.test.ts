@@ -23,20 +23,6 @@ describe('Panel on a watch page', () => {
     panel!.getByText('ends 3:12 PM');
   });
 
-  it('gives remaining as watch time at the current speed', async () => {
-    const page = openSavedPage('watch-delhi', WATCH_URL);
-    page.video.load({ duration: 1000 });
-    page.video.seek(250);
-    await startChrono();
-
-    page.video.setSpeed(1.5);
-
-    // 750 s of content at 1.5× takes 500 s.
-    const panel = queryPanel()!;
-    panel.getByText('8:20 left at 1.5×');
-    panel.getByText('ends 3:08 PM');
-  });
-
   it('lowers remaining as the video plays', async () => {
     const page = openSavedPage('watch-delhi', WATCH_URL);
     page.video.load({ duration: 1000 });

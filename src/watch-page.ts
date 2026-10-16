@@ -1,5 +1,6 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createPanel } from '@/panel/panel';
+import { connectSpeedBridge } from '@/speed-bridge';
 import { videoScopeTimes } from '@/time-model';
 import { readActiveVideo, readPageKind, readSidebarMount } from '@/youtube/adapter';
 
@@ -22,19 +23,30 @@ function mount(ctx: ContentScriptContext): boolean {
   const sidebar = readSidebarMount(document);
   if (!video.recognised || !sidebar.recognised) return false;
 
-  const panel = createPanel(navigator.language);
+  const panel = createPanel(navigator.language, (speed) => speedBridge.set(speed));
   sidebar.value.prepend(panel.element);
 
+  // YouTube's player speed, while the Speed bridge can reach it.
+  let playerSpeed: number | undefined;
   const update = () => {
     const now = new Date();
     const times = videoScopeTimes({
       position: video.value.currentTime,
       duration: video.value.duration,
-      speed: video.value.playbackRate,
+      speed: playerSpeed ?? video.value.playbackRate,
       now,
     });
     panel.showVideo(times, now);
+    panel.showSpeed(playerSpeed);
   };
+  const speedBridge = connectSpeedBridge(
+    document,
+    (speed) => {
+      playerSpeed = speed.recognised ? speed.value : undefined;
+      update();
+    },
+    ctx.signal,
+  );
   for (const type of ['durationchange', 'timeupdate', 'ratechange']) {
     video.value.addEventListener(type, update, { signal: ctx.signal });
   }

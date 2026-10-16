@@ -25,3 +25,14 @@
 .remaining {
   font-weight: 500;
 }
+
+.speed-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.speed-controls[hidden] {
+  display: none;
+}

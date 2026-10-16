@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar';
+export type FailureLabel = 'video' | 'sidebar' | 'speed';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -33,4 +33,20 @@ export function readActiveVideo(doc: Document): Reading<HTMLVideoElement> {
 export function readSidebarMount(doc: Document): Reading<Element> {
   const sidebar = doc.querySelector(`${WATCH_PAGE} #secondary #secondary-inner`);
   return sidebar ? recognised(sidebar) : unrecognised('sidebar');
+}
+
+/** The part of YouTube's player API that reads and sets speed. */
+export interface PlayerSpeedApi {
+  getPlaybackRate(): number;
+  setPlaybackRate(speed: number): void;
+}
+
+/**
+ * YouTube's player speed API. YouTube adds it to the player element from the page's own
+ * scripts, so only a script running in the page's context can see it.
+ */
+export function readPlayerSpeedApi(doc: Document): Reading<Element & PlayerSpeedApi> {
+  const player = doc.querySelector(`${WATCH_PAGE} #movie_player`) as (Element & Partial<PlayerSpeedApi>) | null;
+  const hasApi = typeof player?.getPlaybackRate === 'function' && typeof player.setPlaybackRate === 'function';
+  return hasApi ? recognised(player as Element & PlayerSpeedApi) : unrecognised('speed');
 }
