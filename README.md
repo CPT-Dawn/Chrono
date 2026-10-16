@@ -76,15 +76,7 @@ Because ads are inevitable, we made them entertaining:
 3. Profit! 🎉
 
 ### Manual Installation (For Developers)
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/youtube-time-manager.git
-
-# Open Chrome and go to chrome://extensions/
-# Enable "Developer mode" (top right)
-# Click "Load unpacked"
-# Select the extension folder
-```
+See [Development](#development) below to build Chrono and load it unpacked.
 
 ---
 
@@ -197,35 +189,37 @@ When all cards are hidden:
 
 ---
 
-## �️ Technical Stuff (For the Nerds)
+## Development
 
-### Built With
-- **Pure JavaScript** - No frameworks, just raw power
-- **Modern CSS** - Glassmorphism, animations, gradients
-- **Chrome Extension API** - Storage, scripting, content scripts
+Chrono is built with [WXT](https://wxt.dev), TypeScript and Vitest, and targets Chrome 121+ and Firefox 128+ on desktop. You need Node.js 22.18 or later.
 
-### Architecture
-```
-Extension
-├── manifest.json       # Extension config
-├── content.js          # Core logic (1800+ lines of goodness)
-├── styles.css          # Beautiful styling
-├── overlay.html        # UI structure
-└── icons/              # Pretty icons
+```bash
+npm install
+npm test               # run the tests
+npm run typecheck
+npm run build          # Chrome build in .output/chrome-mv3
+npm run build:firefox  # Firefox build in .output/firefox-mv3
+npm run dev            # Chrome with live reload (dev:firefox for Firefox)
 ```
 
-### Key Features
-- **Mutation Observer**: Detects YouTube's navigation
-- **Debouncing**: Prevents excessive updates
-- **State Management**: Chrome storage for settings
-- **Error Handling**: Comprehensive error recovery
-- **Performance**: 100ms update cycle, 60fps animations
+To load a build by hand:
+- **Chrome:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick `.output/chrome-mv3`.
+- **Firefox:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `.output/firefox-mv3/manifest.json`.
 
-### Browser Compatibility
-- ✅ Chrome/Chromium (fully supported)
-- ✅ Edge (works great)
-- ✅ Brave (tested)
-- ⚠️ Firefox (use as-is, may need tweaks)
+Everything that reads YouTube's page lives in `src/youtube/adapter.ts`. Words and terms follow [`GLOSSARY.md`](GLOSSARY.md).
+
+### Adding a saved YouTube page
+
+The tests run Chrono on real YouTube pages saved in `tests/pages/`. When YouTube changes something, save a page that shows the change, write a test that fails on it, then fix the adapter.
+
+1. Open the page in a private window, signed out, and let it finish loading. Get it into the state you want to test (playlist open, ad playing, and so on).
+2. In the DevTools console, run `copy('<!DOCTYPE html>\n' + document.documentElement.outerHTML)` and paste the result into a file. Don't use "Save Page As": it saves the page before YouTube has rendered it.
+3. Trim it into `tests/pages/`, naming it after what it shows (e.g. `watch-delhi` is a watch page with the Delhi player):
+   ```bash
+   npm run trim-page -- ~/Downloads/raw.html tests/pages/<name>.html
+   ```
+   This removes scripts, styles and icons, plus anything personal: the account menu, subscriptions, comments and live chat. It also keeps only the first three related videos. Read the diff before committing anyway.
+4. Load it in a test with `openSavedPage('<name>', '<the page URL>')` from `tests/harness/youtube.ts`.
 
 ---
 

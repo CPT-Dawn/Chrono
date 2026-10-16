@@ -1,0 +1,36 @@
+{
+  "extName": {
+    "message": "Chrono – Finish Time & Speed for YouTube",
+    "description": "Extension name, shown in the browser's extension list and the stores."
+  },
+  "extShortName": {
+    "message": "Chrono",
+    "description": "Short extension name. Also the accessible name of the Panel."
+  },
+  "extDescription": {
+    "message": "See how long a YouTube video really takes at your speed, and when you'll finish.",
+    "description": "Extension description, shown in the browser's extension list."
+  },
+  "remaining": {
+    "message": "$REMAINING$ left at $SPEED$",
+    "description": "Remaining watch time at the current speed, e.g. \"12:30 left at 1.5×\".",
+    "placeholders": {
+      "remaining": { "content": "$1", "example": "12:30" },
+      "speed": { "content": "$2", "example": "1.5×" }
+    }
+  },
+  "speed": {
+    "message": "$SPEED$×",
+    "description": "A playback speed, e.g. \"1.5×\".",
+    "placeholders": {
+      "speed": { "content": "$1", "example": "1.5" }
+    }
+  },
+  "finishTime": {
+    "message": "ends $TIME$",
+    "description": "The clock time at which the video will end, e.g. \"ends 3:45 PM\".",
+    "placeholders": {
+      "time": { "content": "$1", "example": "3:45 PM" }
+    }
+  }
+}

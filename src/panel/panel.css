@@ -1,0 +1,27 @@
+/*
+ * Never use YouTube's CSS variables: they are obfuscated and change without notice.
+ * Text inherits the page's colour so the Panel reads in light and dark themes until it
+ * gets its own palette, switched by YouTube's theme flag.
+ */
+:host {
+  display: block;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: rgb(128 128 128 / 0.1);
+  color: inherit;
+  font-family: Roboto, Arial, sans-serif;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.remaining {
+  font-weight: 500;
+}
