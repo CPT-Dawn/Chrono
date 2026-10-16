@@ -66,6 +66,42 @@
   box-shadow: var(--menu-shadow);
 }
 
+.menu-heading {
+  padding: 4px 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 16px 0 8px;
+  cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus {
+  background: var(--hover);
+  outline: none;
+}
+
+.menu-item svg {
+  flex: none;
+  visibility: hidden;
+}
+
+.menu-item[aria-checked='true'] svg {
+  visibility: visible;
+}
+
+.menu-separator {
+  margin: 8px 0;
+  border-top: 1px solid var(--hover);
+}
+
 .row {
   display: flex;
   align-items: center;

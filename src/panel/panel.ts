@@ -1,17 +1,23 @@
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
+import type { Settings } from '@/settings';
 import type { ScopeTimes } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createMenu } from './menu';
+import { createSettingsMenu } from './settings-menu';
 import styles from './panel.css?inline';
 
 export interface PanelOptions {
   locale: string;
+  /** The viewer's settings when the Panel appears. */
+  settings: Settings;
   /** Whether the details start expanded. */
   expanded: boolean;
   /** Called when the viewer expands or collapses the details. */
   onExpandedChange(expanded: boolean): void;
   /** Called with the speed the viewer asks for. */
   setSpeed(speed: number): void;
+  /** Called with a setting the viewer changes in the ⋮ menu. */
+  changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): void;
 }
 
 export interface Panel {
@@ -25,6 +31,8 @@ export interface Panel {
   setPlacement(placement: SidebarMount['placement']): void;
   /** Shows YouTube's speed, or hides the speed controls while it can't be reached. */
   showSpeed(speed: number | undefined): void;
+  /** Applies the viewer's settings when they change. The next show call uses them. */
+  setSettings(settings: Settings): void;
 }
 
 /** How far − and + change speed, as YouTube's Shift+< and Shift+> do. */
@@ -34,7 +42,14 @@ const SPEED_STEP = 0.25;
  * Chrono's Panel. It lives in a shadow root so YouTube's styles and Chrono's styles
  * can't affect each other.
  */
-export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: PanelOptions): Panel {
+export function createPanel({
+  locale,
+  settings,
+  expanded,
+  onExpandedChange,
+  setSpeed,
+  changeSetting,
+}: PanelOptions): Panel {
   const element = document.createElement('section');
   element.setAttribute('aria-label', browser.i18n.getMessage('extShortName'));
   const style = document.createElement('style');
@@ -78,6 +93,9 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
   const title = create('span', 'title');
   title.textContent = browser.i18n.getMessage('extShortName');
   const menu = createMenu('menu', browser.i18n.getMessage('moreActions'));
+  const settingsMenu = createSettingsMenu(changeSetting);
+  menu.popup.append(...settingsMenu.elements);
+  settingsMenu.show(settings);
   const header = create('div', 'header');
   header.append(title, menu.button, menu.popup);
 
@@ -101,13 +119,17 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
       }
       const left = formatWatchTime(times.remaining);
       remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
-      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale));
+      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, settings.clockFormat));
     },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
       if (speed === undefined) return;
       currentSpeed = speed;
       speedLabel.textContent = speedText(speed);
+    },
+    setSettings(value) {
+      settings = value;
+      settingsMenu.show(value);
     },
     setTheme(theme) {
       element.dataset.theme = theme;
