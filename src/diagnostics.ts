@@ -8,7 +8,7 @@ const failed = new Set<FailureLabel>();
 /** Notes whether the adapter could read `part` this time. */
 export function noteReading(part: FailureLabel, reading: Reading<unknown>): void {
   if (reading.recognised) failed.delete(part);
-  else failed.add(reading.failed);
+  else failed.add(part);
 }
 
 /** The parts of the page Chrono couldn't recognise when it last read them. */

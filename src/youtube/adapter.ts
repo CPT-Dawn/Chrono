@@ -186,13 +186,26 @@ export function readLive(doc: Document): Reading<boolean> {
 
 /**
  * Calls `onChange` whenever YouTube's player may have started or ended an ad break or a
- * live stream, until `signal` aborts. YouTube flags both with classes inside its player.
+ * live stream, until `signal` aborts. It watches only the parts that say so, because the
+ * rest of the player changes many times a second while a video plays.
  */
 export function watchPlayerState(doc: Document, onChange: () => void, signal: AbortSignal): void {
   const player = doc.querySelector(PLAYER);
   if (!player) return;
-  const observer = new MutationObserver(() => onChange());
-  observer.observe(player, { attributes: true, attributeFilter: ['class'], subtree: true, childList: true });
+  const observer = new MutationObserver(() => {
+    // YouTube adds its ads module, and may render a new time display, after the player.
+    watchParts();
+    onChange();
+  });
+  const watchParts = () => {
+    const ads = player.querySelector(ADS_MODULE);
+    if (ads) observer.observe(ads, { childList: true });
+    const timeDisplay = player.querySelector(TIME_DISPLAY);
+    if (timeDisplay) observer.observe(timeDisplay, { attributes: true, attributeFilter: ['class'] });
+  };
+  // The player's own flags, and the ads module coming and going among its children.
+  observer.observe(player, { attributes: true, attributeFilter: ['class'], childList: true });
+  watchParts();
   signal.addEventListener('abort', () => observer.disconnect());
 }
 

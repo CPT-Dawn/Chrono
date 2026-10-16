@@ -211,7 +211,7 @@ describe('Live content', () => {
 
   it("shows \"Live\" for a video with no end, even when YouTube's live markup isn't recognised", async () => {
     const page = openSavedPage('watch-live', LIVE_URL);
-    page.withhold(document.querySelector('ytd-watch-flexy #movie_player .ytp-time-display')!);
+    page.withhold(page.timeDisplay);
     page.video.load({ duration: Infinity });
     await startChrono();
 
@@ -251,9 +251,9 @@ describe('Lengths that make no sense', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 17, 15, 0, 0) });
   });
 
-  /** Everything the Panel says, in one string. */
-  function panelText(): string {
-    return queryPanel()!.element.shadowRoot!.querySelector('.panel')!.textContent ?? '';
+  /** The Panel shows no NaN, Infinity or negative number anywhere. */
+  function expectNoNonsense(): void {
+    expect(queryPanel()!.queryAllByText(/NaN|Infinity|-\d/)).toHaveLength(0);
   }
 
   it.each([
@@ -271,11 +271,11 @@ describe('Lengths that make no sense', () => {
       // YouTube's player sometimes reports a position past the video's end.
       page.video.seek(duration === 1000 ? 1001 : 30);
       await settle();
-      expect(panelText()).not.toMatch(/NaN|Infinity|-\d/);
+      expectNoNonsense();
       page.video.play();
       vi.advanceTimersByTime(2000);
       await settle();
-      expect(panelText()).not.toMatch(/NaN|Infinity|-\d/);
+      expectNoNonsense();
     }
   });
 
@@ -285,6 +285,6 @@ describe('Lengths that make no sense', () => {
     page.video.setSpeed(0);
     await startChrono();
 
-    expect(panelText()).not.toMatch(/NaN|Infinity|-\d/);
+    expectNoNonsense();
   });
 });

@@ -46,6 +46,8 @@ export interface SavedPage {
   replaceVideo(): FakeVideo;
   /** YouTube's player's ads module, which it adds once the player first prepares for ads. */
   readonly ads: Element;
+  /** YouTube's player's time display, which it flags on live content. */
+  readonly timeDisplay: Element;
   /**
    * YouTube starts an ad break: it flags its player and renders the ad's overlay. The ad
    * plays in the same video element, which the test loads with the ad.
@@ -116,6 +118,9 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
     },
     get ads() {
       return required('ytd-watch-flexy #movie_player .video-ads');
+    },
+    get timeDisplay() {
+      return required('ytd-watch-flexy #movie_player .ytp-time-display');
     },
     startAdBreak() {
       const playerElement = fromWatchPage(player);

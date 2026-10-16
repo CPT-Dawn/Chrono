@@ -96,7 +96,8 @@ export function queryPanel() {
 
 /**
  * The parts of YouTube's page Chrono reports it couldn't recognise: what the Report link
- * will carry as `failed`.
+ * will carry as `failed`. A stopgap until the Panel has its "Report it" link (#16), when
+ * tests should read `failed` from the link the viewer opens instead.
  */
 export function reportedFailures(): string[] {
   return failedParts();

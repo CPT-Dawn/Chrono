@@ -2,7 +2,7 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { clearDiagnostics, noteReading } from '@/diagnostics';
 import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
-import { type VideoScope, videoScope } from '@/time-model';
+import { type VideoScope, type VideoState, videoScope } from '@/time-model';
 import { panelExpanded } from '@/ui-state';
 import {
   readActiveVideo,
@@ -17,10 +17,8 @@ import {
   watchTheme,
 } from '@/youtube/adapter';
 
-interface PlayerState {
-  adBreak: boolean;
-  live: boolean;
-}
+/** What YouTube's player says about the video it is playing. */
+type PlayerState = Pick<VideoState, 'adBreak' | 'live'>;
 
 /** The video's events that can change what the Panel shows. */
 const VIDEO_EVENTS = ['durationchange', 'timeupdate', 'seeking', 'ratechange', 'play', 'pause'];
