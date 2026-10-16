@@ -1,5 +1,5 @@
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
-import type { ScopeTimes } from '@/time-model';
+import type { VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createMenu } from './menu';
 import styles from './panel.css?inline';
@@ -17,8 +17,8 @@ export interface PanelOptions {
 export interface Panel {
   /** The element to place in YouTube's page. */
   element: HTMLElement;
-  /** Shows the Video scope's times, or nothing while they aren't known. */
-  showVideo(times: ScopeTimes | undefined, now: Date): void;
+  /** Shows the Video scope: its times, a quiet ad-break or live state, or nothing. */
+  showVideo(scope: VideoScope, now: Date): void;
   /** Switches to Chrono's colours for YouTube's theme. */
   setTheme(theme: Theme): void;
   /** Adjusts spacing for where the Panel sits in YouTube's layout. */
@@ -93,12 +93,13 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
 
   return {
     element,
-    showVideo(times, now) {
-      if (!times) {
-        remaining.textContent = '';
+    showVideo(scope, now) {
+      if (scope.kind !== 'times') {
+        remaining.textContent = STATE_TEXT[scope.kind]();
         finish.textContent = '';
         return;
       }
+      const { times } = scope;
       const left = formatWatchTime(times.remaining);
       remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
       finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale));
@@ -117,6 +118,13 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
     },
   };
 }
+
+/** What the Video scope says when it has no times to show. */
+const STATE_TEXT: Record<Exclude<VideoScope['kind'], 'times'>, () => string> = {
+  'ad-break': () => browser.i18n.getMessage('pausedForAd'),
+  live: () => browser.i18n.getMessage('live'),
+  unknown: () => '',
+};
 
 const CHEVRON =
   '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">' +

@@ -33,6 +33,14 @@
       "time": { "content": "$1", "example": "3:45 PM" }
     }
   },
+  "pausedForAd": {
+    "message": "Paused for ad",
+    "description": "Shown in place of the remaining and finish time while YouTube plays an ad, when Chrono pauses its calculations."
+  },
+  "live": {
+    "message": "Live",
+    "description": "Shown in place of the remaining and finish time on a live stream or a premiere, which have no fixed end."
+  },
   "slower": {
     "message": "Slower",
     "description": "Accessible name of the Panel's − button, which lowers the speed by 0.25×."

@@ -44,6 +44,15 @@ export interface SavedPage {
   movePlayer(to: 'miniplayer' | 'watch-page'): void;
   /** YouTube replaces its video element with a new one, which becomes `video`. */
   replaceVideo(): FakeVideo;
+  /** YouTube's player's ads module, which it adds once the player first prepares for ads. */
+  readonly ads: Element;
+  /**
+   * YouTube starts an ad break: it flags its player and renders the ad's overlay. The ad
+   * plays in the same video element, which the test loads with the ad.
+   */
+  startAdBreak(): void;
+  /** YouTube ends the ad break. It hides the ad's overlay rather than removing it. */
+  endAdBreak(): void;
 }
 
 export interface PageOptions {
@@ -105,6 +114,25 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
     movePlayer(to) {
       (to === 'miniplayer' ? required('ytd-miniplayer') : fromWatchPage(playerHome)).append(fromWatchPage(player));
     },
+    get ads() {
+      return required('ytd-watch-flexy #movie_player .video-ads');
+    },
+    startAdBreak() {
+      const playerElement = fromWatchPage(player);
+      let ads = playerElement.querySelector('.video-ads');
+      if (!ads) {
+        ads = document.createElement('div');
+        ads.className = 'video-ads ytp-ad-module';
+        playerElement.append(ads);
+      }
+      ads.innerHTML = AD_OVERLAY;
+      playerElement.classList.add('ad-showing', 'ad-interrupting');
+    },
+    endAdBreak() {
+      const playerElement = fromWatchPage(player);
+      playerElement.classList.remove('ad-showing', 'ad-interrupting');
+      for (const overlay of playerElement.querySelectorAll<HTMLElement>('.video-ads > *')) overlay.style.display = 'none';
+    },
     replaceVideo() {
       const replaced = fromWatchPage(video).element;
       const element = document.createElement('video');
@@ -115,6 +143,14 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
     },
   };
 }
+
+/** An ad's overlay, as YouTube's player script built it in Oct 2026 (player 0229cd64). */
+const AD_OVERLAY =
+  '<div class="ytp-ad-player-overlay-layout">' +
+  '<div class="ytp-ad-player-overlay-layout__player-card-container"></div>' +
+  '<div class="ytp-ad-player-overlay-layout__ad-info-container"></div>' +
+  '<div class="ytp-ad-player-overlay-layout__skip-or-preview-container"></div>' +
+  '</div>';
 
 /**
  * YouTube starts following a link without a reload: it fires yt-navigate-start, then
