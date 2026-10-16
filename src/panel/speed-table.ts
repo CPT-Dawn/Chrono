@@ -63,10 +63,12 @@ export function createSpeedTable(locale: string, setSpeed: (speed: number) => vo
         row.button.setAttribute('aria-pressed', String(current));
         return row.button;
       });
-      // Moving a row would take focus away from it, so rows only move when a speed joins.
-      const inOrder =
-        element.children.length === buttons.length && buttons.every((button, i) => element.children[i] === button);
-      if (!inOrder) element.replaceChildren(...buttons);
+      // Moving a row would take focus away from it, so only rows new to the table are
+      // inserted; the others keep their place.
+      buttons.forEach((button, i) => {
+        const at = element.children[i] ?? null;
+        if (button !== at) element.insertBefore(button, at);
+      });
       element.hidden = buttons.length === 0;
     },
     setEnabled(value) {

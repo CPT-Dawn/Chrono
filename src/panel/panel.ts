@@ -89,7 +89,7 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
   element.attachShadow({ mode: 'open' }).append(style, panel);
 
   /** The Video scope's latest times, for the details to show when they're expanded. */
-  let video: { times: ScopeTimes; now: Date } | undefined;
+  let videoTimes: { times: ScopeTimes; now: Date } | undefined;
 
   function render() {
     toggle.setAttribute('aria-expanded', String(expanded));
@@ -99,14 +99,14 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
 
   // Collapsed details stay empty, so Chrono doesn't keep updating what nobody can see.
   function renderDetails() {
-    videoTable.show(expanded && video ? video.times.speedTable : [], video?.now ?? new Date());
+    videoTable.show(expanded && videoTimes ? videoTimes.times.speedTable : [], videoTimes?.now ?? new Date());
   }
   render();
 
   return {
     element,
     showVideo(times, now) {
-      video = times && { times, now };
+      videoTimes = times && { times, now };
       renderDetails();
       if (!times) {
         remaining.textContent = '';

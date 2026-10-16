@@ -33,6 +33,14 @@ export interface ScopeTimes extends TimesAtSpeed {
 /** The common speeds every speed table shows. */
 const TABLE_SPEEDS = [1, 1.25, 1.5, 1.75, 2];
 
+/**
+ * Whether two speeds are the same speed. YouTube's player can report a speed with
+ * floating-point noise, such as 1.2500000000000002 for 1.25×.
+ */
+function sameSpeed(a: number, b: number): boolean {
+  return Math.abs(a - b) < 1e-9;
+}
+
 /** The Video scope's times, or undefined while the video's length isn't known. */
 export function videoScopeTimes({ position, duration, speed, now }: VideoSnapshot): ScopeTimes | undefined {
   if (!Number.isFinite(duration)) return undefined;
@@ -41,10 +49,14 @@ export function videoScopeTimes({ position, duration, speed, now }: VideoSnapsho
 
 /** A scope's times, given the content time it has left. */
 function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
-  const speeds = TABLE_SPEEDS.includes(speed) ? TABLE_SPEEDS : [...TABLE_SPEEDS, speed].sort((a, b) => a - b);
+  const isCommon = TABLE_SPEEDS.some((common) => sameSpeed(common, speed));
+  const speeds = isCommon ? TABLE_SPEEDS : [...TABLE_SPEEDS, speed].sort((a, b) => a - b);
   return {
     ...timesAtSpeed(contentLeft, speed, now),
-    speedTable: speeds.map((s) => ({ ...timesAtSpeed(contentLeft, s, now), current: s === speed })),
+    speedTable: speeds.map((rowSpeed) => ({
+      ...timesAtSpeed(contentLeft, rowSpeed, now),
+      current: sameSpeed(rowSpeed, speed),
+    })),
   };
 }
 

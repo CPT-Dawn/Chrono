@@ -1,13 +1,13 @@
 import { fireEvent, within } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { queryPanel, startChrono } from './harness/chrono';
-import { openSavedPage } from './harness/youtube';
+import { openSavedPage, type PageOptions } from './harness/youtube';
 
 const WATCH_URL = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
 
 /** Opens a watch page 250 s into a 1000 s video and expands the Panel's details. */
-async function openSpeedTable() {
-  const page = openSavedPage('watch-delhi', WATCH_URL);
+async function openSpeedTable(options?: PageOptions) {
+  const page = openSavedPage('watch-delhi', WATCH_URL, options);
   page.video.load({ duration: 1000 });
   page.video.seek(250);
   await startChrono();
@@ -121,7 +121,7 @@ describe('Speed table', () => {
 
     expect(page.player.speed).toBe(1.5);
     panel.getByText('8:20 left at 1.5×');
-    expect(table.getByRole('button', { name: /^1\.5×/ }).getAttribute('aria-pressed')).toBe('true');
+    table.getByRole('button', { name: /^1\.5×/, pressed: true });
   });
 
   it("doesn't collapse the Panel's details when a row is clicked", async () => {
@@ -133,13 +133,7 @@ describe('Speed table', () => {
   });
 
   it("shows the times but can't apply a speed while YouTube's player speed API isn't recognised", async () => {
-    const page = openSavedPage('watch-delhi', WATCH_URL, { playerApi: false });
-    page.video.load({ duration: 1000 });
-    page.video.seek(250);
-    await startChrono();
-    const panel = queryPanel()!;
-    fireEvent.click(panel.getByRole('button', { name: 'Details' }));
-    const table = within(panel.getByRole('group', { name: 'Speed table' }));
+    const { page, table } = await openSpeedTable({ playerApi: false });
 
     const row = table.getByRole('button', { name: '1.5×: 8:20 left, ends 3:08 PM' }) as HTMLButtonElement;
     expect(row.disabled).toBe(true);
@@ -163,5 +157,27 @@ describe('Speed table', () => {
 
     expect(page.player.speed).toBe(1.25);
     expect(panel.element.shadowRoot!.activeElement).toBe(row);
+  });
+
+  it('keeps focus on a row when a custom speed joins or leaves the table', async () => {
+    const { page, panel, table } = await openSpeedTable();
+    const row = table.getByRole('button', { name: /^1\.5×/ });
+    row.focus();
+
+    page.player.setSpeed(1.65);
+    expect(panel.element.shadowRoot!.activeElement).toBe(row);
+
+    fireEvent.click(row);
+    expect(page.player.speed).toBe(1.5);
+    expect(panel.element.shadowRoot!.activeElement).toBe(row);
+  });
+
+  it("treats a speed that's a common one but for floating-point noise as that common speed", async () => {
+    const { page, rows, table } = await openSpeedTable();
+
+    page.player.setSpeed(1.25 + 2e-16);
+
+    expect(rows()).toHaveLength(5);
+    table.getByRole('button', { name: /^1\.25×/, pressed: true });
   });
 });
