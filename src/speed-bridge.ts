@@ -8,11 +8,13 @@
 //
 // Firefox hides objects that cross between page scripts and content scripts, so every
 // message carries a plain number or nothing.
-import { type Reading, readPlayerSpeedApi } from '@/youtube/adapter';
+import { type Reading, readPlayerSpeed, setPlayerSpeed, watchPlayerSpeed } from '@/youtube/adapter';
 
 /** YouTube's speed range. */
-export const MIN_SPEED = 0.25;
-export const MAX_SPEED = 2;
+const MIN_SPEED = 0.25;
+const MAX_SPEED = 2;
+/** YouTube's speed menu works in 0.05× steps: 20 to each 1×. */
+const STEPS_PER_SPEED = 20;
 
 const MESSAGES = {
   /** Page → content: the page script has loaded. */
@@ -46,8 +48,8 @@ export function servePlayerSpeed(doc: Document): () => void {
   let connected = false;
 
   const report = () => {
-    const player = readPlayerSpeedApi(doc);
-    if (player.recognised) send(doc, MESSAGES.speed, player.value.getPlaybackRate());
+    const speed = readPlayerSpeed(doc);
+    if (speed.recognised) send(doc, MESSAGES.speed, speed.value);
     else send(doc, MESSAGES.unrecognised);
   };
 
@@ -59,22 +61,12 @@ export function servePlayerSpeed(doc: Document): () => void {
     },
     { signal },
   );
-  // YouTube applies every speed change to its video, whichever control made it. Listening
-  // on the document catches the video even after YouTube swaps it for another.
-  doc.addEventListener(
-    'ratechange',
-    (event) => {
-      const player = readPlayerSpeedApi(doc);
-      if (connected && player.recognised && player.value.contains(event.target as Node)) report();
-    },
-    { capture: true, signal },
-  );
+  watchPlayerSpeed(doc, () => connected && report(), signal);
   doc.addEventListener(
     MESSAGES.set,
     (event) => {
       const speed = numberIn(event);
-      const player = readPlayerSpeedApi(doc);
-      if (speed !== undefined && player.recognised) player.value.setPlaybackRate(speed);
+      if (speed !== undefined) setPlayerSpeed(doc, speed);
     },
     { signal },
   );
@@ -90,35 +82,26 @@ export interface SpeedBridge {
 
 /**
  * The content half: calls `onSpeed` with YouTube's speed now and after every change, or
- * with an unrecognised reading while the player's speed API can't be reached.
+ * with an unrecognised reading while YouTube's player has no speed API Chrono knows.
+ * Until the page half has loaded, `onSpeed` isn't called.
  */
 export function connectSpeedBridge(
   doc: Document,
   onSpeed: (speed: Reading<number>) => void,
   signal: AbortSignal,
 ): SpeedBridge {
-  let answered = false;
-  const answer = (speed: Reading<number>) => {
-    answered = true;
-    onSpeed(speed);
-  };
-  const connect = () => {
-    answered = false;
-    send(doc, MESSAGES.connect);
-    // Events are delivered synchronously, so a loaded page script has answered by now.
-    // If it hasn't loaded yet, it announces itself when it does.
-    if (!answered) onSpeed({ recognised: false, failed: 'speed' });
-  };
-
   doc.addEventListener(
     MESSAGES.speed,
     (event) => {
       const speed = numberIn(event);
-      if (speed !== undefined) answer({ recognised: true, value: speed });
+      if (speed !== undefined) onSpeed({ recognised: true, value: speed });
     },
     { signal },
   );
-  doc.addEventListener(MESSAGES.unrecognised, () => answer({ recognised: false, failed: 'speed' }), { signal });
+  doc.addEventListener(MESSAGES.unrecognised, () => onSpeed({ recognised: false, failed: 'speed' }), { signal });
+  // The browser doesn't promise which script runs first. If the page half is already
+  // running, it answers now; if not, it announces itself when it starts.
+  const connect = () => send(doc, MESSAGES.connect);
   doc.addEventListener(MESSAGES.ready, connect, { signal });
   connect();
 
@@ -132,5 +115,5 @@ export function connectSpeedBridge(
 /** A speed YouTube's menu can show: within 0.25×–2×, in 0.05× steps. */
 function toYouTubeSpeed(speed: number): number {
   const clamped = Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed));
-  return Math.round(clamped * 20) / 20;
+  return Math.round(clamped * STEPS_PER_SPEED) / STEPS_PER_SPEED;
 }

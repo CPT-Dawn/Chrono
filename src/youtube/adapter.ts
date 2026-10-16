@@ -35,18 +35,60 @@ export function readSidebarMount(doc: Document): Reading<Element> {
   return sidebar ? recognised(sidebar) : unrecognised('sidebar');
 }
 
-/** The part of YouTube's player API that reads and sets speed. */
-export interface PlayerSpeedApi {
+// YouTube's player speed API. YouTube adds it to the player element from the page's own
+// scripts, so only a script running in the page's context can see it.
+
+interface PlayerSpeedApi {
   getPlaybackRate(): number;
   setPlaybackRate(speed: number): void;
 }
 
-/**
- * YouTube's player speed API. YouTube adds it to the player element from the page's own
- * scripts, so only a script running in the page's context can see it.
- */
-export function readPlayerSpeedApi(doc: Document): Reading<Element & PlayerSpeedApi> {
-  const player = doc.querySelector(`${WATCH_PAGE} #movie_player`) as (Element & Partial<PlayerSpeedApi>) | null;
+const PLAYER = `${WATCH_PAGE} #movie_player`;
+
+function readPlayerSpeedApi(doc: Document): Reading<PlayerSpeedApi> {
+  const player = doc.querySelector(PLAYER) as Partial<PlayerSpeedApi> | null;
   const hasApi = typeof player?.getPlaybackRate === 'function' && typeof player.setPlaybackRate === 'function';
-  return hasApi ? recognised(player as Element & PlayerSpeedApi) : unrecognised('speed');
+  return hasApi ? recognised(player as PlayerSpeedApi) : unrecognised('speed');
+}
+
+/** YouTube's player speed. Works only from the page's own context. */
+export function readPlayerSpeed(doc: Document): Reading<number> {
+  const api = readPlayerSpeedApi(doc);
+  if (!api.recognised) return api;
+  try {
+    const speed = api.value.getPlaybackRate();
+    return Number.isFinite(speed) ? recognised(speed) : unrecognised('speed');
+  } catch {
+    return unrecognised('speed');
+  }
+}
+
+/**
+ * Sets YouTube's player speed, so YouTube's menu shows it too. Returns whether the player
+ * took it. Works only from the page's own context.
+ */
+export function setPlayerSpeed(doc: Document, speed: number): boolean {
+  const api = readPlayerSpeedApi(doc);
+  if (!api.recognised) return false;
+  try {
+    api.value.setPlaybackRate(speed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Calls `onChange` whenever the player's speed may have changed or its API may have
+ * become available. YouTube applies every speed change to its video, whichever control
+ * made it, and starts its player before the video loads or plays. Listening on the
+ * document catches the video even after YouTube swaps it for another.
+ */
+export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: AbortSignal): void {
+  const listener = (event: Event) => {
+    if (event.target instanceof Element && event.target.closest(PLAYER)) onChange();
+  };
+  for (const type of ['ratechange', 'loadedmetadata', 'playing']) {
+    doc.addEventListener(type, listener, { capture: true, signal });
+  }
 }

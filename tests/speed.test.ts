@@ -100,6 +100,24 @@ describe('Speed', () => {
     expect(panel.queryByRole('button', { name: 'Faster' })).toBeNull();
     expect(panel.queryByRole('button', { name: 'Slower' })).toBeNull();
     panel.getByText('12:30 left at 1×');
+
+    // The video still plays at whatever speed it has.
+    page.video.setSpeed(1.5);
+    panel.getByText('8:20 left at 1.5×');
+  });
+
+  it("shows the speed controls once YouTube's player has started", async () => {
+    const page = openSavedPage('watch-delhi', WATCH_URL, { playerApi: false });
+    await startChrono();
+    const panel = queryPanel()!;
+    expect(panel.queryByRole('button', { name: 'Faster' })).toBeNull();
+
+    page.player.addApi();
+    page.video.load({ duration: 1000 });
+
+    panel.getByText('1×');
+    panel.getByRole('button', { name: 'Faster' }).click();
+    expect(page.player.speed).toBe(1.25);
   });
 
   it('connects to YouTube\'s player when the content script runs first', async () => {

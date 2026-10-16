@@ -140,11 +140,15 @@ export class FakePlayer {
 
   constructor(
     readonly element: Element,
-    readonly video: FakeVideo,
+    private readonly video: FakeVideo,
     api: boolean,
   ) {
-    if (!api) return;
-    Object.defineProperties(element, {
+    if (api) this.addApi();
+  }
+
+  /** YouTube's player script adds its API to the player element, as it does once it starts. */
+  addApi(): void {
+    Object.defineProperties(this.element, {
       getPlaybackRate: { configurable: true, value: () => this.#speed },
       setPlaybackRate: { configurable: true, value: (speed: number) => this.setSpeed(speed) },
     });

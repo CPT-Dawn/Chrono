@@ -26,7 +26,9 @@ export function createPanel(locale: string, setSpeed: (speed: number) => void): 
   const remaining = create('span', 'remaining');
   const finish = create('span', 'finish');
   let currentSpeed = 1;
+  const speedText = (speed: number) => browser.i18n.getMessage('speed', formatSpeed(speed, locale));
   const speedLabel = create('span', 'speed');
+  // − and + are symbols, not words; their accessible names are translated.
   const slower = speedButton('−', 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
   const faster = speedButton('+', 'faster', () => setSpeed(currentSpeed + SPEED_STEP));
   const speedControls = create('div', 'speed-controls');
@@ -43,15 +45,15 @@ export function createPanel(locale: string, setSpeed: (speed: number) => void): 
         finish.textContent = '';
         return;
       }
-      const speed = browser.i18n.getMessage('speed', formatSpeed(times.speed, locale));
-      remaining.textContent = browser.i18n.getMessage('remaining', [formatWatchTime(times.remaining), speed]);
+      const left = formatWatchTime(times.remaining);
+      remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
       finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale));
     },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
       if (speed === undefined) return;
       currentSpeed = speed;
-      speedLabel.textContent = browser.i18n.getMessage('speed', formatSpeed(speed, locale));
+      speedLabel.textContent = speedText(speed);
     },
   };
 }
