@@ -147,6 +147,51 @@
   padding-bottom: 12px;
 }
 
+/* Rows share their columns, so speeds, remainings and finish times line up. */
+.speed-table {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  margin: 0 -8px;
+}
+
+.speed-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.speed-row:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.speed-row:disabled {
+  cursor: default;
+}
+
+.speed-row[aria-pressed='true'] {
+  background: var(--surface);
+  font-weight: 500;
+}
+
+.speed-row-speed {
+  min-width: 40px;
+  margin-right: 16px;
+}
+
+.speed-row-finish {
+  margin-left: 16px;
+  color: var(--text-secondary);
+}
+
 [hidden] {
   display: none !important;
 }
