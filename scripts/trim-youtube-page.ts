@@ -4,7 +4,8 @@
 //
 // It removes what tests never need (scripts, styles, icons) and anything personal
 // (the signed-in masthead, the subscriptions guide, comments, live chat), keeps only
-// the first few related videos, and writes one element per line so diffs stay readable.
+// the first few related and recommended videos, and writes one element per line so diffs
+// stay readable.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Window } from 'happy-dom';
 
@@ -29,8 +30,12 @@ const REMOVE = [
   'ytd-comments',
   '#chat-container > *',
 ];
-const RELATED_ITEMS = 'ytd-watch-next-secondary-results-renderer ytd-item-section-renderer > #contents';
-const RELATED_KEEP = 3;
+// Lists of other videos: the watch page's related videos, and the player's recommendations.
+const VIDEO_LISTS = [
+  'ytd-watch-next-secondary-results-renderer ytd-item-section-renderer > #contents',
+  '.ytFullscreenVideoRecommendationsHost',
+];
+const VIDEO_LIST_KEEP = 3;
 const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'source', 'track', 'wbr']);
 
 const window = new Window({
@@ -44,8 +49,8 @@ const window = new Window({
 const doc = new window.DOMParser().parseFromString(readFileSync(input, 'utf8'), 'text/html');
 
 for (const el of doc.querySelectorAll(REMOVE.join(','))) el.remove();
-for (const list of doc.querySelectorAll(RELATED_ITEMS)) {
-  for (const item of [...list.children].slice(RELATED_KEEP)) item.remove();
+for (const list of doc.querySelectorAll(VIDEO_LISTS.join(','))) {
+  for (const item of [...list.children].slice(VIDEO_LIST_KEEP)) item.remove();
 }
 // The video's blob: source means nothing outside the browser that saved the page.
 for (const video of doc.querySelectorAll('video')) video.removeAttribute('src');

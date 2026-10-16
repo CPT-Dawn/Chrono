@@ -11,12 +11,19 @@ export type FailureLabel = 'video' | 'sidebar' | 'speed';
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
 
-export type PageKind = 'watch' | 'unsupported';
+export type Page = { kind: 'watch'; videoId: string } | { kind: 'unsupported' };
 
-/** What kind of YouTube page the address points at. */
-export function readPageKind(location: Location): PageKind {
-  const isWatch = location.pathname === '/watch' && new URLSearchParams(location.search).has('v');
-  return isWatch ? 'watch' : 'unsupported';
+/**
+ * What kind of YouTube page the address points at, and on a watch page, which video.
+ * YouTube shows its watch page at /watch?v=<id>, and at /live/<id> for live streams and
+ * their recordings.
+ */
+export function readPage(location: Location): Page {
+  const videoId =
+    location.pathname === '/watch'
+      ? new URLSearchParams(location.search).get('v')
+      : /^\/live\/([\w-]+)$/.exec(location.pathname)?.[1];
+  return videoId ? { kind: 'watch', videoId } : { kind: 'unsupported' };
 }
 
 // Queries are scoped to the watch page's own element, because YouTube keeps other
@@ -91,4 +98,27 @@ export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: Ab
   for (const type of ['ratechange', 'loadedmetadata', 'playing']) {
     doc.addEventListener(type, listener, { capture: true, signal });
   }
+}
+
+export interface NavigationHandlers {
+  started(): void;
+  finished(): void;
+}
+
+/**
+ * Tells `handlers` each time YouTube starts and finishes navigating without a reload,
+ * until `signal` aborts. YouTube fires these events on its app element, and they bubble
+ * up. In between it changes the address, which fires no event at all.
+ */
+export function watchNavigation(doc: Document, handlers: NavigationHandlers, signal: AbortSignal): void {
+  doc.addEventListener('yt-navigate-start', () => handlers.started(), { signal });
+  doc.addEventListener('yt-navigate-finish', () => handlers.finished(), { signal });
+}
+
+/**
+ * Which media YouTube's player has loaded into `video`. YouTube gives every video it
+ * loads a new blob: source, even when it reuses the element.
+ */
+export function readMediaSource(video: HTMLVideoElement): string {
+  return video.src;
 }

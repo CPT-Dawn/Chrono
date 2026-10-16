@@ -218,7 +218,7 @@ The tests run Chrono on real YouTube pages saved in `tests/pages/`. When YouTube
    ```bash
    npm run trim-page -- ~/Downloads/raw.html tests/pages/<name>.html
    ```
-   This removes scripts, styles and icons, plus anything personal: the account menu, subscriptions, comments and live chat. It also keeps only the first three related videos. Read the diff before committing anyway.
+   This removes scripts, styles and icons, plus anything personal: the account menu, subscriptions, comments and live chat. It also keeps only the first three related videos and the first three videos the player recommends. Read the diff before committing anyway.
 4. Load it in a test with `openSavedPage('<name>', '<the page URL>')` from `tests/harness/youtube.ts`.
 
 ---

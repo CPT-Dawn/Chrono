@@ -1,13 +1,35 @@
 // The Chrono side of Seam 1: runs the real content script on the current page and finds
-// what it shows the viewer.
-import { queryByRole, within } from '@testing-library/dom';
+// what it shows the viewer. It also counts the work Chrono leaves running, which the viewer
+// can't see, so tests can check that Chrono stops all of it on pages it isn't on.
+import { queryAllByRole, queryByRole, within } from '@testing-library/dom';
+import { onTestFinished } from 'vitest';
 import type { MainWorldContentScriptDefinition } from 'wxt';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { ContentScriptContext } from 'wxt/utils/content-script-context';
 import playerScript from '@/entrypoints/youtube-player.content';
 import contentScript from '@/entrypoints/youtube.content';
 
 let ctx: ContentScriptContext | undefined;
 let stopPlayerScript: (() => void) | undefined;
+
+// Keeps count of the DOM observers that are watching something, so tests can check that
+// Chrono stops its own when it has nothing to watch.
+const observing = new Set<MutationObserver>();
+globalThis.MutationObserver = class extends MutationObserver {
+  override observe(target: Node, options?: MutationObserverInit): void {
+    super.observe(target, options);
+    observing.add(this);
+  }
+  override disconnect(): void {
+    super.disconnect();
+    observing.delete(this);
+  }
+};
+
+/** How many DOM observers are watching the page. */
+export function countObservers(): number {
+  return observing.size;
+}
 
 export interface StartOptions {
   /**
@@ -29,7 +51,10 @@ export async function startChrono({ contentScriptFirst = false }: StartOptions =
   await settle();
 }
 
-/** Stops Chrono's scripts, as the browser does when the extension unloads. */
+/**
+ * Invalidates the running content script's context, as the browser does when the extension
+ * unloads. Chrono is told, through the context.
+ */
 export function stopChrono(): void {
   ctx?.notifyInvalidated();
   ctx = undefined;
@@ -37,9 +62,27 @@ export function stopChrono(): void {
   stopPlayerScript = undefined;
 }
 
+/**
+ * The extension is updated, disabled or removed. Chrome leaves the running content script
+ * in the page, cut off from the extension: its code still runs, but `browser.runtime.id`
+ * is gone. Unlike `stopChrono`, nothing tells Chrono; it has to notice.
+ */
+export function invalidateExtensionContext(): void {
+  const { id } = fakeBrowser.runtime;
+  fakeBrowser.runtime.id = undefined as unknown as string;
+  onTestFinished(() => {
+    fakeBrowser.runtime.id = id;
+  });
+}
+
 /** Lets pending DOM work run: mutation observer callbacks and promise continuations. */
 export async function settle(): Promise<void> {
   for (let i = 0; i < 10; i++) await Promise.resolve();
+}
+
+/** How many Panels are in the page, including any YouTube has hidden. */
+export function countPanels(): number {
+  return queryAllByRole(document.body, 'region', { name: 'Chrono', hidden: true }).length;
 }
 
 /** Chrono's Panel as the viewer sees it, or null when there isn't one. */
