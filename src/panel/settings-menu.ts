@@ -14,7 +14,7 @@ export function createSettingsMenu(
   changeSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void,
 ): SettingsMenu {
   const elements: HTMLElement[] = [];
-  const shows: ((settings: Settings) => void)[] = [];
+  const showControls: ((settings: Settings) => void)[] = [];
 
   for (const control of SETTING_CONTROLS) {
     if (elements.length > 0) elements.push(separator());
@@ -34,7 +34,7 @@ export function createSettingsMenu(
       });
       group.append(heading, ...items.map(({ item }) => item));
       elements.push(group);
-      shows.push((settings) => {
+      showControls.push((settings) => {
         for (const { item, value } of items) item.setAttribute('aria-checked', String(value === settings[control.key]));
       });
     } else {
@@ -43,7 +43,7 @@ export function createSettingsMenu(
         changeSetting(control.key, !checked),
       );
       elements.push(item);
-      shows.push((settings) => {
+      showControls.push((settings) => {
         checked = settings[control.key];
         item.setAttribute('aria-checked', String(checked));
       });
@@ -53,7 +53,7 @@ export function createSettingsMenu(
   return {
     elements,
     show(settings) {
-      for (const show of shows) show(settings);
+      for (const showControl of showControls) showControl(settings);
     },
   };
 }

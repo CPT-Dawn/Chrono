@@ -58,8 +58,8 @@ export function createMenu(id: string, label: string): Menu {
     }
   };
   button.addEventListener('keydown', onKeyDown);
-  popup.addEventListener('keydown', onKeyDown);
   popup.addEventListener('keydown', (event) => {
+    onKeyDown(event);
     const items = [...popup.querySelectorAll<HTMLElement>(ITEMS)];
     const current = items.indexOf(event.target as HTMLElement);
     const next = nextItem(event.key, current, items.length);

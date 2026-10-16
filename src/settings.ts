@@ -4,6 +4,7 @@
 //
 // v3 starts fresh: the keys v2 stored (is24HourMode, showVideoCard, …) are never read.
 
+import type { MessageName } from '@/messages';
 import { panelExpanded } from '@/ui-state';
 
 /** How clock times are written. Automatic follows the browser's language and region. */
@@ -19,9 +20,6 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   clockFormat: 'auto',
   panelStartsExpanded: false,
 };
-
-/** The name of a message in messages.json. */
-export type MessageName = Parameters<typeof browser.i18n.getMessage>[0];
 
 /** A setting the viewer picks from a list, with the message name of each choice's label. */
 export interface ChoiceSetting<K extends keyof Settings> {
@@ -58,7 +56,7 @@ export const SETTING_CONTROLS: readonly SettingControl[] = [
   { kind: 'toggle', key: 'panelStartsExpanded', label: 'panelStartsExpanded' },
 ];
 
-const items = {
+const storageItems = {
   clockFormat: storage.defineItem<ClockFormat>('local:settings.clockFormat', {
     fallback: DEFAULT_SETTINGS.clockFormat,
   }),
@@ -67,17 +65,17 @@ const items = {
   }),
 } satisfies { [K in keyof Settings]: WxtStorageItem<Settings[K], {}> };
 
-const keys = Object.keys(items) as (keyof Settings)[];
+const keys = Object.keys(storageItems) as (keyof Settings)[];
 
 /** The viewer's current settings. */
 export async function readSettings(): Promise<Settings> {
-  const values = await Promise.all(keys.map((key) => items[key].getValue()));
+  const values = await Promise.all(keys.map((key) => storageItems[key].getValue()));
   return Object.fromEntries(keys.map((key, i) => [key, values[i]])) as unknown as Settings;
 }
 
 /** Saves one setting, which every Panel and popup then shows. */
 export async function changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void> {
-  await (items[key] as WxtStorageItem<Settings[K], {}>).setValue(value);
+  await (storageItems[key] as WxtStorageItem<Settings[K], {}>).setValue(value);
   // A new choice of how the Panel starts replaces how the viewer last left it.
   if (key === 'panelStartsExpanded') await panelExpanded.removeValue();
 }
@@ -88,7 +86,7 @@ export async function changeSetting<K extends keyof Settings>(key: K, value: Set
  */
 export function watchSettings(onChange: (settings: Settings) => void, signal: AbortSignal): void {
   for (const key of keys) {
-    const unwatch = items[key].watch(async () => {
+    const unwatch = storageItems[key].watch(async () => {
       if (!signal.aborted) onChange(await readSettings());
     });
     signal.addEventListener('abort', unwatch, { once: true });

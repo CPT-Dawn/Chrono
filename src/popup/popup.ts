@@ -1,6 +1,7 @@
 // The toolbar popup: Chrono's settings, reachable from any tab. It only reads and writes
 // extension storage, so it works the same whatever page the active tab shows.
-import { changeSetting, readSettings, SETTING_CONTROLS, watchSettings, type MessageName, type Settings } from '@/settings';
+import { changeSetting, readSettings, SETTING_CONTROLS, watchSettings, type Settings } from '@/settings';
+import type { MessageName } from '@/messages';
 
 /** Fills the popup page `document` and keeps it in step with the viewer's settings. */
 export async function startPopup(document: Document): Promise<void> {
@@ -11,6 +12,7 @@ export async function startPopup(document: Document): Promise<void> {
     return element;
   };
 
+  document.title = message('extShortName');
   const main = create('main');
   const title = create('h1', message('extShortName'));
   const note = create('p', message('popupNote'));
@@ -21,7 +23,7 @@ export async function startPopup(document: Document): Promise<void> {
   form.setAttribute('aria-labelledby', heading.id);
 
   /** Shows a setting's current value in its controls. */
-  const shows: ((settings: Settings) => void)[] = [];
+  const showControls: ((settings: Settings) => void)[] = [];
 
   for (const control of SETTING_CONTROLS) {
     if (control.kind === 'choice') {
@@ -41,7 +43,7 @@ export async function startPopup(document: Document): Promise<void> {
         return input;
       });
       form.append(fieldset);
-      shows.push((settings) => {
+      showControls.push((settings) => {
         for (const radio of radios) radio.checked = radio.value === settings[control.key];
       });
     } else {
@@ -53,7 +55,7 @@ export async function startPopup(document: Document): Promise<void> {
       wrapper.className = 'toggle';
       wrapper.append(create('span', message(control.label)), input);
       form.append(wrapper);
-      shows.push((settings) => {
+      showControls.push((settings) => {
         input.checked = settings[control.key];
       });
     }
@@ -64,7 +66,7 @@ export async function startPopup(document: Document): Promise<void> {
   document.body.append(main);
 
   const show = (settings: Settings) => {
-    for (const showOne of shows) showOne(settings);
+    for (const showControl of showControls) showControl(settings);
   };
   show(await readSettings());
   // The popup closes by unloading, which stops this.
