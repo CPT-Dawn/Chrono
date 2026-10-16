@@ -3,7 +3,6 @@ import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
 import { videoScopeTimes } from '@/time-model';
 import { changeSetting, readSettings, watchSettings } from '@/settings';
-import { panelExpanded } from '@/ui-state';
 import {
   readActiveVideo,
   readMediaSource,
@@ -24,11 +23,8 @@ const VIDEO_EVENTS = ['durationchange', 'timeupdate', 'seeking', 'ratechange', '
  * other page it removes the Panel and stops everything the Panel used.
  */
 export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
-  // Read while YouTube is still rendering, so the Panel appears the way the viewer left it,
-  // or else the way their settings say it starts.
-  const [initialSettings, remembered] = await Promise.all([readSettings(), panelExpanded.getValue()]);
-  let settings = initialSettings;
-  let expanded = remembered ?? settings.panelStartsExpanded;
+  // Read while YouTube is still rendering, so the Panel appears the way the viewer left it.
+  let settings = await readSettings();
   if (ctx.isInvalid) return;
   // A tab opened in the background waits until the viewer first looks at it.
   let seen = document.visibilityState === 'visible';
@@ -81,11 +77,6 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     panel ??= createPanel({
       locale: navigator.language,
       settings,
-      expanded,
-      onExpandedChange: (value) => {
-        expanded = value;
-        void panelExpanded.setValue(value);
-      },
       setSpeed: (speed) => speedBridge.set(speed),
       changeSetting: (key, value) => void changeSetting(key, value),
     });

@@ -8,15 +8,14 @@ import styles from './panel.css?inline';
 
 export interface PanelOptions {
   locale: string;
-  /** The viewer's settings when the Panel appears. */
+  /** The viewer's settings when the Panel appears. Its details start expanded if they say so. */
   settings: Settings;
-  /** Whether the details start expanded. */
-  expanded: boolean;
-  /** Called when the viewer expands or collapses the details. */
-  onExpandedChange(expanded: boolean): void;
   /** Called with the speed the viewer asks for. */
   setSpeed(speed: number): void;
-  /** Called with a setting the viewer changes in the ⋮ menu. */
+  /**
+   * Called with a setting the viewer changes in the ⋮ menu, or by expanding or collapsing
+   * the details, which turns "Panel starts expanded" on or off.
+   */
   changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): void;
 }
 
@@ -31,7 +30,10 @@ export interface Panel {
   setPlacement(placement: SidebarMount['placement']): void;
   /** Shows YouTube's speed, or hides the speed controls while it can't be reached. */
   showSpeed(speed: number | undefined): void;
-  /** Applies the viewer's settings when they change. The next show call uses them. */
+  /**
+   * Applies the viewer's settings when they change: the details expand or collapse at once,
+   * and the next show call uses the rest.
+   */
   setSettings(settings: Settings): void;
 }
 
@@ -42,14 +44,7 @@ const SPEED_STEP = 0.25;
  * Chrono's Panel. It lives in a shadow root so YouTube's styles and Chrono's styles
  * can't affect each other.
  */
-export function createPanel({
-  locale,
-  settings,
-  expanded,
-  onExpandedChange,
-  setSpeed,
-  changeSetting,
-}: PanelOptions): Panel {
+export function createPanel({ locale, settings, setSpeed, changeSetting }: PanelOptions): Panel {
   const element = document.createElement('section');
   element.setAttribute('aria-label', browser.i18n.getMessage('extShortName'));
   const style = document.createElement('style');
@@ -85,9 +80,9 @@ export function createPanel({
   const row = create('div', 'row');
   row.append(times, speedControls, toggle);
   row.addEventListener('click', () => {
-    expanded = !expanded;
+    settings = { ...settings, panelStartsExpanded: !settings.panelStartsExpanded };
     render();
-    onExpandedChange(expanded);
+    changeSetting('panelStartsExpanded', settings.panelStartsExpanded);
   });
 
   const title = create('span', 'title');
@@ -95,7 +90,6 @@ export function createPanel({
   const menu = createMenu('menu', browser.i18n.getMessage('moreActions'));
   const settingsMenu = createSettingsMenu(changeSetting);
   menu.popup.append(...settingsMenu.elements);
-  settingsMenu.show(settings);
   const header = create('div', 'header');
   header.append(title, menu.button, menu.popup);
 
@@ -104,8 +98,9 @@ export function createPanel({
   element.attachShadow({ mode: 'open' }).append(style, panel);
 
   function render() {
-    toggle.setAttribute('aria-expanded', String(expanded));
-    details.hidden = !expanded;
+    toggle.setAttribute('aria-expanded', String(settings.panelStartsExpanded));
+    details.hidden = !settings.panelStartsExpanded;
+    settingsMenu.show(settings);
   }
   render();
 
@@ -129,7 +124,7 @@ export function createPanel({
     },
     setSettings(value) {
       settings = value;
-      settingsMenu.show(value);
+      render();
     },
     setTheme(theme) {
       element.dataset.theme = theme;

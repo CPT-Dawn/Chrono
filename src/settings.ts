@@ -5,14 +5,16 @@
 // v3 starts fresh: the keys v2 stored (is24HourMode, showVideoCard, …) are never read.
 
 import type { MessageName } from '@/messages';
-import { panelExpanded } from '@/ui-state';
 
 /** How clock times are written. Automatic follows the browser's language and region. */
 export type ClockFormat = 'auto' | '12h' | '24h';
 
 export interface Settings {
   clockFormat: ClockFormat;
-  /** Whether the Panel's details start expanded on a fresh watch page. */
+  /**
+   * Whether the Panel's details start expanded on a fresh watch page. Expanding or
+   * collapsing them sets this too, so it is also how the viewer last left the Panel.
+   */
   panelStartsExpanded: boolean;
 }
 
@@ -76,8 +78,6 @@ export async function readSettings(): Promise<Settings> {
 /** Saves one setting, which every Panel and popup then shows. */
 export async function changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void> {
   await (storageItems[key] as WxtStorageItem<Settings[K], {}>).setValue(value);
-  // A new choice of how the Panel starts replaces how the viewer last left it.
-  if (key === 'panelStartsExpanded') await panelExpanded.removeValue();
 }
 
 /**

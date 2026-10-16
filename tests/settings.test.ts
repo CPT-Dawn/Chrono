@@ -101,31 +101,56 @@ describe('Settings', () => {
       panel.getByRole('region', { name: 'Details' });
     });
 
-    it('replaces how the viewer last left the Panel', async () => {
+    it('is turned on and off by expanding and collapsing the Panel, in the menu and the popup', async () => {
+      const { panel } = await openWatchPage();
+      const popup = await openPopup();
+      const popupSetting = popup.getByRole<HTMLInputElement>('checkbox', { name: 'Panel starts expanded' });
+      const toggle = panel.getByRole('button', { name: 'Details' });
+      const menuSetting = () => {
+        fireEvent.click(panel.getByRole('button', { name: 'More actions' }));
+        const item = panel.getByRole('menuitemcheckbox', { name: 'Panel starts expanded' });
+        fireEvent.click(panel.getByRole('button', { name: 'More actions' }));
+        return item.getAttribute('aria-checked');
+      };
+
+      fireEvent.click(toggle);
+      await settle();
+      expect(popupSetting.checked).toBe(true);
+      expect(menuSetting()).toBe('true');
+
+      fireEvent.click(toggle);
+      await settle();
+      expect(popupSetting.checked).toBe(false);
+      expect(menuSetting()).toBe('false');
+    });
+
+    it('expands and collapses an open Panel as it is turned on and off', async () => {
+      const { panel } = await openWatchPage();
+      const popup = await openPopup();
+      const setting = popup.getByRole('checkbox', { name: 'Panel starts expanded' });
+
+      fireEvent.click(setting);
+      await settle();
+      panel.getByRole('region', { name: 'Details' });
+
+      fireEvent.click(setting);
+      await settle();
+      expect(panel.queryByRole('region', { name: 'Details' })).toBeNull();
+    });
+
+    it('opens a fresh watch page the way the viewer left the Panel, even after the setting changed', async () => {
+      const popup = await openPopup();
+      fireEvent.click(popup.getByRole('checkbox', { name: 'Panel starts expanded' }));
+      await settle();
       const first = await openWatchPage();
       fireEvent.click(first.panel.getByRole('button', { name: 'Details' }));
       await settle();
       stopChrono();
-      const popup = await openPopup();
-      const setting = popup.getByRole('checkbox', { name: 'Panel starts expanded' });
-      fireEvent.click(setting);
-      await settle();
-      fireEvent.click(setting);
-      await settle();
 
       const { panel } = await openWatchPage();
 
       expect(panel.queryByRole('region', { name: 'Details' })).toBeNull();
-    });
-
-    it("doesn't collapse or expand a Panel that is already open", async () => {
-      const { panel } = await openWatchPage();
-      const popup = await openPopup();
-
-      fireEvent.click(popup.getByRole('checkbox', { name: 'Panel starts expanded' }));
-      await settle();
-
-      expect(panel.queryByRole('region', { name: 'Details' })).toBeNull();
+      expect(popup.getByRole<HTMLInputElement>('checkbox', { name: 'Panel starts expanded' }).checked).toBe(false);
     });
   });
 
