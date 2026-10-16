@@ -45,6 +45,19 @@
     "message": "Details",
     "description": "Accessible name of the Panel's expandable details area and of the button that expands and collapses it."
   },
+  "speedTable": {
+    "message": "Speed table",
+    "description": "Accessible name of the list of common speeds, each with its remaining watch time and finish time."
+  },
+  "speedTableRow": {
+    "message": "$SPEED$: $REMAINING$ left, ends $TIME$",
+    "description": "Accessible name of a speed table row, which applies that speed when clicked, e.g. \"1.5×: 8:20 left, ends 3:08 PM\".",
+    "placeholders": {
+      "speed": { "content": "$1", "example": "1.5×" },
+      "remaining": { "content": "$2", "example": "8:20" },
+      "time": { "content": "$3", "example": "3:08 PM" }
+    }
+  },
   "moreActions": {
     "message": "More actions",
     "description": "Accessible name of the Panel's ⋮ menu button and of the menu it opens."

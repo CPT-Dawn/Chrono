@@ -2,6 +2,7 @@ import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { ScopeTimes } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createMenu } from './menu';
+import { createSpeedTable } from './speed-table';
 import styles from './panel.css?inline';
 
 export interface PanelOptions {
@@ -58,6 +59,8 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
   details.id = 'details';
   details.setAttribute('role', 'region');
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
+  const videoTable = createSpeedTable(locale, setSpeed);
+  details.append(videoTable.element);
 
   const toggle = create('button', 'icon-button toggle') as HTMLButtonElement;
   toggle.type = 'button';
@@ -85,15 +88,26 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
   panel.append(header, row, details);
   element.attachShadow({ mode: 'open' }).append(style, panel);
 
+  /** The Video scope's latest times, for the details to show when they're expanded. */
+  let video: { times: ScopeTimes; now: Date } | undefined;
+
   function render() {
     toggle.setAttribute('aria-expanded', String(expanded));
     details.hidden = !expanded;
+    renderDetails();
+  }
+
+  // Collapsed details stay empty, so Chrono doesn't keep updating what nobody can see.
+  function renderDetails() {
+    videoTable.show(expanded && video ? video.times.speedTable : [], video?.now ?? new Date());
   }
   render();
 
   return {
     element,
     showVideo(times, now) {
+      video = times && { times, now };
+      renderDetails();
       if (!times) {
         remaining.textContent = '';
         finish.textContent = '';
@@ -105,6 +119,7 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
     },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
+      videoTable.setEnabled(speed !== undefined);
       if (speed === undefined) return;
       currentSpeed = speed;
       speedLabel.textContent = speedText(speed);
