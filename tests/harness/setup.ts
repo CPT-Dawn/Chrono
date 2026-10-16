@@ -38,6 +38,7 @@ configure({
 
 afterEach(() => {
   stopChrono();
+  fakeBrowser.reset();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });

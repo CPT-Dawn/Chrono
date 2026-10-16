@@ -21,6 +21,16 @@ export interface SavedPage {
   readonly player: FakePlayer;
   /** YouTube's sidebar column on a watch page. */
   readonly sidebar: Element;
+  /** YouTube's related videos, which sit in the sidebar or below the video. */
+  readonly related: Element;
+  /**
+   * Lays the watch page out as YouTube does for the window's width: the video and sidebar
+   * side by side, or (in a narrow window) one column with the sidebar's contents below
+   * the video.
+   */
+  setLayout(layout: 'two-columns' | 'one-column'): void;
+  /** Switches YouTube's theme, as its Appearance menu does. */
+  setTheme(theme: 'light' | 'dark'): void;
   /**
    * Takes an element out of the page, as if YouTube hadn't rendered it yet.
    * Returns a function that puts it back where it was.
@@ -79,6 +89,13 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
     get sidebar() {
       return fromWatchPage(sidebar);
     },
+    get related() {
+      return required('ytd-watch-flexy #related');
+    },
+    setLayout,
+    setTheme(theme) {
+      document.documentElement.toggleAttribute('dark', theme === 'dark');
+    },
     withhold(element) {
       const parent = element.parentNode!;
       const next = element.nextSibling;
@@ -126,6 +143,27 @@ export async function navigate(url: string): Promise<void> {
 function fireNavigationEvent(type: string): void {
   const app = document.querySelector('ytd-app') ?? document;
   app.dispatchEvent(new CustomEvent(type, { bubbles: true, composed: true }));
+}
+
+// What YouTube did on youtube.com in Oct 2026 when the window crossed its two-column
+// breakpoint: it flipped the attribute and moved these blocks in the same task.
+const SIDEBAR_BLOCKS = {
+  'two-columns': ['#panels', '#chat-container', '#playlist', '#inline-panels'],
+  'one-column': ['#playlist', '#panels', '#chat-container', '#inline-panels'],
+};
+
+function setLayout(layout: 'two-columns' | 'one-column'): void {
+  const flexy = required('ytd-watch-flexy');
+  const blocks = SIDEBAR_BLOCKS[layout].map((id) => required(`ytd-watch-flexy ${id}`));
+  const related = required('ytd-watch-flexy #related');
+  flexy.toggleAttribute('is-two-columns_', layout === 'two-columns');
+  if (layout === 'one-column') {
+    required('ytd-watch-flexy #below > #shopping-timely-shelf').after(...blocks);
+    required('ytd-watch-flexy #below > .box').prepend(related);
+  } else {
+    required('ytd-watch-flexy #secondary-inner > #persistent-panel-container').before(...blocks);
+    required('ytd-watch-flexy #secondary-inner').append(related);
+  }
 }
 
 function required<T extends Element>(selector: string): T {

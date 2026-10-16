@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { queryPanel, settle, startChrono } from './harness/chrono';
-import { openSavedPage } from './harness/youtube';
+import { openSavedPage, type SavedPage } from './harness/youtube';
 
 const WATCH_URL = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
 
@@ -101,6 +101,44 @@ describe('Panel on a watch page', () => {
     queryPanel()!.getByText('16:40 left at 1×');
   });
 
+  it('moves below the video with the sidebar in a narrow window, and back again', async () => {
+    const page = openSavedPage('watch-delhi', WATCH_URL);
+    page.video.load({ duration: 1000 });
+    await startChrono();
+    const panel = queryPanel()!;
+
+    page.setLayout('one-column');
+    await settle();
+
+    expectBelowVideo(page, panel.element);
+
+    page.setLayout('two-columns');
+    await settle();
+
+    expect(page.sidebar.firstElementChild).toBe(panel.element);
+  });
+
+  it('appears below the video on a page that opens in a narrow window', async () => {
+    const page = openSavedPage('watch-delhi', WATCH_URL);
+    page.video.load({ duration: 1000 });
+    page.setLayout('one-column');
+
+    await startChrono();
+
+    const panel = queryPanel()!;
+    expectBelowVideo(page, panel.element);
+  });
+
+  it("goes at the top of the sidebar when YouTube renders none of the sidebar's usual blocks", async () => {
+    const page = openSavedPage('watch-delhi', WATCH_URL);
+    page.video.load({ duration: 1000 });
+    for (const block of page.sidebar.querySelectorAll(':scope > :is(#panels, #playlist)')) block.remove();
+
+    await startChrono();
+
+    expect(page.sidebar.firstElementChild).toBe(queryPanel()!.element);
+  });
+
   // YouTube keeps a watch page's elements in the document after the viewer moves on.
   it.each([
     'https://www.youtube.com/',
@@ -118,3 +156,14 @@ describe('Panel on a watch page', () => {
     expect(queryPanel()).toBeNull();
   });
 });
+
+/** The Panel sits between the video and the related videos, outside the sidebar column YouTube hides. */
+function expectBelowVideo(page: SavedPage, panel: Element): void {
+  expect(page.sidebar.contains(panel)).toBe(false);
+  expect(isBefore(page.video.element, panel)).toBe(true);
+  expect(isBefore(panel, page.related)).toBe(true);
+}
+
+function isBefore(a: Node, b: Node): boolean {
+  return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+}

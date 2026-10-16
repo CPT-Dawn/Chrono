@@ -2,7 +2,16 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
 import { videoScopeTimes } from '@/time-model';
-import { readActiveVideo, readMediaSource, readPage, readSidebarMount, watchNavigation } from '@/youtube/adapter';
+import { panelExpanded } from '@/ui-state';
+import {
+  readActiveVideo,
+  readMediaSource,
+  readPage,
+  readSidebarMount,
+  readTheme,
+  watchNavigation,
+  watchTheme,
+} from '@/youtube/adapter';
 
 /** The video's events that can change what the Panel shows. */
 const VIDEO_EVENTS = ['durationchange', 'timeupdate', 'seeking', 'ratechange', 'play', 'pause'];
@@ -13,7 +22,10 @@ const VIDEO_EVENTS = ['durationchange', 'timeupdate', 'seeking', 'ratechange', '
  * sidebar. It follows YouTube's navigation and video swaps without a reload, and on every
  * other page it removes the Panel and stops everything the Panel used.
  */
-export function startWatchPage(ctx: ContentScriptContext): void {
+export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
+  // Read while YouTube is still rendering, so the Panel appears the way the viewer left it.
+  let expanded = await panelExpanded.getValue();
+  if (ctx.isInvalid) return;
   // A tab opened in the background waits until the viewer first looks at it.
   let seen = document.visibilityState === 'visible';
   let panel: Panel | undefined;
@@ -34,6 +46,8 @@ export function startWatchPage(ctx: ContentScriptContext): void {
    * 2026 YouTube finished every navigation it started, even ones that failed offline.
    */
   let navigating = false;
+  /** What stops the Panel following YouTube's theme. */
+  let themeWatch: AbortController | undefined;
   /** YouTube's player speed, while the Speed bridge can reach it. */
   let playerSpeed: number | undefined;
 
@@ -60,12 +74,32 @@ export function startWatchPage(ctx: ContentScriptContext): void {
       return;
     }
 
-    panel ??= createPanel(navigator.language, (speed) => speedBridge.set(speed));
+    panel ??= createPanel({
+      locale: navigator.language,
+      expanded,
+      onExpandedChange: (value) => {
+        expanded = value;
+        void panelExpanded.setValue(value);
+      },
+      setSpeed: (speed) => speedBridge.set(speed),
+    });
+    if (!themeWatch) {
+      themeWatch = new AbortController();
+      panel.setTheme(readTheme(document));
+      watchTheme(document, (theme) => panel?.setTheme(theme), themeWatch.signal);
+    }
     // The finish time moves with the clock even when the video doesn't, though nobody
     // sees it move in a hidden tab.
     setClock(document.visibilityState === 'visible');
-    const moved = panel.element.parentNode !== sidebar.value;
-    if (moved) sidebar.value.prepend(panel.element);
+    const { container, firstBlock, placement } = sidebar.value;
+    const moved = firstBlock
+      ? panel.element.nextElementSibling !== firstBlock
+      : panel.element.parentNode !== container || panel.element !== container.firstElementChild;
+    if (moved) {
+      if (firstBlock) firstBlock.before(panel.element);
+      else container.prepend(panel.element);
+    }
+    panel.setPlacement(placement);
     const switched = followed?.video !== video.value;
     if (switched) follow(video.value);
     if (moved || switched) render();
@@ -86,6 +120,8 @@ export function startWatchPage(ctx: ContentScriptContext): void {
     setClock(false);
     followed?.listening.abort();
     followed = undefined;
+    themeWatch?.abort();
+    themeWatch = undefined;
   }
 
   /** Removes the Panel and stops watching the page until YouTube navigates to a watch page. */

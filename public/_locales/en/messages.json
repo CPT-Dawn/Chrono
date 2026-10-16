@@ -40,5 +40,13 @@
   "faster": {
     "message": "Faster",
     "description": "Accessible name of the Panel's + button, which raises the speed by 0.25×."
+  },
+  "details": {
+    "message": "Details",
+    "description": "Accessible name of the Panel's expandable details area and of the button that expands and collapses it."
+  },
+  "moreActions": {
+    "message": "More actions",
+    "description": "Accessible name of the Panel's ⋮ menu button and of the menu it opens."
   }
 }

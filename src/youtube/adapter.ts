@@ -36,10 +36,65 @@ export function readActiveVideo(doc: Document): Reading<HTMLVideoElement> {
   return video ? recognised(video) : unrecognised('video');
 }
 
-/** The element at whose top the Panel goes: the inside of YouTube's sidebar column. */
-export function readSidebarMount(doc: Document): Reading<Element> {
-  const sidebar = doc.querySelector(`${WATCH_PAGE} #secondary #secondary-inner`);
-  return sidebar ? recognised(sidebar) : unrecognised('sidebar');
+// YouTube's sidebar column holds these blocks above its related videos. In a narrow
+// window YouTube hides the column and moves the blocks below the video, in another order.
+const SIDEBAR_COLUMN = `${WATCH_PAGE}[is-two-columns_] #secondary #secondary-inner`;
+const BELOW_VIDEO = `${WATCH_PAGE}:not([is-two-columns_]) #primary #below`;
+const SIDEBAR_BLOCKS = ':scope > :is(#panels, #playlist)';
+
+export interface SidebarMount {
+  /** Where the sidebar's contents are: its column, or (in a narrow window) below the video. */
+  container: Element;
+  /**
+   * The first of the sidebar's blocks, which the Panel goes above. Null when YouTube
+   * hasn't rendered any of them, and the Panel goes at the top of the container.
+   */
+  firstBlock: Element | null;
+  placement: 'sidebar' | 'below-video';
+}
+
+/** Where the Panel goes: above the sidebar's blocks, wherever YouTube's layout has put them. */
+export function readSidebarMount(doc: Document): Reading<SidebarMount> {
+  const column = doc.querySelector(SIDEBAR_COLUMN);
+  if (column) {
+    return recognised({ container: column, firstBlock: column.querySelector(SIDEBAR_BLOCKS), placement: 'sidebar' });
+  }
+  // Below the video, the blocks are the only sign of where YouTube put the sidebar.
+  const below = doc.querySelector(BELOW_VIDEO);
+  const firstBlock = below?.querySelector(SIDEBAR_BLOCKS);
+  if (below && firstBlock) return recognised({ container: below, firstBlock, placement: 'below-video' });
+  return unrecognised('sidebar');
+}
+
+/**
+ * Calls `onChange` with the new mount whenever YouTube switches between its two-column
+ * and one-column layouts, until `signal` aborts. YouTube moves the sidebar's blocks in
+ * the same task as the switch, so they are already in their new place.
+ */
+export function watchSidebarMount(
+  doc: Document,
+  onChange: (mount: Reading<SidebarMount>) => void,
+  signal: AbortSignal,
+): void {
+  const watchPage = doc.querySelector(WATCH_PAGE);
+  if (!watchPage) return;
+  const observer = new MutationObserver(() => onChange(readSidebarMount(doc)));
+  observer.observe(watchPage, { attributes: true, attributeFilter: ['is-two-columns_'] });
+  signal.addEventListener('abort', () => observer.disconnect());
+}
+
+export type Theme = 'light' | 'dark';
+
+/** YouTube's colour theme. YouTube flags dark with an attribute on `<html>`; light is its absence. */
+export function readTheme(doc: Document): Theme {
+  return doc.documentElement.hasAttribute('dark') ? 'dark' : 'light';
+}
+
+/** Calls `onChange` with the new theme whenever YouTube switches it, until `signal` aborts. */
+export function watchTheme(doc: Document, onChange: (theme: Theme) => void, signal: AbortSignal): void {
+  const observer = new MutationObserver(() => onChange(readTheme(doc)));
+  observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['dark'] });
+  signal.addEventListener('abort', () => observer.disconnect());
 }
 
 // YouTube's player speed API. YouTube adds it to the player element from the page's own
