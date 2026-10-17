@@ -32,7 +32,7 @@ async function openChapters(name: string, position: number) {
 }
 
 /**
- * What the Panel's Chapter scope says above its speed table, line by line, and the table's
+ * What the Panel's Chapter scope says outside its target and speed table, line by line, and the table's
  * rows as a screen reader announces them. Null when the Panel shows no Chapter scope.
  */
 function readChapterScope(panelElement: HTMLElement) {
@@ -41,8 +41,12 @@ function readChapterScope(panelElement: HTMLElement) {
   if (!element) return null;
   const scope = within(element);
   const table = scope.getByRole('group', { name: 'Chapter speed table' });
+  const target = scope.getByRole('group', { name: 'Chapter target' });
   return {
-    summary: scope.getAllByText(/./).filter((line) => !table.contains(line)).map((line) => line.textContent),
+    summary: scope
+      .getAllByText(/./)
+      .filter((line) => !table.contains(line) && !target.contains(line))
+      .map((line) => line.textContent),
     rows: within(table).getAllByRole('button').map((row) => row.getAttribute('aria-label')),
   };
 }

@@ -10,6 +10,7 @@
   --hover: rgba(0, 0, 0, 0.1);
   --menu: rgb(255, 255, 255);
   --menu-shadow: 0 4px 32px rgba(0, 0, 0, 0.1);
+  --error: rgb(204, 0, 0);
 
   display: block;
   margin-bottom: 12px;
@@ -26,6 +27,7 @@
   --hover: rgba(255, 255, 255, 0.2);
   --menu: rgb(40, 40, 40);
   --menu-shadow: none;
+  --error: rgb(255, 78, 69);
 }
 
 /* YouTube leaves no gap between the video and what it moves below it. */
@@ -273,7 +275,8 @@
   color: var(--text-secondary);
 }
 
-.target-row input {
+.target-row input,
+.target-row select {
   width: 64px;
   height: 28px;
   padding: 0 8px;
@@ -282,6 +285,79 @@
   background: transparent;
   color: inherit;
   font: inherit;
+}
+
+.target-row select {
+  width: auto;
+  padding: 0 4px;
+}
+
+/* The browser's own list of options follows the Panel's theme. */
+.target-row select option {
+  background: var(--menu);
+  color: var(--text);
+}
+
+/* A scope's target sits between its times and its speed table. */
+.target-control {
+  margin: 6px 0;
+}
+
+.target-control .target-row {
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.target-fields {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.target-fields input {
+  width: 52px;
+}
+
+/* A value outside the field's range doesn't change the target, so the field says so. */
+.target-fields input:invalid {
+  border-color: var(--error);
+}
+
+.target-unit {
+  color: var(--text-secondary);
+}
+
+.target-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.target-message {
+  flex: 1;
+}
+
+.target-apply {
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 16px;
+  background: var(--hover);
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* One more layer of the palette's tint, as YouTube's pill buttons darken on hover. */
+.target-apply:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 100px var(--surface);
+}
+
+.target-apply:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 [hidden] {

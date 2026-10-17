@@ -1,24 +1,26 @@
 // The Panel's Playlist scope: the remaining and finish time up to the target entry, notes on
-// what it couldn't count, the target entry input and the scope's speed table. With Shuffle
-// on it shows a notice instead.
+// what it couldn't count, the target entry input, the scope's target and its speed table.
+// With Shuffle on it shows a notice instead.
 import { formatCount } from '@/format';
 import type { ClockFormat } from '@/settings';
-import type { PlaylistScope } from '@/time-model';
+import type { PlaylistScope, Target } from '@/time-model';
 import { timesText } from './scope-text';
 import { createSpeedTable } from './speed-table';
+import { createTarget } from './target';
 
 export interface PlaylistScopeView {
   element: HTMLElement;
   /** Shows the scope, or hides it when there's nothing to show. */
   show(scope: PlaylistScope, now: Date, clockFormat: ClockFormat): void;
-  /** Lets speed table rows apply their speed, or not while YouTube's speed can't be reached. */
+  /** Lets the speed table and target apply speeds, or not while YouTube's speed can't be reached. */
   setEnabled(enabled: boolean): void;
 }
 
 export function createPlaylistScope(
   locale: string,
   setSpeed: (speed: number) => void,
-  setTarget: (target: number) => void,
+  setTargetEntry: (entry: number) => void,
+  setTarget: (target: Target | undefined) => void,
 ): PlaylistScopeView {
   const element = document.createElement('div');
   element.className = 'scope';
@@ -43,19 +45,20 @@ export function createPlaylistScope(
   const label = document.createElement('label');
   label.className = 'target';
   label.htmlFor = input.id;
-  label.textContent = browser.i18n.getMessage('playlistTarget');
-  const target = create('div', 'target-row');
-  target.append(label, input);
+  label.textContent = browser.i18n.getMessage('playlistTargetEntry');
+  const entryRow = create('div', 'target-row');
+  entryRow.append(label, input);
 
+  const target = createTarget('playlist', 'playlistTarget', locale, setTarget, setSpeed);
   const table = createSpeedTable(locale, setSpeed, 'playlistSpeedTable');
-  element.append(heading, times, notes, target, table.element, notice);
+  element.append(heading, times, notes, entryRow, target.element, table.element, notice);
 
   /** The target entry the scope last showed, which a rejected entry goes back to. */
   let shownTarget: number | undefined;
   input.addEventListener('change', () => {
     const value = Number(input.value);
     if (Number.isInteger(value) && value >= Number(input.min) && value <= Number(input.max)) {
-      setTarget(value);
+      setTargetEntry(value);
     } else if (shownTarget !== undefined) {
       input.value = String(shownTarget);
     }
@@ -66,9 +69,10 @@ export function createPlaylistScope(
     show(scope, now, clockFormat) {
       element.hidden = scope.kind === 'none';
       const counting = scope.kind === 'times';
-      for (const part of [times, notes, target, table.element]) part.hidden = !counting;
+      for (const part of [times, notes, entryRow, table.element]) part.hidden = !counting;
       notice.hidden = scope.kind !== 'shuffle';
       if (!counting) {
+        target.show(undefined, now, clockFormat);
         table.show([], now, clockFormat);
         shownTarget = undefined;
         return;
@@ -89,11 +93,13 @@ export function createPlaylistScope(
       // The scope updates several times a second: leave the input alone while the viewer is
       // typing in it, unless the target itself changed.
       const typing = (input.getRootNode() as Document | ShadowRoot).activeElement === input;
-      if (!typing || scope.target !== shownTarget) input.value = String(scope.target);
-      shownTarget = scope.target;
+      if (!typing || scope.targetEntry !== shownTarget) input.value = String(scope.targetEntry);
+      shownTarget = scope.targetEntry;
+      target.show(scope.times, now, clockFormat);
       table.show(scope.times.speedTable, now, clockFormat);
     },
     setEnabled(enabled) {
+      target.setEnabled(enabled);
       table.setEnabled(enabled);
     },
   };

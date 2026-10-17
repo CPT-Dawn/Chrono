@@ -125,7 +125,7 @@
     "message": "Playlist",
     "description": "Heading of the Playlist scope: the current video plus the following playlist entries up to the target entry."
   },
-  "playlistTarget": {
+  "playlistTargetEntry": {
     "message": "Up to video",
     "description": "Label of the input that chooses the last playlist entry the Playlist scope counts, by its number in the playlist."
   },
@@ -147,6 +147,107 @@
   "playlistShuffle": {
     "message": "Shuffle is on, so no playlist estimate",
     "description": "Shown in place of the Playlist scope's times while the playlist's Shuffle button is on."
+  },
+  "videoTarget": {
+    "message": "Video target",
+    "description": "Accessible name of the Video scope's target: the finish time or watch time the viewer sets for the rest of the video, and the speed it needs."
+  },
+  "chapterTarget": {
+    "message": "Chapter target",
+    "description": "Accessible name of the Chapter scope's target: the finish time or watch time the viewer sets for the rest of the current chapter, and the speed it needs."
+  },
+  "playlistTarget": {
+    "message": "Playlist target",
+    "description": "Accessible name of the Playlist scope's target: the finish time or watch time the viewer sets for the rest of the playlist up to the target entry, and the speed it needs."
+  },
+  "target": {
+    "message": "Target",
+    "description": "Label of the list that chooses a scope's target: none, a finish time or a watch time."
+  },
+  "targetNone": {
+    "message": "No target",
+    "description": "Target choice: the scope has no target."
+  },
+  "targetFinishTime": {
+    "message": "Done by",
+    "description": "Target choice: finish the scope by a clock time, as in \"Done by 3:30 PM\"."
+  },
+  "targetWatchTime": {
+    "message": "I have",
+    "description": "Target choice: the viewer has an amount of watch time for the rest of the scope, as in \"I have 0 h 45 min\"."
+  },
+  "targetHour": {
+    "message": "Hour",
+    "description": "Accessible name of the hour field of a finish-time target."
+  },
+  "targetMinute": {
+    "message": "Minute",
+    "description": "Accessible name of the minute field of a finish-time target."
+  },
+  "targetPeriod": {
+    "message": "AM or PM",
+    "description": "Accessible name of the list that chooses AM or PM for a finish-time target, on a 12-hour clock."
+  },
+  "targetHours": {
+    "message": "Hours",
+    "description": "Accessible name of the hours field of a watch-time target."
+  },
+  "targetMinutes": {
+    "message": "Minutes",
+    "description": "Accessible name of the minutes field of a watch-time target."
+  },
+  "targetHoursUnit": {
+    "message": "h",
+    "description": "Short unit shown after the hours field of a watch-time target, as in \"1 h 30 min\"."
+  },
+  "targetMinutesUnit": {
+    "message": "min",
+    "description": "Short unit shown after the minutes field of a watch-time target, as in \"1 h 30 min\"."
+  },
+  "requiredSpeed": {
+    "message": "Needs $SPEED$",
+    "description": "The speed at which the scope's remaining meets its target, e.g. \"Needs 1.35×\".",
+    "placeholders": {
+      "speed": { "content": "$1", "example": "1.35×" }
+    }
+  },
+  "requiredSpeedTooFast": {
+    "message": "Needs $SPEED$ · beyond YouTube's $LIMIT$ limit",
+    "description": "The speed a target needs, rounded to 0.05×, when it is faster than YouTube can play, e.g. \"Needs 2.6× · beyond YouTube's 2× limit\".",
+    "placeholders": {
+      "speed": { "content": "$1", "example": "2.6×" },
+      "limit": { "content": "$2", "example": "2×" }
+    }
+  },
+  "requiredSpeedTooSlow": {
+    "message": "Slower than YouTube's $LIMIT$ limit",
+    "description": "Shown in place of the required speed when a target needs a speed slower than YouTube can play, e.g. \"Slower than YouTube's 0.25× limit\".",
+    "placeholders": {
+      "limit": { "content": "$1", "example": "0.25×" }
+    }
+  },
+  "targetPassed": {
+    "message": "That time has already passed",
+    "description": "Shown in place of the required speed when the target's finish time is in the past."
+  },
+  "targetNoTime": {
+    "message": "Choose a watch time above zero",
+    "description": "Shown in place of the required speed when the target's watch time is zero."
+  },
+  "targetFinished": {
+    "message": "Nothing left to watch",
+    "description": "Shown in place of the required speed when the scope has already ended."
+  },
+  "applySpeed": {
+    "message": "Apply",
+    "description": "Button that sets YouTube's speed to the speed a target needs."
+  },
+  "applySpeedLabel": {
+    "message": "Apply $SPEED$",
+    "description": "Accessible name of the button that sets YouTube's speed to the speed a target needs, e.g. \"Apply 1.35×\".",
+    "placeholders": {
+      "speed": { "content": "$1", "example": "1.35×" }
+    }
   },
   "panelStartsExpanded": {
     "message": "Panel starts expanded",
