@@ -1,8 +1,9 @@
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { Settings } from '@/settings';
-import type { ScopeTimes, VideoScope } from '@/time-model';
+import type { PlaylistScope, ScopeTimes, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createMenu } from './menu';
+import { createPlaylistScope } from './playlist-scope';
 import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
 import styles from './panel.css?inline';
@@ -18,6 +19,8 @@ export interface PanelOptions {
    * the details, which turns "Panel starts expanded" on or off.
    */
   changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): void;
+  /** Called with the playlist entry number the viewer chooses to count the Playlist scope up to. */
+  setPlaylistTarget(target: number): void;
 }
 
 export interface Panel {
@@ -25,6 +28,8 @@ export interface Panel {
   element: HTMLElement;
   /** Shows the Video scope: its times, a quiet ad-break or live state, or nothing. */
   showVideo(scope: VideoScope, now: Date): void;
+  /** Shows the Playlist scope, a notice in its place, or nothing. */
+  showPlaylist(scope: PlaylistScope, now: Date): void;
   /** Switches to Chrono's colours for YouTube's theme. */
   setTheme(theme: Theme): void;
   /** Adjusts spacing for where the Panel sits in YouTube's layout. */
@@ -45,7 +50,7 @@ const SPEED_STEP = 0.25;
  * Chrono's Panel. It lives in a shadow root so YouTube's styles and Chrono's styles
  * can't affect each other.
  */
-export function createPanel({ locale, settings, setSpeed, changeSetting }: PanelOptions): Panel {
+export function createPanel({ locale, settings, setSpeed, changeSetting, setPlaylistTarget }: PanelOptions): Panel {
   const element = document.createElement('section');
   element.setAttribute('aria-label', browser.i18n.getMessage('extShortName'));
   const style = document.createElement('style');
@@ -70,7 +75,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting }: Panel
   details.setAttribute('role', 'region');
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
   const videoTable = createSpeedTable(locale, setSpeed);
-  details.append(videoTable.element);
+  const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTarget);
+  details.append(videoTable.element, playlistView.element);
 
   const toggle = create('button', 'icon-button toggle') as HTMLButtonElement;
   toggle.type = 'button';
@@ -102,6 +108,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting }: Panel
 
   /** The Video scope's latest times, for the details to show when they're expanded. */
   let videoTimes: { times: ScopeTimes; now: Date } | undefined;
+  /** The Playlist scope's latest state, likewise. */
+  let playlist: { scope: PlaylistScope; now: Date } = { scope: { kind: 'none' }, now: new Date() };
 
   function render() {
     toggle.setAttribute('aria-expanded', String(settings.panelStartsExpanded));
@@ -112,8 +120,18 @@ export function createPanel({ locale, settings, setSpeed, changeSetting }: Panel
 
   // Collapsed details stay empty, so Chrono doesn't keep updating what nobody can see.
   function renderDetails() {
+    renderVideoDetails();
+    renderPlaylist();
+  }
+
+  function renderVideoDetails() {
     const rows = settings.panelStartsExpanded && videoTimes ? videoTimes.times.speedTable : [];
     videoTable.show(rows, videoTimes?.now ?? new Date(), settings.clockFormat);
+  }
+
+  function renderPlaylist() {
+    const showPlaylist = settings.panelStartsExpanded && settings.showPlaylistScope;
+    playlistView.show(showPlaylist ? playlist.scope : { kind: 'none' }, playlist.now, settings.clockFormat);
   }
   render();
 
@@ -122,7 +140,7 @@ export function createPanel({ locale, settings, setSpeed, changeSetting }: Panel
     showVideo(scope, now) {
       // During an ad or on live content the speed table has nothing to show either.
       videoTimes = scope.kind === 'times' ? { times: scope.times, now } : undefined;
-      renderDetails();
+      renderVideoDetails();
       if (scope.kind !== 'times') {
         remaining.textContent = STATE_TEXT[scope.kind]();
         finish.textContent = '';
@@ -133,9 +151,14 @@ export function createPanel({ locale, settings, setSpeed, changeSetting }: Panel
       remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
       finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, settings.clockFormat));
     },
+    showPlaylist(scope, now) {
+      playlist = { scope, now };
+      renderPlaylist();
+    },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
       videoTable.setEnabled(speed !== undefined);
+      playlistView.setEnabled(speed !== undefined);
       if (speed === undefined) return;
       currentSpeed = speed;
       speedLabel.textContent = speedText(speed);

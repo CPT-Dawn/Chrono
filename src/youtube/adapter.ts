@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live';
+export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'playlist';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -230,4 +230,146 @@ export function watchNavigation(doc: Document, handlers: NavigationHandlers, sig
  */
 export function readMediaSource(video: HTMLVideoElement): string {
   return video.src;
+}
+
+// Playlists. A watch page in a playlist has the playlist's id in its address, and lists the
+// playlist's entries in a panel in the sidebar (or below the video, in a narrow window).
+// Every query is scoped to that panel: YouTube keeps other lists of the same videos in the
+// page, such as the playlist page the viewer came from, hidden but complete.
+
+/** An entry in a playlist, as YouTube's playlist panel lists it. */
+export interface PlaylistEntry {
+  /** The number YouTube shows beside the entry. YouTube doesn't number entries it hides. */
+  number: number;
+  /** The entry's length in seconds of content time, or undefined when YouTube can't play it. */
+  duration: number | undefined;
+  /** Whether this is the entry YouTube is playing. */
+  selected: boolean;
+  /** The video the entry plays. */
+  videoId: string | undefined;
+}
+
+export type Playlist =
+  /** A Mix or radio playlist, which YouTube makes up as it plays and which has no end. */
+  | { kind: 'mix'; id: string }
+  | {
+      kind: 'playlist';
+      id: string;
+      /** Whether the viewer has turned on the panel's Shuffle button. */
+      shuffle: boolean;
+      /** The entries YouTube has loaded into its panel so far, in order. */
+      entries: PlaylistEntry[];
+      /** How many entries the playlist has, including any not loaded and any unavailable. */
+      total: number;
+      /** How many unavailable entries YouTube left out of the panel, saying only how many. */
+      hiddenUnavailable: number;
+    };
+
+const PLAYLIST_PANEL = `${WATCH_PAGE} ytd-playlist-panel-renderer#playlist`;
+const PLAYLIST_ENTRIES = ':scope #items > ytd-playlist-panel-video-renderer';
+const PLAYLIST_HIDDEN_MESSAGE = ':scope #items > ytd-message-renderer';
+/** "2 / 8": the playing entry's number and the playlist's length, in the panel's header. */
+const PLAYLIST_POSITION = ':scope #publisher-container .index-message';
+const PLAYLIST_SHUFFLE = ':scope #playlist-action-menu ytd-toggle-button-renderer button[aria-pressed]';
+const ENTRY_NUMBER = ':scope #index';
+const ENTRY_LINK = ':scope a#wc-endpoint';
+const ENTRY_DURATION = ':scope ytd-thumbnail-overlay-time-status-renderer :is(badge-shape, #text)';
+const ENTRY_UNPLAYABLE = ':scope #unplayableText:not([hidden])';
+
+/**
+ * The playlist the watch page is playing, or undefined when it isn't playing one. YouTube
+ * marks Mixes and radio playlists by starting their id with RD.
+ */
+export function readPlaylist(doc: Document, location: Location): Reading<Playlist | undefined> {
+  const id = new URLSearchParams(location.search).get('list');
+  if (!id) return recognised(undefined);
+  if (id.startsWith('RD')) return recognised({ kind: 'mix', id });
+
+  const panel = doc.querySelector(PLAYLIST_PANEL);
+  if (!panel) return unrecognised('playlist');
+  const total = [...panel.querySelectorAll(PLAYLIST_POSITION)]
+    .map((element) => /\d[\d\s.,]*\/\s*(\d[\d\s.,]*)/.exec(element.textContent ?? '')?.[1])
+    .find((length) => length !== undefined);
+  const entries = readPlaylistEntries(panel);
+  if (total === undefined || entries.length === 0 || !entries.some((entry) => entry.selected)) {
+    return unrecognised('playlist');
+  }
+  // "8 unavailable videos are hidden", in the viewer's language.
+  const hidden = /\d[\d\s.,]*/.exec(panel.querySelector(PLAYLIST_HIDDEN_MESSAGE)?.textContent ?? '')?.[0];
+  return recognised({
+    kind: 'playlist',
+    id,
+    shuffle: panel.querySelector(PLAYLIST_SHUFFLE)?.getAttribute('aria-pressed') === 'true',
+    entries,
+    total: parseCount(total),
+    hiddenUnavailable: hidden === undefined ? 0 : parseCount(hidden),
+  });
+}
+
+function readPlaylistEntries(panel: Element): PlaylistEntry[] {
+  const entries = [...panel.querySelectorAll(PLAYLIST_ENTRIES)].map((entry) => {
+    const href = entry.querySelector(ENTRY_LINK)?.getAttribute('href');
+    const unplayable = entry.querySelector(ENTRY_UNPLAYABLE) !== null;
+    const duration = [...entry.querySelectorAll(ENTRY_DURATION)]
+      .map((element) => parseDuration(element.textContent ?? ''))
+      .find((seconds) => seconds !== undefined);
+    return {
+      // The playing entry shows ▶ in place of its number.
+      number: Number(entry.querySelector(ENTRY_NUMBER)?.textContent?.trim()) || undefined,
+      duration: unplayable ? undefined : duration,
+      selected: entry.hasAttribute('selected'),
+      videoId: (href && new URL(href, 'https://www.youtube.com').searchParams.get('v')) || undefined,
+    };
+  });
+  // Entries are numbered one after another, so a missing number follows from its neighbours.
+  return entries.map((entry, i) => {
+    if (entry.number !== undefined) return { ...entry, number: entry.number };
+    const before = entries.slice(0, i).findLastIndex((e) => e.number !== undefined);
+    const after = entries.findIndex((e, j) => j > i && e.number !== undefined);
+    const number =
+      before !== -1
+        ? entries[before]!.number! + (i - before)
+        : after !== -1
+          ? entries[after]!.number! - (after - i)
+          : i + 1;
+    return { ...entry, number };
+  });
+}
+
+/** A count YouTube writes with the viewer's digit grouping, e.g. "1,204". */
+function parseCount(text: string): number {
+  return Number(text.replace(/\D/g, ''));
+}
+
+/** A length written the way YouTube writes one, e.g. "4:05" or "1:02:03", in seconds. */
+function parseDuration(text: string): number | undefined {
+  const parts = text.trim().split(':');
+  if (parts.length < 2 || parts.length > 3 || !parts.every((part) => /^\d+$/.test(part))) return undefined;
+  return parts.reduce((seconds, part) => seconds * 60 + Number(part), 0);
+}
+
+/**
+ * Calls `onChange` whenever YouTube may have changed the playlist panel: loaded more
+ * entries, moved to another entry or turned Shuffle on or off. It stops when `signal`
+ * aborts.
+ */
+export function watchPlaylist(doc: Document, onChange: () => void, signal: AbortSignal): void {
+  const watchPage = doc.querySelector(WATCH_PAGE);
+  if (!watchPage) return;
+  // YouTube may render the panel after the watch page, so this watches the whole watch
+  // page and passes on only changes inside a playlist panel.
+  const observer = new MutationObserver((records) => {
+    const inPanel = records.some(({ target }) =>
+      (target instanceof Element ? target : target.parentElement)?.closest('ytd-playlist-panel-renderer'),
+    );
+    if (inPanel) onChange();
+  });
+  observer.observe(watchPage, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['selected', 'aria-pressed'],
+  });
+  signal.addEventListener('abort', () => observer.disconnect());
 }

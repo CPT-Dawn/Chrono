@@ -2,18 +2,22 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { clearDiagnostics, noteReading } from '@/diagnostics';
 import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
-import { type VideoScope, type VideoState, videoScope } from '@/time-model';
+import { type PlaylistScope, type VideoScope, type VideoState, playlistScope, videoScope } from '@/time-model';
 import { changeSetting, readSettings, watchSettings } from '@/settings';
 import {
+  type Playlist,
+  type Reading,
   readActiveVideo,
   readAdBreak,
   readLive,
   readMediaSource,
   readPage,
+  readPlaylist,
   readSidebarMount,
   readTheme,
   watchNavigation,
   watchPlayerState,
+  watchPlaylist,
   watchTheme,
 } from '@/youtube/adapter';
 
@@ -59,6 +63,17 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   let playerSpeed: number | undefined;
   /** What the player said about its video when the Panel was last updated. */
   let shownPlayerState: PlayerState | undefined;
+  /**
+   * The playlist as Chrono last read it, at which address. The Panel updates several times
+   * a second, so Chrono reads the playlist again only when YouTube changes its panel or
+   * the address.
+   */
+  let playlist: { href: string; reading: Reading<Playlist | undefined> } | undefined;
+  /**
+   * The entry the viewer chose to count the Playlist scope up to, in which playlist. It
+   * lasts while the viewer stays in that playlist, and is never stored.
+   */
+  let playlistTarget: { listId: string; number: number } | undefined;
 
   // YouTube renders, re-renders and swaps parts of the watch page whenever it likes, so
   // Chrono looks again after every change to the page.
@@ -88,6 +103,11 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       settings,
       setSpeed: (speed) => speedBridge.set(speed),
       changeSetting: (key, value) => void changeSetting(key, value),
+      setPlaylistTarget(number) {
+        const reading = playlist?.reading;
+        if (reading?.recognised && reading.value) playlistTarget = { listId: reading.value.id, number };
+        render();
+      },
     });
     if (!themeWatch) {
       themeWatch = new AbortController();
@@ -128,12 +148,14 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     followed = undefined;
     themeWatch?.abort();
     themeWatch = undefined;
+    playlist = undefined;
   }
 
   /** Removes the Panel and stops watching the page until YouTube navigates to a watch page. */
   function stop(): void {
     observer.disconnect();
     removePanel();
+    playlistTarget = undefined;
     clearDiagnostics();
   }
 
@@ -152,6 +174,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     for (const type of VIDEO_EVENTS) video.addEventListener(type, render, { signal: listening.signal });
     // YouTube starts and ends an ad break without always firing a video event.
     watchPlayerState(document, playerStateChanged, listening.signal);
+    watchPlaylist(document, playlistChanged, listening.signal);
     followed = { video, listening };
   }
 
@@ -162,18 +185,47 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     const now = new Date();
     const state = readPlayerState();
     shownPlayerState = state;
-    const scope: VideoScope =
+    const videoState: VideoState | undefined =
       !navigating && page.kind === 'watch' && ownerOf(video, page.videoId) === page.videoId
-        ? videoScope({
+        ? {
             position: video.currentTime,
             duration: video.duration,
             speed: playerSpeed ?? video.playbackRate,
             now,
             ...state,
-          })
-        : { kind: 'unknown' };
+          }
+        : undefined;
+    const scope: VideoScope = videoState ? videoScope(videoState) : { kind: 'unknown' };
     panel.showVideo(scope, now);
+    panel.showPlaylist(currentPlaylistScope(videoState, page), now);
     panel.showSpeed(playerSpeed);
+  }
+
+  /** The Playlist scope for the video in `videoState`, the video the address names. */
+  function currentPlaylistScope(videoState: VideoState | undefined, page: ReturnType<typeof readPage>): PlaylistScope {
+    const reading = readCurrentPlaylist();
+    noteReading('playlist', reading);
+    if (!reading.recognised) return { kind: 'none' };
+    // Leaving the playlist, or moving to another, forgets the target entry.
+    if (reading.value?.id !== playlistTarget?.listId) playlistTarget = undefined;
+    if (!videoState || page.kind !== 'watch') return { kind: 'none' };
+    return playlistScope({
+      video: videoState,
+      videoId: page.videoId,
+      playlist: reading.value,
+      target: playlistTarget?.number,
+    });
+  }
+
+  function readCurrentPlaylist(): Reading<Playlist | undefined> {
+    if (playlist?.href !== location.href) playlist = { href: location.href, reading: readPlaylist(document, location) };
+    return playlist.reading;
+  }
+
+  /** YouTube changed its playlist panel. */
+  function playlistChanged(): void {
+    playlist = undefined;
+    render();
   }
 
   /** What YouTube's player says about the video it is playing. */

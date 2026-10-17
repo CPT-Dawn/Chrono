@@ -55,6 +55,13 @@ export interface SavedPage {
   startAdBreak(): void;
   /** YouTube ends the ad break. It hides the ad's overlay rather than removing it. */
   endAdBreak(): void;
+  /** YouTube's playlist panel on a watch page in a playlist. */
+  readonly playlistPanel: Element;
+  /**
+   * YouTube's playlist panel moves to the entry numbered `number`, as it does when the next
+   * video starts: it marks that entry as playing, with ▶ in place of its number.
+   */
+  selectPlaylistEntry(number: number): void;
 }
 
 export interface PageOptions {
@@ -137,6 +144,18 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
       const playerElement = fromWatchPage(player);
       playerElement.classList.remove('ad-showing', 'ad-interrupting');
       for (const overlay of playerElement.querySelectorAll<HTMLElement>('.video-ads > *')) overlay.style.display = 'none';
+    },
+    get playlistPanel() {
+      return required('ytd-watch-flexy ytd-playlist-panel-renderer#playlist');
+    },
+    selectPlaylistEntry(number) {
+      const entries = required('ytd-watch-flexy ytd-playlist-panel-renderer#playlist').querySelectorAll(
+        '#items > ytd-playlist-panel-video-renderer',
+      );
+      entries.forEach((entry, i) => {
+        entry.toggleAttribute('selected', i + 1 === number);
+        entry.querySelector('#index')!.textContent = i + 1 === number ? '▶' : String(i + 1);
+      });
     },
     replaceVideo() {
       const replaced = fromWatchPage(video).element;

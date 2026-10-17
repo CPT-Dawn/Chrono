@@ -228,6 +228,56 @@
   color: var(--text-secondary);
 }
 
+/* A scope other than the Video scope, below the Video scope's speed table. */
+.scope {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hover);
+}
+
+.scope-heading {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.scope-times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 12px;
+  margin-top: 2px;
+}
+
+.scope-notes {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.target-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.target {
+  color: var(--text-secondary);
+}
+
+.target-row input {
+  width: 64px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--hover);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
 [hidden] {
   display: none !important;
 }

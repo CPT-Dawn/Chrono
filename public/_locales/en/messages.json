@@ -90,6 +90,37 @@
     "message": "24-hour",
     "description": "Clock format choice: times like 15:45."
   },
+  "showPlaylistScope": {
+    "message": "Show Playlist scope",
+    "description": "Setting: whether the Panel shows the remaining and finish time for the rest of the playlist."
+  },
+  "playlistScope": {
+    "message": "Playlist",
+    "description": "Heading of the Playlist scope: the current video plus the following playlist entries up to the target entry."
+  },
+  "playlistTarget": {
+    "message": "Up to video",
+    "description": "Label of the input that chooses the last playlist entry the Playlist scope counts, by its number in the playlist."
+  },
+  "playlistPartial": {
+    "message": "first $COUNTED$ of $TOTAL$ counted",
+    "description": "Note in the Playlist scope when YouTube has loaded only part of the playlist, e.g. \"first 200 of 412 counted\".",
+    "placeholders": {
+      "counted": { "content": "$1", "example": "200" },
+      "total": { "content": "$2", "example": "412" }
+    }
+  },
+  "playlistUnavailable": {
+    "message": "$COUNT$ unavailable",
+    "description": "Note in the Playlist scope: how many private, deleted or otherwise unavailable entries it skips, e.g. \"3 unavailable\".",
+    "placeholders": {
+      "count": { "content": "$1", "example": "3" }
+    }
+  },
+  "playlistShuffle": {
+    "message": "Shuffle is on, so no playlist estimate",
+    "description": "Shown in place of the Playlist scope's times while the playlist's Shuffle button is on."
+  },
   "panelStartsExpanded": {
     "message": "Panel starts expanded",
     "description": "Setting: whether the Panel's details are open when a watch page opens."

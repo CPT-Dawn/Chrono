@@ -1,4 +1,5 @@
 // Pure time maths. Vocabulary follows GLOSSARY.md: remaining is always watch time.
+import type { Playlist } from '@/youtube/adapter';
 
 export interface VideoSnapshot {
   /** Playhead position, in seconds of content time. */
@@ -74,8 +75,73 @@ export function videoScopeTimes({ position, duration, speed, now }: VideoSnapsho
   return scopeTimes(Math.max(0, duration - position), speed, now);
 }
 
-/** A scope's times, given the content time it has left. */
-function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
+/** What the Playlist scope shows. */
+export type PlaylistScope =
+  /** No playlist, a Mix, or nothing to work out while the Video scope has no times. */
+  | { kind: 'none' }
+  /** YouTube plays the entries in an order nobody knows yet, so there is no estimate. */
+  | { kind: 'shuffle' }
+  | {
+      kind: 'times';
+      times: ScopeTimes;
+      /** The number of the entry YouTube is playing: the earliest possible target entry. */
+      current: number;
+      /** The number of the last entry the scope counts. */
+      target: number;
+      /** The latest possible target entry. */
+      last: number;
+      /** When the scope runs past the entries YouTube has loaded: how many are counted, of how many. */
+      partial: { counted: number; total: number } | undefined;
+      /** How many unavailable entries the scope skips. */
+      unavailable: number;
+    };
+
+export interface PlaylistState {
+  video: VideoState;
+  /** The video in the address, which the playlist's playing entry must be. */
+  videoId: string;
+  playlist: Playlist | undefined;
+  /** The entry number the viewer chose to count up to, if any. The last entry otherwise. */
+  target: number | undefined;
+}
+
+/**
+ * The Playlist scope: the current video's remaining plus every following entry up to and
+ * including the target entry. Only entries YouTube has loaded count, and unavailable ones
+ * are skipped.
+ */
+export function playlistScope({ video, videoId, playlist, target }: PlaylistState): PlaylistScope {
+  const scope = videoScope(video);
+  if (!playlist || playlist.kind === 'mix' || scope.kind !== 'times') return { kind: 'none' };
+  if (playlist.shuffle) return { kind: 'shuffle' };
+  const { entries, total, hiddenUnavailable } = playlist;
+  const playing = entries.findIndex((entry) => entry.selected);
+  // Just after YouTube moves to another video, its panel may still show the previous one.
+  if (playing === -1 || entries[playing]!.videoId !== videoId) return { kind: 'none' };
+
+  const current = entries[playing]!.number;
+  const lastLoaded = entries.at(-1)!.number;
+  const loaded = entries.length + hiddenUnavailable;
+  // YouTube doesn't number the entries it hides, so they don't count towards the last number.
+  const last = loaded >= total ? lastLoaded : Math.max(lastLoaded, total - hiddenUnavailable);
+  const until = Math.min(Math.max(target ?? last, current), last);
+  const following = entries.slice(playing + 1).filter((entry) => entry.number <= until);
+  const contentLeft =
+    Math.max(0, video.duration - video.position) +
+    following.reduce((sum, entry) => sum + (entry.duration ?? 0), 0);
+  return {
+    kind: 'times',
+    times: scopeTimes(contentLeft, video.speed, video.now),
+    current,
+    target: until,
+    last,
+    partial: until > lastLoaded ? { counted: loaded, total } : undefined,
+    unavailable: following.filter((entry) => entry.duration === undefined).length + hiddenUnavailable,
+  };
+}
+
+/** A scope's times, given the content time it has left. Any scope can use it. */
+export function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
   const isCommon = TABLE_SPEEDS.some((common) => sameSpeed(common, speed));
   const speeds = isCommon ? TABLE_SPEEDS : [...TABLE_SPEEDS, speed].sort((a, b) => a - b);
   return {

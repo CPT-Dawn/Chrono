@@ -10,6 +10,8 @@ import type { MessageName } from '@/messages';
 export type ClockFormat = 'auto' | '12h' | '24h';
 
 export interface Settings {
+  /** Whether the Panel shows the Playlist scope when the video plays in a playlist. */
+  showPlaylistScope: boolean;
   clockFormat: ClockFormat;
   /**
    * Whether the Panel's details start expanded on a fresh watch page. Expanding or
@@ -19,6 +21,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
+  showPlaylistScope: true,
   clockFormat: 'auto',
   panelStartsExpanded: false,
 };
@@ -38,13 +41,16 @@ export interface ToggleSetting<K extends keyof Settings> {
   label: MessageName;
 }
 
-export type SettingControl = ChoiceSetting<'clockFormat'> | ToggleSetting<'panelStartsExpanded'>;
+export type SettingControl =
+  | ChoiceSetting<'clockFormat'>
+  | ToggleSetting<'showPlaylistScope' | 'panelStartsExpanded'>;
 
 /**
  * Every setting, in the order the ⋮ menu and the popup show them. Labels are message names
  * in messages.json.
  */
 export const SETTING_CONTROLS: readonly SettingControl[] = [
+  { kind: 'toggle', key: 'showPlaylistScope', label: 'showPlaylistScope' },
   {
     kind: 'choice',
     key: 'clockFormat',
@@ -59,6 +65,9 @@ export const SETTING_CONTROLS: readonly SettingControl[] = [
 ];
 
 const storageItems = {
+  showPlaylistScope: storage.defineItem<boolean>('local:settings.showPlaylistScope', {
+    fallback: DEFAULT_SETTINGS.showPlaylistScope,
+  }),
   clockFormat: storage.defineItem<ClockFormat>('local:settings.clockFormat', {
     fallback: DEFAULT_SETTINGS.clockFormat,
   }),
