@@ -1,8 +1,9 @@
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import { OUTWARD_LINKS, type OutwardLink } from '@/links';
 import type { Settings } from '@/settings';
-import type { ScopeTimes, VideoScope } from '@/time-model';
+import type { ChapterScope, ScopeTimes, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
+import { createChapterScope } from './chapter-scope';
 import { createActionItem, createMenu } from './menu';
 import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
@@ -28,6 +29,8 @@ export interface Panel {
   element: HTMLElement;
   /** Shows the Video scope: its times, a quiet ad-break or live state, or nothing. */
   showVideo(scope: VideoScope, now: Date): void;
+  /** Shows the Chapter scope, or nothing when the video has no chapters Chrono can read. */
+  showChapter(scope: ChapterScope | undefined, now: Date): void;
   /** Switches to Chrono's colours for YouTube's theme. */
   setTheme(theme: Theme): void;
   /** Adjusts spacing for where the Panel sits in YouTube's layout. */
@@ -73,7 +76,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
   details.setAttribute('role', 'region');
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
   const videoTable = createSpeedTable(locale, setSpeed);
-  details.append(videoTable.element);
+  const chapterView = createChapterScope(locale, setSpeed);
+  details.append(videoTable.element, chapterView.element);
 
   const toggle = create('button', 'icon-button toggle') as HTMLButtonElement;
   toggle.type = 'button';
@@ -113,6 +117,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
 
   /** The Video scope's latest times, for the details to show when they're expanded. */
   let videoTimes: { times: ScopeTimes; now: Date } | undefined;
+  /** The Chapter scope's latest times, likewise. */
+  let chapter: { scope: ChapterScope; now: Date } | undefined;
 
   function render() {
     toggle.setAttribute('aria-expanded', String(settings.panelStartsExpanded));
@@ -125,6 +131,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
   function renderDetails() {
     const rows = settings.panelStartsExpanded && videoTimes ? videoTimes.times.speedTable : [];
     videoTable.show(rows, videoTimes?.now ?? new Date(), settings.clockFormat);
+    const shownChapter = settings.panelStartsExpanded && settings.showChapterScope ? chapter : undefined;
+    chapterView.show(shownChapter?.scope, shownChapter?.now ?? new Date(), settings.clockFormat);
   }
   render();
 
@@ -144,9 +152,14 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
       remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
       finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, settings.clockFormat));
     },
+    showChapter(scope, now) {
+      chapter = scope && { scope, now };
+      renderDetails();
+    },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
       videoTable.setEnabled(speed !== undefined);
+      chapterView.setEnabled(speed !== undefined);
       if (speed === undefined) return;
       currentSpeed = speed;
       speedLabel.textContent = speedText(speed);

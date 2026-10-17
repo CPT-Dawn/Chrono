@@ -143,7 +143,8 @@ describe('The toolbar popup', () => {
     const [report] = await openedPages();
     expect(report!.searchParams.get('player')).toBe('delhi');
     expect(report!.searchParams.get('layout')).toBe('sidebar');
-    expect(report!.searchParams.get('failed')).toBe('live');
+    // Without the time display, Chrono can't tell a live stream or place the Player badge.
+    expect(report!.searchParams.get('failed')?.split(',').sort()).toEqual(['badge', 'live']);
     expect(report!.href).not.toContain(VIDEO_ID);
   });
 
@@ -218,6 +219,21 @@ describe('"Something look wrong? Report it"', () => {
 
     expect(report.searchParams.get('failed')).toBe('speed');
     expect(report.searchParams.get('player')).toBe('delhi');
+  });
+
+  it("reports failed=chapters and the player when YouTube's chapters aren't recognised", async () => {
+    // 3Blue1Brown's "But what is a neural network?", which has chapters, on the legacy player.
+    const page = openSavedPage('watch-chapters-legacy', 'https://www.youtube.com/watch?v=aircAruvnKk');
+    page.withhold(page.chapters);
+    page.video.load({ duration: 1120 });
+    page.video.seek(250);
+    await startChrono();
+    fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+
+    const report = await followReportLink();
+
+    expect(report.searchParams.get('failed')).toBe('chapters');
+    expect(report.searchParams.get('player')).toBe('legacy');
   });
 
   it('carries nothing from the page: no video ID, title or address', async () => {

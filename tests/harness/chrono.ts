@@ -9,6 +9,7 @@ import { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { ensureBackground, openedPages } from './background';
 import playerScript from '@/entrypoints/youtube-player.content';
 import contentScript from '@/entrypoints/youtube.content';
+import { ListenerRegistry } from './listeners';
 
 let ctx: ContentScriptContext | undefined;
 let stopPlayerScript: (() => void) | undefined;
@@ -32,6 +33,32 @@ export function countObservers(): number {
   return observing.size;
 }
 
+// Keeps count of the event listeners on the document and the window.
+const pageListeners = new ListenerRegistry();
+/** The object `target` gets addEventListener from: itself or a prototype. */
+function eventTargetPrototype(target: EventTarget): EventTarget {
+  let proto = target;
+  while (!Object.hasOwn(proto, 'addEventListener')) proto = Object.getPrototypeOf(proto);
+  return proto;
+}
+// happy-dom's document and window don't share the global EventTarget's prototype.
+for (const proto of new Set([eventTargetPrototype(document), eventTargetPrototype(window)])) {
+  const { addEventListener, removeEventListener } = proto;
+  proto.addEventListener = function (type, listener, options) {
+    addEventListener.call(this, type, listener, options);
+    if ((this === document || this === window) && listener) pageListeners.add(this, type, listener, options);
+  };
+  proto.removeEventListener = function (type, listener, options) {
+    removeEventListener.call(this, type, listener, options);
+    if (listener) pageListeners.remove(this, type, listener, options);
+  };
+}
+
+/** How many event listeners are on the document and the window. */
+export function countPageListeners(): number {
+  return pageListeners.count;
+}
+
 export interface StartOptions {
   /**
    * The browser doesn't promise which of Chrono's two scripts runs first. By default the
@@ -42,9 +69,6 @@ export interface StartOptions {
 
 /** Runs Chrono's scripts on the current page, as the browser does after a page load. */
 export async function startChrono({ contentScriptFirst = false }: StartOptions = {}): Promise<void> {
-  const startPlayerScript = async () => {
-    stopPlayerScript = await (playerScript as MainWorldContentScriptDefinition).main();
-  };
   if (!contentScriptFirst) await startPlayerScript();
   ctx = new ContentScriptContext('youtube');
   await contentScript.main(ctx);
@@ -53,14 +77,31 @@ export async function startChrono({ contentScriptFirst = false }: StartOptions =
 }
 
 /**
+ * Runs only Chrono's script in the page's own context, as on a page where Chrono's
+ * content script never runs.
+ */
+export async function startPlayerScript(): Promise<void> {
+  stopPlayerScript = await (playerScript as MainWorldContentScriptDefinition).main();
+}
+
+/**
  * Invalidates the running content script's context, as the browser does when the extension
  * unloads. Chrono is told, through the context.
  */
 export function stopChrono(): void {
-  ctx?.notifyInvalidated();
-  ctx = undefined;
+  stopContentScript();
   stopPlayerScript?.();
   stopPlayerScript = undefined;
+}
+
+/**
+ * Invalidates only the content script's context. When the extension unloads, the browser
+ * leaves Chrono's script in the page's own context running, because it can't take a
+ * script back out of a page.
+ */
+export function stopContentScript(): void {
+  ctx?.notifyInvalidated();
+  ctx = undefined;
 }
 
 /**
@@ -115,4 +156,33 @@ export async function followReportLink(): Promise<URL> {
 /** The parts of YouTube's page that "Report it" says Chrono couldn't recognise. */
 export async function reportedFailures(): Promise<string[]> {
   return (await followReportLink()).searchParams.get('failed')?.split(',') ?? [];
+}
+
+/**
+ * Chrono's Player badge as the viewer reads it next to YouTube's time display in the watch
+ * page's player, or null when none shows there.
+ */
+export function queryPlayerBadge(): string | null {
+  const timeDisplay = document.querySelector('ytd-watch-flexy #movie_player .ytp-time-display');
+  const badges = timeDisplay ? playerBadgesIn(timeDisplay) : [];
+  if (badges.length > 1) throw new Error(`${badges.length} Player badges in the time display`);
+  const badge = badges[0];
+  if (!badge || badge.hidden) return null;
+  const parts = [...badge.shadowRoot!.childNodes].filter((node) => node.nodeName !== 'STYLE');
+  return parts.map((node) => node.textContent).join('').trim();
+}
+
+/** YouTube's time display `timeDisplay` as its markup would be without Chrono's Player badge. */
+export function withoutPlayerBadge(timeDisplay: Element): string {
+  const badges = playerBadgesIn(timeDisplay);
+  const places = badges.map((badge) => ({ badge, parent: badge.parentNode!, next: badge.nextSibling }));
+  for (const badge of badges) badge.remove();
+  const html = timeDisplay.outerHTML;
+  for (const { badge, parent, next } of places) parent.insertBefore(badge, next);
+  return html;
+}
+
+// YouTube's player uses no shadow roots, so one in its time display is Chrono's.
+function playerBadgesIn(timeDisplay: Element): HTMLElement[] {
+  return [...timeDisplay.querySelectorAll<HTMLElement>('*')].filter((element) => element.shadowRoot);
 }

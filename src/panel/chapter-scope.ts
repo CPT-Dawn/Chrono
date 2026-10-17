@@ -1,0 +1,56 @@
+// The Panel's Chapter scope: the title of the chapter the playhead is in, the chapter's
+// remaining and finish time, and its speed table.
+import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
+import type { ClockFormat } from '@/settings';
+import type { ChapterScope } from '@/time-model';
+import { createSpeedTable } from './speed-table';
+
+export interface ChapterScopeView {
+  element: HTMLElement;
+  /** Shows the chapter, or hides the Chapter scope when there is none to show. */
+  show(scope: ChapterScope | undefined, now: Date, clockFormat: ClockFormat): void;
+  /** Lets the speed table apply its speeds, or not while YouTube's speed can't be reached. */
+  setEnabled(enabled: boolean): void;
+}
+
+export function createChapterScope(locale: string, setSpeed: (speed: number) => void): ChapterScopeView {
+  const element = document.createElement('div');
+  element.className = 'scope';
+  element.setAttribute('role', 'group');
+  element.setAttribute('aria-label', browser.i18n.getMessage('chapterScope'));
+
+  const label = document.createElement('div');
+  label.className = 'scope-label';
+  label.textContent = browser.i18n.getMessage('chapterScope');
+  const title = document.createElement('div');
+  title.className = 'scope-title';
+  const remaining = document.createElement('span');
+  remaining.className = 'remaining';
+  const finish = document.createElement('span');
+  finish.className = 'finish';
+  const times = document.createElement('div');
+  times.className = 'times';
+  times.append(remaining, finish);
+  const table = createSpeedTable(locale, setSpeed, 'chapterSpeedTable');
+  element.append(label, title, times, table.element);
+
+  return {
+    element,
+    show(scope, now, clockFormat) {
+      element.hidden = !scope;
+      // A hidden Chapter scope stays empty, so Chrono doesn't keep updating what nobody sees.
+      table.show(scope?.times.speedTable ?? [], now, clockFormat);
+      if (!scope) return;
+      const { times } = scope;
+      title.textContent = scope.title;
+      // A long title is cut short; hovering shows it in full.
+      title.title = scope.title;
+      const speed = browser.i18n.getMessage('speed', formatSpeed(times.speed, locale));
+      remaining.textContent = browser.i18n.getMessage('remaining', [formatWatchTime(times.remaining), speed]);
+      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, clockFormat));
+    },
+    setEnabled(enabled) {
+      table.setEnabled(enabled);
+    },
+  };
+}
