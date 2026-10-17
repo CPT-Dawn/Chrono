@@ -78,24 +78,44 @@ export function createTarget(
   /** The speed Apply sets. */
   let applySpeed: number | undefined;
 
+  /** What each kind of target shows, and how it reads and fills its fields. */
+  const fieldsOf: { [K in Target['kind']]: KindFields<Extract<Target, { kind: K }>> } = {
+    'finish-time': {
+      fields: finishFields,
+      read() {
+        const values = wholeNumbers(hour, minute);
+        if (!values) return undefined;
+        const [h, m] = values;
+        const hour24 = shown?.twelveHours ? (h % 12) + (period.value === 'pm' ? 12 : 0) : h;
+        return { kind: 'finish-time', time: upcomingClockTime(hour24, m, new Date()) };
+      },
+      fill({ time }, clockFormat) {
+        // The hour as the Panel writes it in finish times: "7" in 7:42 PM, "07" in 07:42.
+        hour.value = formatClockHour(time, locale, clockFormat);
+        minute.value = String(time.getMinutes()).padStart(2, '0');
+        period.value = time.getHours() < 12 ? 'am' : 'pm';
+      },
+    },
+    'watch-time': {
+      fields: watchFields,
+      read() {
+        const values = wholeNumbers(hours, minutes);
+        if (!values) return undefined;
+        const [h, m] = values;
+        return { kind: 'watch-time', seconds: h * 3600 + m * 60 };
+      },
+      fill({ seconds }) {
+        hours.value = String(Math.floor(seconds / 3600));
+        minutes.value = String(Math.floor((seconds % 3600) / 60));
+      },
+    },
+  };
+
   kind.addEventListener('change', () => {
     if (!shown) return;
-    showFields(kind.value as Kind);
-    // A new target starts at the scope's own times, so its required speed starts at the
-    // current speed and the viewer adjusts from there.
-    const { times, clockFormat } = shown;
-    const finishTime = new Date(Math.ceil(times.finishTime.getTime() / 60_000) * 60_000);
-    // A clock time means a time within the next day, so a scope that ends later starts from
-    // its remaining instead.
-    if (kind.value === 'finish-time' && !sayableAsClockTime(finishTime, new Date())) {
-      kind.value = 'watch-time';
-      showFields('watch-time');
-    }
-    if (kind.value === 'finish-time') {
-      fillFinishTime(finishTime, clockFormat);
-    } else if (kind.value === 'watch-time') {
-      fillWatchTime(Math.round(times.remaining / 60) * 60);
-    }
+    const chosen = kind.value as Kind;
+    const target = chosen === 'none' ? undefined : startingTarget(chosen, shown.times, new Date());
+    showTarget(target, shown.clockFormat);
     setTarget(readTarget());
   });
   for (const field of [hour, minute, period, hours, minutes]) {
@@ -110,37 +130,19 @@ export function createTarget(
 
   /** The target the fields describe, or undefined when they don't describe one. */
   function readTarget(): Target | undefined {
-    if (kind.value === 'finish-time') {
-      const values = [hour, minute].map(fieldValue);
-      if (values.some((value) => value === undefined)) return undefined;
-      const [h, m] = values as [number, number];
-      const hour24 = shown?.twelveHours ? (h % 12) + (period.value === 'pm' ? 12 : 0) : h;
-      return { kind: 'finish-time', time: upcomingClockTime(hour24, m, new Date()) };
-    }
-    if (kind.value === 'watch-time') {
-      const values = [hours, minutes].map(fieldValue);
-      if (values.some((value) => value === undefined)) return undefined;
-      const [h, m] = values as [number, number];
-      return { kind: 'watch-time', seconds: h * 3600 + m * 60 };
-    }
-    return undefined;
+    const chosen = kind.value as Kind;
+    return chosen === 'none' ? undefined : fieldsOf[chosen].read();
   }
 
-  function fillFinishTime(time: Date, clockFormat: ClockFormat) {
-    // The hour as the Panel writes it in finish times: "7" in 7:42 PM, "07" in 07:42.
-    hour.value = formatClockHour(time, locale, clockFormat);
-    minute.value = String(time.getMinutes()).padStart(2, '0');
-    period.value = time.getHours() < 12 ? 'am' : 'pm';
-  }
-
-  function fillWatchTime(seconds: number) {
-    hours.value = String(Math.floor(seconds / 3600));
-    minutes.value = String(Math.floor((seconds % 3600) / 60));
+  /** Shows `target` in the fields, or no target. */
+  function showTarget(target: Target | undefined, clockFormat: ClockFormat) {
+    kind.value = target?.kind ?? 'none';
+    showFields(target?.kind ?? 'none');
+    if (target) (fieldsOf[target.kind] as KindFields<Target>).fill(target, clockFormat);
   }
 
   function showFields(value: Kind) {
-    finishFields.hidden = value !== 'finish-time';
-    watchFields.hidden = value !== 'watch-time';
+    for (const [fieldsKind, { fields }] of Object.entries(fieldsOf)) fields.hidden = fieldsKind !== value;
   }
 
   function showRequired(required: RequiredSpeed | undefined) {
@@ -172,13 +174,7 @@ export function createTarget(
       // The target updates several times a second: leave its fields alone while the viewer
       // is using them.
       const root = element.getRootNode() as Document | ShadowRoot;
-      if (!element.contains(root.activeElement)) {
-        const { target } = times;
-        kind.value = target?.kind ?? 'none';
-        showFields(target?.kind ?? 'none');
-        if (target?.kind === 'finish-time') fillFinishTime(target.time, clockFormat);
-        if (target?.kind === 'watch-time') fillWatchTime(target.seconds);
-      }
+      if (!element.contains(root.activeElement)) showTarget(times.target, clockFormat);
       showRequired(times.required);
     },
     setEnabled(enabled) {
@@ -193,6 +189,26 @@ const KINDS: [Kind, MessageName][] = [
   ['finish-time', 'targetFinishTime'],
   ['watch-time', 'targetWatchTime'],
 ];
+
+/** A kind of target's fields. */
+interface KindFields<T extends Target> {
+  fields: HTMLElement;
+  /** The target the fields describe, or undefined when they don't describe one. */
+  read(): T | undefined;
+  fill(target: T, clockFormat: ClockFormat): void;
+}
+
+/**
+ * What a new target of `kind` starts from: the scope's own finish time or remaining, so
+ * that its required speed starts at the current speed and the viewer adjusts from there.
+ */
+function startingTarget(kind: Target['kind'], times: ScopeTimes, now: Date): Target {
+  const finishTime = new Date(Math.ceil(times.finishTime.getTime() / 60_000) * 60_000);
+  // A clock time means a time within the next day, so a scope that ends later starts from
+  // its remaining instead.
+  if (kind === 'finish-time' && sayableAsClockTime(finishTime, now)) return { kind, time: finishTime };
+  return { kind: 'watch-time', seconds: Math.round(times.remaining / 60) * 60 };
+}
 
 /** Whether the clock time of `time` alone, entered at `now`, means `time`. */
 function sayableAsClockTime(time: Date, now: Date): boolean {
@@ -227,6 +243,14 @@ function numberInput(label: MessageName, min?: number, max?: number): HTMLInputE
   if (max !== undefined) input.max = String(max);
   input.setAttribute('aria-label', browser.i18n.getMessage(label));
   return input;
+}
+
+/** The fields' whole numbers, or undefined unless every one holds one within its range. */
+function wholeNumbers<const Fields extends HTMLInputElement[]>(
+  ...fields: Fields
+): { [I in keyof Fields]: number } | undefined {
+  const values = fields.map(fieldValue);
+  return values.every((value) => value !== undefined) ? (values as { [I in keyof Fields]: number }) : undefined;
 }
 
 /** A field's whole number, or undefined when it holds none within its range. */
