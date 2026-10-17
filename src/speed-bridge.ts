@@ -8,7 +8,13 @@
 //
 // Firefox hides objects that cross between page scripts and content scripts, so every
 // message carries a plain number or nothing.
-import { type Reading, readPlayerSpeed, setPlayerSpeed, watchPlayerSpeed } from '@/youtube/adapter';
+import {
+  type Reading,
+  readPlayerSpeed,
+  setPlayerSpeed,
+  watchPlayerAnnounced,
+  watchPlayerSpeed,
+} from '@/youtube/adapter';
 
 /** YouTube's speed range. */
 const MIN_SPEED = 0.25;
@@ -19,8 +25,13 @@ const STEPS_PER_SPEED = 20;
 const MESSAGES = {
   /** Page → content: the page script has loaded. */
   ready: 'chrono:speed-ready',
-  /** Content → page: report the player's speed now and whenever it changes. */
+  /**
+   * Content → page: report the player's speed now and whenever it changes. Carries the
+   * content script's id, a number.
+   */
   connect: 'chrono:speed-connect',
+  /** Content → page: the content script with this id has stopped. */
+  disconnect: 'chrono:speed-disconnect',
   /** Page → content: the player's speed, a number. */
   speed: 'chrono:speed',
   /** Page → content: the player's speed API isn't recognised. */
@@ -45,23 +56,62 @@ function numberIn(event: Event): number | undefined {
 export function servePlayerSpeed(doc: Document): () => void {
   const stop = new AbortController();
   const { signal } = stop;
-  let connected = false;
+  /**
+   * The ids of the content scripts connected. An extension update can leave a stopped
+   * content script in the page beside the new one.
+   */
+  const connected = new Set<number>();
+  /**
+   * What stops waiting for the player's speed API, while a content script is connected
+   * and the API isn't recognised.
+   */
+  let awaitingApi: AbortController | undefined;
 
   const report = () => {
     const speed = readPlayerSpeed(doc);
-    if (speed.recognised) send(doc, MESSAGES.speed, speed.value);
-    else send(doc, MESSAGES.unrecognised);
+    if (speed.recognised) {
+      stopAwaitingApi();
+      send(doc, MESSAGES.speed, speed.value);
+    } else {
+      send(doc, MESSAGES.unrecognised);
+      awaitApi();
+    }
   };
+
+  // YouTube can bring the API in without any video event, so the page half looks again
+  // whenever YouTube announces its player, until the API is recognised.
+  const awaitApi = () => {
+    if (awaitingApi) return;
+    awaitingApi = new AbortController();
+    watchPlayerAnnounced(doc, () => readPlayerSpeed(doc).recognised && report(), awaitingApi.signal);
+  };
+  const stopAwaitingApi = () => {
+    awaitingApi?.abort();
+    awaitingApi = undefined;
+  };
+  signal.addEventListener('abort', stopAwaitingApi);
 
   doc.addEventListener(
     MESSAGES.connect,
-    () => {
-      connected = true;
+    (event) => {
+      const id = numberIn(event);
+      if (id === undefined) return;
+      connected.add(id);
       report();
     },
     { signal },
   );
-  watchPlayerSpeed(doc, () => connected && report(), signal);
+  doc.addEventListener(
+    MESSAGES.disconnect,
+    (event) => {
+      const id = numberIn(event);
+      if (id === undefined) return;
+      connected.delete(id);
+      if (connected.size === 0) stopAwaitingApi();
+    },
+    { signal },
+  );
+  watchPlayerSpeed(doc, () => connected.size > 0 && report(), signal);
   doc.addEventListener(
     MESSAGES.set,
     (event) => {
@@ -101,9 +151,11 @@ export function connectSpeedBridge(
   doc.addEventListener(MESSAGES.unrecognised, () => onSpeed({ recognised: false, failed: 'speed' }), { signal });
   // The browser doesn't promise which script runs first. If the page half is already
   // running, it answers now; if not, it announces itself when it starts.
-  const connect = () => send(doc, MESSAGES.connect);
+  const id = Math.random();
+  const connect = () => send(doc, MESSAGES.connect, id);
   doc.addEventListener(MESSAGES.ready, connect, { signal });
   connect();
+  signal.addEventListener('abort', () => send(doc, MESSAGES.disconnect, id));
 
   return {
     set(speed) {
