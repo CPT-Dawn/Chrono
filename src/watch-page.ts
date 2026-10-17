@@ -1,5 +1,7 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { clearDiagnostics, noteReading } from '@/diagnostics';
+import { clearDiagnostics, failedParts, noteReading } from '@/diagnostics';
+import { answerPageReports, openLink } from '@/link-requests';
+import { linkWantsPage, type PageReport } from '@/links';
 import { createPanel, type Panel } from '@/panel/panel';
 import { createPlayerBadge, type PlayerBadge } from '@/player-badge/player-badge';
 import { connectSpeedBridge } from '@/speed-bridge';
@@ -19,6 +21,7 @@ import {
   readLive,
   readMediaSource,
   readPage,
+  readPlayerVariant,
   readSidebarMount,
   readTheme,
   readTimeDisplayMount,
@@ -89,6 +92,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     }
     observer.observe(document, { childList: true, subtree: true });
     const video = readActiveVideo(document);
+    noteReading('video', video);
     if (!video.recognised) {
       removeSurfaces();
       return;
@@ -115,6 +119,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
    */
   function placePanel(): boolean {
     const sidebar = readSidebarMount(document);
+    noteReading('sidebar', sidebar);
     if (!sidebar.recognised) {
       removePanel();
       return false;
@@ -124,6 +129,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       settings,
       setSpeed: (speed) => speedBridge.set(speed),
       changeSetting: (key, value) => void changeSetting(key, value),
+      openLink: (link) => void openLink(link, linkWantsPage(link) ? readPageReport() : undefined),
     });
     if (!themeWatch) {
       themeWatch = new AbortController();
@@ -266,6 +272,23 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     return { adBreak: adBreak.recognised && adBreak.value, live: live.recognised && live.value };
   }
 
+  /**
+   * What "Report it" says about the page, read when the viewer asks: which player and
+   * layout YouTube gave them, and what Chrono couldn't recognise. Undefined off a watch page.
+   */
+  function readPageReport(): PageReport | undefined {
+    if (isOrphaned() || readPage(location).kind !== 'watch') return undefined;
+    const player = readPlayerVariant(document);
+    const sidebar = readSidebarMount(document);
+    noteReading('player', player);
+    noteReading('sidebar', sidebar);
+    return {
+      player: player.recognised ? player.value : undefined,
+      layout: sidebar.recognised ? sidebar.value.placement : undefined,
+      failed: failedParts(),
+    };
+  }
+
   /** YouTube changed its player, which most often means nothing to the Panel. */
   function playerStateChanged(): void {
     const state = readPlayerState();
@@ -285,6 +308,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   const speedBridge = connectSpeedBridge(
     document,
     (speed) => {
+      noteReading('speed', speed);
       playerSpeed = speed.recognised ? speed.value : undefined;
       render();
     },
@@ -323,6 +347,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     },
     { signal: ctx.signal },
   );
+  answerPageReports(readPageReport, ctx.signal);
   ctx.onInvalidated(stop);
   refresh();
 }

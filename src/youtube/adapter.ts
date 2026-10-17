@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'badge' | 'chapters';
+export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'badge' | 'chapters' | 'player';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -107,6 +107,24 @@ interface PlayerSpeedApi {
 
 const PLAYER = `${WATCH_PAGE} #movie_player`;
 
+/** Which of YouTube's two players the watch page has: the legacy one or the redesigned (Delhi) one. */
+export type PlayerVariant = 'legacy' | 'delhi';
+
+// YouTube rolled the redesigned player out in waves from Oct 2025. It flags it with this
+// class on the player element, as it still did in Oct 2026.
+const DELHI = 'ytp-delhi-modern';
+
+function variantOf(player: Element): PlayerVariant {
+  return player.classList.contains(DELHI) ? 'delhi' : 'legacy';
+}
+
+/** Which of YouTube's players the watch page has. */
+export function readPlayerVariant(doc: Document): Reading<PlayerVariant> {
+  const player = doc.querySelector(PLAYER);
+  if (!player) return unrecognised('player');
+  return recognised(variantOf(player));
+}
+
 function readPlayerSpeedApi(doc: Document): Reading<PlayerSpeedApi> {
   const player = doc.querySelector(PLAYER) as Partial<PlayerSpeedApi> | null;
   const hasApi = typeof player?.getPlaybackRate === 'function' && typeof player.setPlaybackRate === 'function';
@@ -201,13 +219,9 @@ export function readLive(doc: Document): Reading<boolean> {
 // holds the live badge. The redesigned (Delhi) player flags itself. It flags the wrapper as
 // Delhi too, but only on videos, not on live streams, so that flag says nothing about the
 // player.
-const DELHI = 'ytp-delhi-modern';
 const TIME_WRAPPER = ':scope > .ytp-time-wrapper';
 const TIME_CONTENTS = ':scope > .ytp-time-contents';
 const TIMES = [':scope > .ytp-time-current', ':scope > .ytp-time-separator', ':scope > .ytp-time-duration'];
-
-/** Which of YouTube's two players the watch page has: the legacy one or the redesigned (Delhi) one. */
-export type PlayerVariant = 'legacy' | 'delhi';
 
 export interface TimeDisplayMount {
   variant: PlayerVariant;
@@ -231,7 +245,7 @@ export function readTimeDisplayMount(doc: Document): Reading<TimeDisplayMount> {
   const contents = wrapper?.querySelector(TIME_CONTENTS);
   const [current, separator, duration] = TIMES.map((part) => contents?.querySelector(part));
   if (!player || !wrapper || !current || !separator || !duration) return unrecognised('badge');
-  return recognised({ variant: player.classList.contains(DELHI) ? 'delhi' : 'legacy', duration });
+  return recognised({ variant: variantOf(player), duration });
 }
 
 /**

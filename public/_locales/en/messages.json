@@ -120,5 +120,17 @@
   "popupNote": {
     "message": "Chrono works on YouTube watch and playlist pages.",
     "description": "Note in the toolbar popup saying where Chrono shows up."
+  },
+  "supportChrono": {
+    "message": "Support Chrono",
+    "description": "Link in the Panel's ⋮ menu and the toolbar popup to a page where the viewer can tip Chrono's developer."
+  },
+  "getHelp": {
+    "message": "Get help",
+    "description": "Link in the Panel's ⋮ menu and the toolbar popup to Chrono's help page, pre-filled with Chrono's version, the browser and the OS."
+  },
+  "reportIt": {
+    "message": "Something look wrong? Report it",
+    "description": "Link in the Panel's ⋮ menu and the toolbar popup to Chrono's help page, pre-filled with what Chrono detected on the YouTube page as well."
   }
 }

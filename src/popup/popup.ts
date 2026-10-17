@@ -1,7 +1,18 @@
-// The toolbar popup: Chrono's settings, reachable from any tab. It only reads and writes
-// extension storage, so it works the same whatever page the active tab shows.
+// The toolbar popup: Chrono's settings and links, reachable from any tab. Apart from
+// "Report it", which asks the viewer's tab what Chrono detected there, it works the same
+// whatever page the active tab shows.
+import { askForPageReport, openLink } from '@/link-requests';
+import { linkWantsPage, OUTWARD_LINKS, type OutwardLink } from '@/links';
 import { changeSetting, readSettings, SETTING_CONTROLS, watchSettings, type Settings } from '@/settings';
 import type { MessageName } from '@/messages';
+
+/** Opens `link`. A report carries what Chrono detected on the page in the viewer's tab. */
+async function follow(link: OutwardLink): Promise<void> {
+  if (!linkWantsPage(link)) return openLink(link);
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  const page = tab?.id === undefined ? undefined : await askForPageReport(tab.id);
+  return openLink(link, page);
+}
 
 /** Fills the popup page `document` and keeps it in step with the viewer's settings. */
 export async function startPopup(document: Document): Promise<void> {
@@ -62,7 +73,17 @@ export async function startPopup(document: Document): Promise<void> {
   }
   form.addEventListener('submit', (event) => event.preventDefault());
 
-  main.append(title, note, heading, form);
+  const links = create('div');
+  links.className = 'links';
+  for (const { link, label } of OUTWARD_LINKS) {
+    const button = create('button', message(label));
+    button.type = 'button';
+    button.className = 'pill';
+    button.addEventListener('click', () => void follow(link));
+    links.append(button);
+  }
+
+  main.append(title, note, heading, form, links);
   document.body.append(main);
 
   const show = (settings: Settings) => {
