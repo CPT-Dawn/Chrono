@@ -1,10 +1,11 @@
-import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import { OUTWARD_LINKS, type OutwardLink } from '@/links';
 import type { Settings } from '@/settings';
-import type { ChapterScope, ScopeTimes, VideoScope } from '@/time-model';
+import type { ChapterScope, PlaylistScope, ScopeTimes, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createChapterScope } from './chapter-scope';
 import { createActionItem, createMenu } from './menu';
+import { createPlaylistScope } from './playlist-scope';
+import { speedText as writeSpeed, timesText } from './scope-text';
 import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
 import styles from './panel.css?inline';
@@ -20,6 +21,8 @@ export interface PanelOptions {
    * the details, which turns "Panel starts expanded" on or off.
    */
   changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): void;
+  /** Called with the playlist entry number the viewer chooses to count the Playlist scope up to. */
+  setPlaylistTarget(target: number): void;
   /** Called with the link the viewer follows from the ⋮ menu. */
   openLink(link: OutwardLink): void;
 }
@@ -31,6 +34,8 @@ export interface Panel {
   showVideo(scope: VideoScope, now: Date): void;
   /** Shows the Chapter scope, or nothing when the video has no chapters Chrono can read. */
   showChapter(scope: ChapterScope | undefined, now: Date): void;
+  /** Shows the Playlist scope, a notice in its place, or nothing. */
+  showPlaylist(scope: PlaylistScope, now: Date): void;
   /** Switches to Chrono's colours for YouTube's theme. */
   setTheme(theme: Theme): void;
   /** Adjusts spacing for where the Panel sits in YouTube's layout. */
@@ -51,7 +56,14 @@ const SPEED_STEP = 0.25;
  * Chrono's Panel. It lives in a shadow root so YouTube's styles and Chrono's styles
  * can't affect each other.
  */
-export function createPanel({ locale, settings, setSpeed, changeSetting, openLink }: PanelOptions): Panel {
+export function createPanel({
+  locale,
+  settings,
+  setSpeed,
+  changeSetting,
+  setPlaylistTarget,
+  openLink,
+}: PanelOptions): Panel {
   const element = document.createElement('section');
   element.setAttribute('aria-label', browser.i18n.getMessage('extShortName'));
   const style = document.createElement('style');
@@ -63,7 +75,7 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
   times.append(remaining, finish);
 
   let currentSpeed = 1;
-  const speedText = (speed: number) => browser.i18n.getMessage('speed', formatSpeed(speed, locale));
+  const speedText = (speed: number) => writeSpeed(speed, locale);
   const speedLabel = create('span', 'speed');
   // − and + are symbols, not words; their accessible names are translated.
   const slower = speedButton('−', 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
@@ -77,7 +89,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
   const videoTable = createSpeedTable(locale, setSpeed);
   const chapterView = createChapterScope(locale, setSpeed);
-  details.append(videoTable.element, chapterView.element);
+  const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTarget);
+  details.append(videoTable.element, chapterView.element, playlistView.element);
 
   const toggle = create('button', 'icon-button toggle') as HTMLButtonElement;
   toggle.type = 'button';
@@ -119,6 +132,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
   let videoTimes: { times: ScopeTimes; now: Date } | undefined;
   /** The Chapter scope's latest times, likewise. */
   let chapter: { scope: ChapterScope; now: Date } | undefined;
+  /** The Playlist scope's latest state, likewise. */
+  let shownPlaylist: { scope: PlaylistScope; now: Date } = { scope: { kind: 'none' }, now: new Date() };
 
   function render() {
     toggle.setAttribute('aria-expanded', String(settings.panelStartsExpanded));
@@ -129,10 +144,20 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
 
   // Collapsed details stay empty, so Chrono doesn't keep updating what nobody can see.
   function renderDetails() {
+    renderVideoDetails();
+    renderPlaylist();
+  }
+
+  function renderVideoDetails() {
     const rows = settings.panelStartsExpanded && videoTimes ? videoTimes.times.speedTable : [];
     videoTable.show(rows, videoTimes?.now ?? new Date(), settings.clockFormat);
     const shownChapter = settings.panelStartsExpanded && settings.showChapterScope ? chapter : undefined;
     chapterView.show(shownChapter?.scope, shownChapter?.now ?? new Date(), settings.clockFormat);
+  }
+
+  function renderPlaylist() {
+    const showPlaylist = settings.panelStartsExpanded && settings.showPlaylistScope;
+    playlistView.show(showPlaylist ? shownPlaylist.scope : { kind: 'none' }, shownPlaylist.now, settings.clockFormat);
   }
   render();
 
@@ -141,25 +166,30 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, openLin
     showVideo(scope, now) {
       // During an ad or on live content the speed table has nothing to show either.
       videoTimes = scope.kind === 'times' ? { times: scope.times, now } : undefined;
-      renderDetails();
+      renderVideoDetails();
       if (scope.kind !== 'times') {
         remaining.textContent = STATE_TEXT[scope.kind]();
         finish.textContent = '';
         return;
       }
       const { times } = scope;
-      const left = formatWatchTime(times.remaining);
-      remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
-      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, settings.clockFormat));
+      const text = timesText(times, now, locale, settings.clockFormat);
+      remaining.textContent = text.remaining;
+      finish.textContent = text.finish;
+    },
+    showPlaylist(scope, now) {
+      shownPlaylist = { scope, now };
+      renderPlaylist();
     },
     showChapter(scope, now) {
       chapter = scope && { scope, now };
-      renderDetails();
+      renderVideoDetails();
     },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
       videoTable.setEnabled(speed !== undefined);
       chapterView.setEnabled(speed !== undefined);
+      playlistView.setEnabled(speed !== undefined);
       if (speed === undefined) return;
       currentSpeed = speed;
       speedLabel.textContent = speedText(speed);

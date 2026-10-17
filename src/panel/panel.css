@@ -256,6 +256,34 @@
   margin-bottom: 4px;
 }
 
+.scope-notes {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.target-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.target {
+  color: var(--text-secondary);
+}
+
+.target-row input {
+  width: 64px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--hover);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
 [hidden] {
   display: none !important;
 }

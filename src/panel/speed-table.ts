@@ -1,10 +1,11 @@
 // A scope's speed table: one row per speed with the scope's remaining and finish time at
 // that speed. The current speed's row is highlighted, and clicking a row asks for its
 // speed. Any scope can show one.
-import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
+import { formatClockTime, formatWatchTime } from '@/format';
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
 import type { SpeedTableRow } from '@/time-model';
+import { speedText } from './scope-text';
 
 export interface SpeedTable {
   element: HTMLElement;
@@ -37,7 +38,7 @@ export function createSpeedTable(
     button.disabled = !enabled;
     const speedCell = document.createElement('span');
     speedCell.className = 'speed-row-speed';
-    speedCell.textContent = browser.i18n.getMessage('speed', formatSpeed(speed, locale));
+    speedCell.textContent = speedText(speed, locale);
     const remaining = document.createElement('span');
     const finish = document.createElement('span');
     finish.className = 'speed-row-finish';
