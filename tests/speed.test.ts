@@ -1,8 +1,24 @@
+import { fireEvent, within } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { queryPanel, startChrono } from './harness/chrono';
-import { openSavedPage } from './harness/youtube';
+import {
+  countObservers,
+  countPageListeners,
+  queryPanel,
+  settle,
+  startChrono,
+  startPlayerScript,
+  stopChrono,
+  stopContentScript,
+} from './harness/chrono';
+import { finishNavigation, openSavedPage, renderSavedPage, startNavigation } from './harness/youtube';
 
 const WATCH_URL = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
+const NEXT_WATCH_URL = 'https://www.youtube.com/watch?v=YE7VzlLtp-4';
+
+/** The listeners, observers and timers running in the page, which the viewer can't see. */
+function runningWork() {
+  return { listeners: countPageListeners(), observers: countObservers(), timers: vi.getTimerCount() };
+}
 
 describe('Speed', () => {
   beforeEach(() => {
@@ -118,6 +134,92 @@ describe('Speed', () => {
     panel.getByText('1×');
     panel.getByRole('button', { name: 'Faster' }).click();
     expect(page.player.speed).toBe(1.25);
+  });
+
+  it("shows the speed controls when YouTube's watch page takes in a player that has already started", async () => {
+    // A fresh page load: YouTube starts its player and plays the video before it renders
+    // the watch page, so no media event is left to come once the player moves in.
+    const page = openSavedPage('watch-delhi', WATCH_URL, { playerOutsideWatchPage: true });
+    page.video.load({ duration: 1000 });
+    page.video.play();
+    await startChrono();
+
+    page.adoptPlayer();
+    await settle();
+
+    const panel = queryPanel()!;
+    fireEvent.click(panel.getByRole('button', { name: 'Details' }));
+    const table = within(panel.getByRole('group', { name: 'Speed table' }));
+    expect((table.getByRole('button', { name: /^1\.5×/ }) as HTMLButtonElement).disabled).toBe(false);
+    panel.getByRole('button', { name: 'Faster' }).click();
+    expect(page.player.speed).toBe(1.25);
+  });
+
+  it("shows the speed controls when a player YouTube swapped in during navigation gains its API late", async () => {
+    const page = openSavedPage('watch-delhi', WATCH_URL);
+    page.video.load({ duration: 1000 });
+    await startChrono();
+
+    await startNavigation(NEXT_WATCH_URL);
+    // YouTube renders the next watch page from scratch, with a player that hasn't started.
+    const next = renderSavedPage('watch-delhi', { playerApi: false });
+    next.video.load({ duration: 2000 });
+    await finishNavigation();
+    expect(queryPanel()!.queryByRole('button', { name: 'Faster' })).toBeNull();
+
+    next.player.addApi();
+    next.announcePlayer();
+
+    queryPanel()!.getByRole('button', { name: 'Faster' }).click();
+    expect(next.player.speed).toBe(1.25);
+  });
+
+  it("leaves nothing running for YouTube's player API once it's recognised", async () => {
+    // What runs on a watch page whose player had its API from the start.
+    const ready = openSavedPage('watch-delhi', WATCH_URL);
+    ready.video.load({ duration: 1000 });
+    await startChrono();
+    const expected = runningWork();
+    stopChrono();
+
+    const page = openSavedPage('watch-delhi', WATCH_URL, { playerOutsideWatchPage: true });
+    page.video.load({ duration: 1000 });
+    await startChrono();
+    page.adoptPlayer();
+    await settle();
+
+    expect(runningWork()).toEqual(expected);
+  });
+
+  it("doesn't wait for YouTube's player API on a page where Chrono's content script never runs", async () => {
+    // What runs there when YouTube's player has its API.
+    openSavedPage('watch-delhi', WATCH_URL);
+    await startPlayerScript();
+    const expected = runningWork();
+    stopChrono();
+
+    const page = openSavedPage('watch-delhi', WATCH_URL, { playerOutsideWatchPage: true });
+    page.video.load({ duration: 1000 });
+    await startPlayerScript();
+    expect(runningWork()).toEqual(expected);
+
+    page.adoptPlayer();
+    expect(runningWork()).toEqual(expected);
+  });
+
+  it("stops waiting for YouTube's player API when Chrono's content script stops", async () => {
+    // What's left running when the content script stops on a page whose player has its API.
+    openSavedPage('watch-delhi', WATCH_URL);
+    await startChrono();
+    stopContentScript();
+    const expected = runningWork();
+    stopChrono();
+
+    openSavedPage('watch-delhi', WATCH_URL, { playerApi: false });
+    await startChrono();
+    stopContentScript();
+
+    expect(runningWork()).toEqual(expected);
   });
 
   it('connects to YouTube\'s player when the content script runs first', async () => {

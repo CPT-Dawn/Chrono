@@ -32,6 +32,56 @@ export function countObservers(): number {
   return observing.size;
 }
 
+interface PageListener {
+  target: EventTarget;
+  type: string;
+  listener: EventListenerOrEventListenerObject;
+  capture: boolean;
+}
+
+// Keeps count of the event listeners on the document and the window, as the browser keeps
+// them: one per target, type, listener and phase.
+const pageListeners: PageListener[] = [];
+const indexOfPageListener = (entry: PageListener) =>
+  pageListeners.findIndex(
+    (l) => l.target === entry.target && l.type === entry.type && l.listener === entry.listener && l.capture === entry.capture,
+  );
+const forgetPageListener = (entry: PageListener) => {
+  const index = indexOfPageListener(entry);
+  if (index !== -1) pageListeners.splice(index, 1);
+};
+const usesCapture = (options?: boolean | EventListenerOptions) =>
+  typeof options === 'boolean' ? options : Boolean(options?.capture);
+/** The object `target` gets addEventListener from: itself or a prototype. */
+function eventTargetPrototype(target: EventTarget): EventTarget {
+  let proto = target;
+  while (!Object.hasOwn(proto, 'addEventListener')) proto = Object.getPrototypeOf(proto);
+  return proto;
+}
+// happy-dom's document and window don't share the global EventTarget's prototype.
+for (const proto of new Set([eventTargetPrototype(document), eventTargetPrototype(window)])) {
+  const { addEventListener, removeEventListener } = proto;
+  proto.addEventListener = function (type, listener, options) {
+    addEventListener.call(this, type, listener, options);
+    if ((this !== document && this !== window) || !listener) return;
+    const signal = typeof options === 'object' ? options.signal : undefined;
+    if (signal?.aborted) return;
+    const entry = { target: this, type, listener, capture: usesCapture(options) };
+    if (indexOfPageListener(entry) !== -1) return;
+    pageListeners.push(entry);
+    signal?.addEventListener('abort', () => forgetPageListener(entry));
+  };
+  proto.removeEventListener = function (type, listener, options) {
+    removeEventListener.call(this, type, listener, options);
+    if (listener) forgetPageListener({ target: this, type, listener, capture: usesCapture(options) });
+  };
+}
+
+/** How many event listeners are on the document and the window. */
+export function countPageListeners(): number {
+  return pageListeners.length;
+}
+
 export interface StartOptions {
   /**
    * The browser doesn't promise which of Chrono's two scripts runs first. By default the
@@ -42,9 +92,6 @@ export interface StartOptions {
 
 /** Runs Chrono's scripts on the current page, as the browser does after a page load. */
 export async function startChrono({ contentScriptFirst = false }: StartOptions = {}): Promise<void> {
-  const startPlayerScript = async () => {
-    stopPlayerScript = await (playerScript as MainWorldContentScriptDefinition).main();
-  };
   if (!contentScriptFirst) await startPlayerScript();
   ctx = new ContentScriptContext('youtube');
   await contentScript.main(ctx);
@@ -53,14 +100,31 @@ export async function startChrono({ contentScriptFirst = false }: StartOptions =
 }
 
 /**
+ * Runs only Chrono's script in the page's own context, as on a page where Chrono's
+ * content script never runs.
+ */
+export async function startPlayerScript(): Promise<void> {
+  stopPlayerScript = await (playerScript as MainWorldContentScriptDefinition).main();
+}
+
+/**
  * Invalidates the running content script's context, as the browser does when the extension
  * unloads. Chrono is told, through the context.
  */
 export function stopChrono(): void {
-  ctx?.notifyInvalidated();
-  ctx = undefined;
+  stopContentScript();
   stopPlayerScript?.();
   stopPlayerScript = undefined;
+}
+
+/**
+ * Invalidates only the content script's context. When the extension unloads, the browser
+ * leaves Chrono's script in the page's own context running, because it can't take a
+ * script back out of a page.
+ */
+export function stopContentScript(): void {
+  ctx?.notifyInvalidated();
+  ctx = undefined;
 }
 
 /**

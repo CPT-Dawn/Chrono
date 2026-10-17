@@ -44,6 +44,19 @@ export interface SavedPage {
   movePlayer(to: 'miniplayer' | 'watch-page'): void;
   /** YouTube replaces its video element with a new one, which becomes `video`. */
   replaceVideo(): FakeVideo;
+  /**
+   * YouTube's watch page takes in the player YouTube started outside it (see
+   * `PageOptions.playerOutsideWatchPage`) and announces it. In Oct 2026, on a fresh page
+   * load, YouTube did this 2–3 s in, with the player's API attached and its video's
+   * metadata already loaded.
+   */
+  adoptPlayer(): void;
+  /**
+   * YouTube's watch page announces its player by firing yt-player-updated on its
+   * ytd-player, which bubbles up. In Oct 2026 YouTube did this after taking in its player
+   * on a fresh page load, and early in every navigation without a reload.
+   */
+  announcePlayer(): void;
   /** YouTube's player's ads module, which it adds once the player first prepares for ads. */
   readonly ads: Element;
   /** YouTube's player's time display, which it flags on live content. */
@@ -60,6 +73,12 @@ export interface SavedPage {
 export interface PageOptions {
   /** Whether YouTube's player exposes the speed API Chrono knows. Defaults to true. */
   playerApi?: boolean;
+  /**
+   * Whether YouTube's player is still outside the watch page. On a fresh page load YouTube
+   * starts its player, API and video and all, in a holder of its own before it renders
+   * the watch page, and moves it in later (`adoptPlayer`). Defaults to false.
+   */
+  playerOutsideWatchPage?: boolean;
 }
 
 /** Loads `tests/pages/<name>.html` as the current document, at `url`. */
@@ -72,7 +91,10 @@ export function openSavedPage(name: string, url: string, options: PageOptions = 
  * Replaces the whole page with `tests/pages/<name>.html` and keeps the address, as if
  * YouTube had rendered the page from scratch.
  */
-export function renderSavedPage(name: string, { playerApi = true }: PageOptions = {}): SavedPage {
+export function renderSavedPage(
+  name: string,
+  { playerApi = true, playerOutsideWatchPage = false }: PageOptions = {},
+): SavedPage {
   const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
   const saved = new DOMParser().parseFromString(html, 'text/html');
   document.documentElement.remove();
@@ -85,6 +107,7 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
   const videoElement = player?.querySelector('video');
   let video = videoElement && new FakeVideo(videoElement);
   const fakePlayer = player && new FakePlayer(player, () => fromWatchPage(video), playerApi);
+  if (player && playerOutsideWatchPage) playerHolder().append(player);
   /** A part of the watch page, or an error for a saved page without one. */
   const fromWatchPage = <T>(part: T | null | undefined): T => {
     if (!part) throw new Error(`Saved page ${name} has no watch page`);
@@ -113,6 +136,11 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
       element.remove();
       return () => parent.insertBefore(element, next);
     },
+    adoptPlayer() {
+      fromWatchPage(playerHome).append(fromWatchPage(player));
+      announcePlayer();
+    },
+    announcePlayer,
     movePlayer(to) {
       (to === 'miniplayer' ? required('ytd-miniplayer') : fromWatchPage(playerHome)).append(fromWatchPage(player));
     },
@@ -147,6 +175,20 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
       return video;
     },
   };
+}
+
+/**
+ * Where YouTube starts its player before it renders the watch page, as on youtube.com in
+ * Oct 2026: `<body>` > div#player > div#player-wrap > div#player-api.
+ */
+function playerHolder(): Element {
+  const existing = document.querySelector('body > #player > #player-wrap > #player-api');
+  if (existing) return existing;
+  const holder = document.createElement('div');
+  holder.id = 'player';
+  holder.innerHTML = '<div id="player-wrap"><div id="player-api"></div></div>';
+  document.body.append(holder);
+  return holder.querySelector('#player-api')!;
 }
 
 /** An ad's overlay, as YouTube's player script built it in Oct 2026 (player 0229cd64). */
@@ -192,6 +234,12 @@ const SIDEBAR_BLOCKS = {
   'two-columns': ['#panels', '#chat-container', '#playlist', '#inline-panels'],
   'one-column': ['#playlist', '#panels', '#chat-container', '#inline-panels'],
 };
+
+function announcePlayer(): void {
+  required('ytd-watch-flexy ytd-player').dispatchEvent(
+    new CustomEvent('yt-player-updated', { bubbles: true, composed: true }),
+  );
+}
 
 function setLayout(layout: 'two-columns' | 'one-column'): void {
   const flexy = required('ytd-watch-flexy');

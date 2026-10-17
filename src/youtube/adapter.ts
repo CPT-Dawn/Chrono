@@ -155,6 +155,18 @@ export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: Ab
   }
 }
 
+/**
+ * Calls `onAnnounced` each time YouTube's watch page announces its player, until `signal`
+ * aborts. The player may have arrived in the watch page with no video event to tell: on
+ * a fresh page load YouTube starts its player, API and video and all, outside the watch
+ * page, and moves it in a few seconds later. In Oct 2026 (player 0229cd64) YouTube fired
+ * yt-player-updated on its ytd-player just after that move, and early in every
+ * navigation without a reload. It bubbles up to the document.
+ */
+export function watchPlayerAnnounced(doc: Document, onAnnounced: () => void, signal: AbortSignal): void {
+  doc.addEventListener('yt-player-updated', () => onAnnounced(), { signal });
+}
+
 // YouTube's player marks an ad break on its own element, and renders the ad's overlay
 // into its ads module. Both were so in player 0229cd64 (Oct 2026).
 const AD_BREAK = 'ad-showing';
