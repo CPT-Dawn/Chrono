@@ -1,5 +1,6 @@
 // The settings section of the Panel's ⋮ menu. It shows the same settings as the toolbar
 // popup, in the same order, as menu items: a group of choices or an on/off item each.
+// Separators set a group of choices apart from the on/off items around it.
 import { SETTING_CONTROLS, type Settings } from '@/settings';
 import { createCheckItem } from './menu';
 
@@ -16,8 +17,10 @@ export function createSettingsMenu(
   const elements: HTMLElement[] = [];
   const showControls: ((settings: Settings) => void)[] = [];
 
-  for (const control of SETTING_CONTROLS) {
-    if (elements.length > 0) elements.push(separator());
+  SETTING_CONTROLS.forEach((control, i) => {
+    // A group of choices is set apart from the on/off items around it.
+    const previous = SETTING_CONTROLS[i - 1];
+    if (previous && (previous.kind === 'choice' || control.kind === 'choice')) elements.push(separator());
     if (control.kind === 'choice') {
       const group = document.createElement('div');
       group.setAttribute('role', 'group');
@@ -48,7 +51,7 @@ export function createSettingsMenu(
         item.setAttribute('aria-checked', String(checked));
       });
     }
-  }
+  });
 
   return {
     elements,

@@ -1,6 +1,7 @@
 // A scope's speed table: one row per speed with the scope's remaining and finish time at
 // that speed. The current speed's row is highlighted, and clicking a row asks for its
-// speed. Any scope can show one.
+// speed. Each row's bar shows how its remaining compares with the slowest row's. Any scope
+// can show one.
 import { formatClockTime, formatWatchTime } from '@/format';
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
@@ -40,6 +41,7 @@ export function createSpeedTable(
     speedCell.className = 'speed-row-speed';
     speedCell.textContent = speedText(speed, locale);
     const remaining = document.createElement('span');
+    remaining.className = 'speed-row-remaining';
     const finish = document.createElement('span');
     finish.className = 'speed-row-finish';
     button.append(speedCell, remaining, finish);
@@ -57,6 +59,7 @@ export function createSpeedTable(
           rows.delete(speed);
         }
       }
+      const longest = Math.max(...tableRows.map((row) => row.remaining));
       const buttons = tableRows.map(({ speed, remaining, finishTime, current }) => {
         let row = rows.get(speed);
         if (!row) {
@@ -69,6 +72,8 @@ export function createSpeedTable(
         row.finish.textContent = browser.i18n.getMessage('finishTime', clock);
         row.button.setAttribute('aria-label', browser.i18n.getMessage('speedTableRow', [row.speedText, left, clock]));
         row.button.setAttribute('aria-pressed', String(current));
+        // The row's bar compares its remaining with the slowest row's.
+        row.button.style.setProperty('--share', (longest > 0 ? remaining / longest : 0).toFixed(4));
         return row.button;
       });
       // Moving a row would take focus away from it, so only rows new to the table are

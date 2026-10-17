@@ -152,6 +152,8 @@ export function createTarget(
       apply.setAttribute('aria-label', browser.i18n.getMessage('applySpeedLabel', speedText(applySpeed, locale)));
     }
     message.textContent = required ? requiredText(required, locale) : '';
+    // A speed YouTube can play reads as good news; the rest as a caution.
+    result.dataset.kind = required?.kind ?? '';
     result.hidden = !required;
   }
 

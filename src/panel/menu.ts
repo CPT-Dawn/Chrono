@@ -1,5 +1,6 @@
 // The Panel's ⋮ menu: a button and the popup it opens, following the WAI-ARIA menu
 // button pattern: arrow keys, Home and End move between its items.
+import { CHECK, createIcon, DOTS } from '@/icons';
 
 export interface Menu {
   button: HTMLButtonElement;
@@ -16,7 +17,7 @@ export function createMenu(id: string, label: string): Menu {
   button.setAttribute('aria-label', label);
   button.setAttribute('aria-haspopup', 'menu');
   button.setAttribute('aria-controls', id);
-  button.innerHTML = DOTS;
+  button.append(createIcon(DOTS));
 
   const popup = document.createElement('div');
   popup.id = id;
@@ -109,7 +110,7 @@ export function createCheckItem(role: 'menuitemcheckbox' | 'menuitemradio', labe
   item.className = 'menu-item';
   item.setAttribute('role', role);
   item.tabIndex = -1;
-  item.innerHTML = CHECK;
+  item.append(createIcon(CHECK));
   item.append(label);
   item.addEventListener('click', onActivate);
   item.addEventListener('keydown', (event) => {
@@ -120,13 +121,17 @@ export function createCheckItem(role: 'menuitemcheckbox' | 'menuitemradio', labe
   return item;
 }
 
-/** A menu item that does something, like opening a page. Click, Enter and Space activate it. */
-export function createActionItem(label: string, onActivate: () => void): HTMLElement {
+/**
+ * A menu item that does something, like opening a page, with an optional icon. Click, Enter
+ * and Space activate it.
+ */
+export function createActionItem(label: string, onActivate: () => void, icon = ''): HTMLElement {
   const item = document.createElement('div');
   item.className = 'menu-item';
   item.setAttribute('role', 'menuitem');
   item.tabIndex = -1;
-  item.textContent = label;
+  if (icon) item.append(createIcon(icon));
+  item.append(label);
   item.addEventListener('click', onActivate);
   item.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -135,13 +140,3 @@ export function createActionItem(label: string, onActivate: () => void): HTMLEle
   });
   return item;
 }
-
-const CHECK =
-  '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">' +
-  '<path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '</svg>';
-
-const DOTS =
-  '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="currentColor">' +
-  '<circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>' +
-  '</svg>';

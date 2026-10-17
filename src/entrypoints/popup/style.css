@@ -1,132 +1,384 @@
 /*
- * The popup isn't on YouTube, so it follows the browser's light or dark preference. The
- * colours are the same copies of YouTube's palette the Panel uses.
+ * The popup isn't on YouTube, so it is Chrono's own space: it follows the browser's light or
+ * dark preference, sets its name in Sora, and wears the dawn palette the Panel uses for
+ * progress and actions. Night indigo, rose and sunrise amber; rose marks what can be acted on.
  */
 :root {
+  --bg: #fff;
   --text: rgb(15, 15, 15);
-  --text-secondary: rgb(96, 96, 96);
-  --background: rgb(255, 255, 255);
-  --surface: rgba(0, 0, 0, 0.05);
-  --surface-hover: rgba(0, 0, 0, 0.1);
-  --accent: rgb(6, 95, 212);
+  --text-secondary: #5f5b6b;
+  --surface: #f4f3f8;
+  --surface-hover: #ebe9f2;
+  --track: #e2e0ea;
+  --thumb: #fff;
+  --thumb-shadow: 0 1px 3px rgba(30, 20, 70, 0.22), 0 0 0 0.5px rgba(30, 20, 70, 0.08);
+  --line: rgba(30, 20, 70, 0.08);
+  --accent: #c8325a;
+  --accent-soft: rgba(200, 50, 90, 0.1);
+  --dawn-1: #4f3cc9;
+  --dawn-2: #e2446c;
+  --dawn-3: #ff9f1c;
+  --dawn: linear-gradient(90deg, var(--dawn-1), var(--dawn-2) 62%, var(--dawn-3));
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: rgb(241, 241, 241);
-    --text-secondary: rgb(170, 170, 170);
-    --background: rgb(15, 15, 15);
-    --surface: rgba(255, 255, 255, 0.1);
-    --surface-hover: rgba(255, 255, 255, 0.2);
-    --accent: rgb(62, 166, 255);
+    --bg: #121118;
+    --text: #f1f0f5;
+    --text-secondary: #a6a2b4;
+    --surface: #1c1a24;
+    --surface-hover: #26232f;
+    --track: #2c2936;
+    --thumb: #45405a;
+    --thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --line: rgba(255, 255, 255, 0.08);
+    --accent: #ff7e95;
+    --accent-soft: rgba(255, 126, 149, 0.13);
+    --dawn-1: #7c6cff;
+    --dawn-2: #ff5c85;
+    --dawn-3: #ffb547;
 
     color-scheme: dark;
   }
 }
 
 body {
-  width: 300px;
+  width: 340px;
   margin: 0;
-  background: var(--background);
+  background: var(--bg);
   color: var(--text);
-  font-family: Roboto, Arial, sans-serif;
-  font-size: 14px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
   line-height: 20px;
 }
 
 main {
-  padding: 16px;
+  position: relative;
+  padding: 20px 16px 16px;
+  /* First light, just under the horizon. */
+  background: radial-gradient(120% 110px at 30% 0%, color-mix(in srgb, var(--dawn-2) 12%, transparent), transparent);
+}
+
+/* The popup's one entrance: the horizon draws across while the dial's hand sweeps round. */
+.horizon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--dawn);
+  transform-origin: left;
+  animation: draw 0.9s var(--ease-out) both;
+}
+
+@keyframes draw {
+  from {
+    scale: 0 1;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.brand-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.brand-mark .mark {
+  width: 32px;
+  height: 32px;
+}
+
+.mark-hand {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: sweep 1.2s var(--ease-out) 0.1s both;
+}
+
+@keyframes sweep {
+  from {
+    rotate: -300deg;
+  }
 }
 
 h1 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 22px;
+  font-family: 'Sora Variable', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 28px;
+  letter-spacing: -0.03em;
 }
 
 .note {
-  margin: 4px 0 16px;
+  margin: 2px 0 0;
   color: var(--text-secondary);
   font-size: 12px;
-  line-height: 18px;
+  line-height: 17px;
+  text-wrap: pretty;
 }
 
 h2 {
-  margin: 0 0 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
+  margin: 0 0 8px 4px;
+  font-family: 'Sora Variable', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
   line-height: 18px;
 }
 
 form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 4px;
+  border-radius: 16px;
   background: var(--surface);
 }
 
-fieldset {
+label.toggle {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin: 0;
-  padding: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 0 10px 0 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+label.toggle:hover {
+  background: var(--surface-hover);
+}
+
+/* Switches */
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--track);
+  transition: background-color 0.2s;
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--dawn);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition:
+    translate 0.3s var(--ease-spring),
+    width 0.15s;
+}
+
+label.toggle:active .switch::after {
+  width: 20px;
+}
+
+input:checked + .switch::before {
+  opacity: 1;
+}
+
+input:checked + .switch::after {
+  translate: 16px;
+}
+
+label.toggle:active input:checked + .switch::after {
+  translate: 12px;
+}
+
+input:focus-visible + .switch {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The clock format: a segmented control whose thumb slides to the chosen option. */
+
+fieldset {
+  margin: 4px 0;
+  padding: 6px 8px 8px 12px;
   border: none;
 }
 
 legend {
+  float: left;
   width: 100%;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   padding: 0;
 }
 
-label {
+.segmented {
+  position: relative;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  clear: both;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--track);
+}
+
+.segmented::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--count, 3));
+  border-radius: 7px;
+  background: var(--thumb);
+  box-shadow: var(--thumb-shadow);
+  translate: calc(var(--selected, 0) * 100%);
+  transition: translate 0.35s var(--ease-spring);
+}
+
+.segmented label {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  height: 28px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  transition: color 0.2s;
 }
 
-label.toggle {
-  justify-content: space-between;
+.segmented label:has(input:checked) {
+  color: var(--text);
 }
 
-input {
-  margin: 0;
-  accent-color: var(--accent);
+.segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
+
+/* Links */
 
 .links {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
-/* YouTube's tonal pill buttons, like its Share and Save buttons. */
 .pill {
-  height: 36px;
-  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 10px;
   border: none;
-  border-radius: 18px;
+  border-radius: 12px;
+  white-space: nowrap;
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-weight: 500;
   cursor: pointer;
+  transition:
+    background-color 0.15s,
+    scale 0.15s var(--ease-spring);
+}
+
+.pill svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  transition: scale 0.25s var(--ease-spring);
 }
 
 .pill:hover {
   background: var(--surface-hover);
 }
 
+.pill:hover svg {
+  scale: 1.15;
+}
+
+.pill:active {
+  scale: 0.96;
+}
+
 .pill:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Support is the one link that asks something of the viewer, so it wears the accent. */
+.pill[data-link='tip'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pill[data-link='tip']:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* Reporting is for when something's off: quieter, across the whole width. */
+.pill[data-link='report'] {
+  grid-column: 1 / -1;
+  height: 36px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.pill[data-link='report']:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0s !important;
+  }
 }

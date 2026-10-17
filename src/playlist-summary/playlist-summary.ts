@@ -1,6 +1,7 @@
 import { formatCount, formatHoursMinutes } from '@/format';
 import { speedText } from '@/panel/scope-text';
 import type { PlaylistSummary } from '@/time-model';
+import { createIcon, MARK } from '@/icons';
 import styles from './playlist-summary.css?inline';
 
 export interface PlaylistSummaryLine {
@@ -12,7 +13,8 @@ export interface PlaylistSummaryLine {
 /**
  * The Playlist summary: one line in the style of YouTube's own stats, e.g. "4h 12m total ·
  * 2h 48m at 1.5× · 3 unavailable". It lives in a shadow root so YouTube's styles and
- * Chrono's can't affect each other, and takes its colour from the stats it sits in.
+ * Chrono's can't affect each other, and takes its colour from the stats it sits in. Chrono's
+ * small mark leads it, so the viewer can tell it from YouTube's own stats.
  */
 export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
   const element = document.createElement('div');
@@ -21,8 +23,11 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
   const root = element.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
   style.textContent = styles;
+  const mark = document.createElement('span');
+  mark.className = 'mark-wrap';
+  mark.append(createIcon(MARK));
   const text = document.createElement('span');
-  root.append(style, text);
+  root.append(style, mark, text);
 
   return {
     element,

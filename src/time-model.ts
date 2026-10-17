@@ -30,6 +30,11 @@ export interface SpeedTableRow extends TimesAtSpeed {
 export interface ScopeTimes extends TimesAtSpeed {
   /** Rows from slowest to fastest. */
   speedTable: SpeedTableRow[];
+  /**
+   * How much of the scope's content has played, from 0 to 1. The Playlist scope runs from
+   * the start of the current video to the end of its target entry.
+   */
+  progress: number;
   /** The target the viewer set on the scope, if any. */
   target: Target | undefined;
   /** The speed that meets `target`, when there is one. */
@@ -122,7 +127,7 @@ export function videoScopeTimes(
 ): ScopeTimes | undefined {
   if (![duration, position, speed].every(Number.isFinite) || speed <= 0) return undefined;
   // YouTube's player sometimes reports a position past the video's end.
-  return scopeTimes(Math.max(0, duration - position), speed, now, target);
+  return scopeTimes(Math.max(0, duration - position), duration, speed, now, target);
 }
 
 /** What the Playlist scope shows. */
@@ -179,12 +184,11 @@ export function playlistScope({ video, playlist, targetEntry, target }: Playlist
   const last = loaded >= total ? lastLoaded : Math.max(lastLoaded, total - hiddenUnavailable);
   const until = Math.min(Math.max(targetEntry ?? last, current), last);
   const following = entries.slice(playing + 1).filter((entry) => entry.number <= until);
-  const contentLeft =
-    Math.max(0, video.duration - video.position) +
-    following.reduce((sum, entry) => sum + (entry.duration ?? 0), 0);
+  const followingLength = following.reduce((sum, entry) => sum + (entry.duration ?? 0), 0);
+  const contentLeft = Math.max(0, video.duration - video.position) + followingLength;
   return {
     kind: 'times',
-    times: scopeTimes(contentLeft, video.speed, video.now, target),
+    times: scopeTimes(contentLeft, video.duration + followingLength, video.speed, video.now, target),
     current,
     targetEntry: until,
     last,
@@ -220,11 +224,20 @@ export function chapterScope(
   const index = Math.max(0, chapters.findLastIndex((chapter) => chapter.start <= position));
   const end = chapters[index + 1]?.start ?? duration;
   const { title, start } = chapters[index]!;
-  return { title, start, times: scopeTimes(Math.max(0, end - position), speed, now, target) };
+  return { title, start, times: scopeTimes(Math.max(0, end - position), end - start, speed, now, target) };
 }
 
-/** A scope's times, given the content time it has left and the viewer's target for it. */
-function scopeTimes(contentLeft: number, speed: number, now: Date, target: Target | undefined): ScopeTimes {
+/**
+ * A scope's times, given the content time it has left of its `contentLength` and the
+ * viewer's target for it.
+ */
+function scopeTimes(
+  contentLeft: number,
+  contentLength: number,
+  speed: number,
+  now: Date,
+  target: Target | undefined,
+): ScopeTimes {
   const isCommon = TABLE_SPEEDS.some((common) => sameSpeed(common, speed));
   const speeds = isCommon ? TABLE_SPEEDS : [...TABLE_SPEEDS, speed].sort((a, b) => a - b);
   return {
@@ -233,6 +246,7 @@ function scopeTimes(contentLeft: number, speed: number, now: Date, target: Targe
       ...timesAtSpeed(contentLeft, rowSpeed, now),
       current: sameSpeed(rowSpeed, speed),
     })),
+    progress: contentLength > 0 ? Math.min(1, Math.max(0, 1 - contentLeft / contentLength)) : 1,
     target,
     required: target && requiredSpeed(contentLeft, target, now),
   };

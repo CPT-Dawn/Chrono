@@ -1,9 +1,10 @@
+import { CHEVRON, createIcon, LINK_ICONS, MARK, MINUS, PLUS } from '@/icons';
 import { OUTWARD_LINKS, type OutwardLink } from '@/links';
 import type { Settings } from '@/settings';
 import type { ChapterScope, PlaylistScope, ScopeTimes, Target, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createChapterScope } from './chapter-scope';
-import { create } from './dom';
+import { create, createProgress, playMotion } from './dom';
 import { createActionItem, createMenu } from './menu';
 import { createPlaylistScope } from './playlist-scope';
 import { speedText, timesText } from './scope-text';
@@ -81,9 +82,9 @@ export function createPanel({
 
   let currentSpeed = 1;
   const speedLabel = create('span', 'speed');
-  // − and + are symbols, not words; their accessible names are translated.
-  const slower = speedButton('−', 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
-  const faster = speedButton('+', 'faster', () => setSpeed(currentSpeed + SPEED_STEP));
+  // − and + are icons, not words; their accessible names are translated.
+  const slower = speedButton(MINUS, 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
+  const faster = speedButton(PLUS, 'faster', () => setSpeed(currentSpeed + SPEED_STEP));
   const speedControls = create('div', 'speed-controls');
   speedControls.append(slower, speedLabel, faster);
 
@@ -103,12 +104,13 @@ export function createPanel({
   toggle.type = 'button';
   toggle.setAttribute('aria-label', browser.i18n.getMessage('details'));
   toggle.setAttribute('aria-controls', details.id);
-  toggle.innerHTML = CHEVRON;
+  toggle.append(createIcon(CHEVRON));
 
   // The whole row expands and collapses, like YouTube's description box. The toggle
   // button is what keyboards and screen readers use.
+  const progress = createProgress();
   const row = create('div', 'row');
-  row.append(times, speedControls, toggle);
+  row.append(times, speedControls, toggle, progress.element);
   row.addEventListener('click', () => {
     settings = { ...settings, panelStartsExpanded: !settings.panelStartsExpanded };
     render();
@@ -116,16 +118,21 @@ export function createPanel({
   });
 
   const title = create('span', 'title');
-  title.textContent = browser.i18n.getMessage('extShortName');
+  title.append(createIcon(MARK));
+  title.append(browser.i18n.getMessage('extShortName'));
   const menu = createMenu('menu', browser.i18n.getMessage('moreActions'));
   const settingsMenu = createSettingsMenu(changeSetting);
   const separator = create('div', 'menu-separator');
   separator.setAttribute('role', 'separator');
   const links = OUTWARD_LINKS.map(({ link, label }) =>
-    createActionItem(browser.i18n.getMessage(label), () => {
-      menu.close();
-      openLink(link);
-    }),
+    createActionItem(
+      browser.i18n.getMessage(label),
+      () => {
+        menu.close();
+        openLink(link);
+      },
+      LINK_ICONS[link],
+    ),
   );
   menu.popup.append(...settingsMenu.elements, separator, ...links);
   const header = create('div', 'header');
@@ -175,6 +182,9 @@ export function createPanel({
       // During an ad or on live content the speed table has nothing to show either.
       videoTimes = scope.kind === 'times' ? { times: scope.times, now } : undefined;
       renderVideoDetails();
+      // Live and ad breaks get their own dot; with no times the progress bar has nothing to show.
+      panel.dataset.state = scope.kind;
+      progress.show(scope.kind === 'times' ? scope.times.progress : undefined);
       if (scope.kind !== 'times') {
         remaining.textContent = STATE_TEXT[scope.kind]();
         finish.textContent = '';
@@ -200,8 +210,22 @@ export function createPanel({
       chapterView.setEnabled(speed !== undefined);
       playlistView.setEnabled(speed !== undefined);
       if (speed === undefined) return;
+      const text = speedText(speed, locale);
+      // A new speed rolls in, and the times it changes settle after it.
+      if (speedLabel.textContent && speedLabel.textContent !== text) {
+        const up = speed > currentSpeed;
+        playMotion(speedLabel, [
+          { transform: `translateY(${up ? 60 : -60}%)`, opacity: 0 },
+          { transform: 'none', opacity: 1 },
+        ]);
+        playMotion(times, [{ opacity: 0.35, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], 320);
+        playMotion(title.querySelector('.mark-hand'), [
+          { transform: `rotate(${up ? 90 : -90}deg)` },
+          { transform: 'none' },
+        ], 500);
+      }
       currentSpeed = speed;
-      speedLabel.textContent = speedText(speed, locale);
+      speedLabel.textContent = text;
     },
     setSettings(value) {
       settings = value;
@@ -223,15 +247,10 @@ const STATE_TEXT: Record<Exclude<VideoScope['kind'], 'times'>, () => string> = {
   unknown: () => '',
 };
 
-const CHEVRON =
-  '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">' +
-  '<path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '</svg>';
-
-function speedButton(text: string, label: 'slower' | 'faster', onClick: () => void): HTMLButtonElement {
+function speedButton(icon: string, label: 'slower' | 'faster', onClick: () => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.textContent = text;
+  button.append(createIcon(icon));
   button.setAttribute('aria-label', browser.i18n.getMessage(label));
   button.className = 'icon-button';
   button.addEventListener('click', (event) => {

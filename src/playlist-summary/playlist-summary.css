@@ -1,13 +1,43 @@
 /*
  * One more row of YouTube's playlist stats: their font and spacing, measured on youtube.com
- * in Oct 2026. The colour is inherited from the stats, which YouTube sets for its header.
+ * in Oct 2026. The colour is inherited from the stats, which YouTube sets for its header;
+ * only Chrono's mark brings its own dawn colours, bright enough for any header.
  */
 :host {
-  display: block;
+  --dawn-1: #8b7dff;
+  --dawn-2: #ff5c85;
+  --dawn-3: #ffb547;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 2px;
   color: inherit;
   font-family: Roboto, Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
+  animation: fade-in 0.4s ease-out both;
+}
+
+.mark-wrap {
+  display: inline-flex;
+  flex: none;
+}
+
+.mark {
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host {
+    animation: none;
+  }
 }

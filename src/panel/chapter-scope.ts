@@ -2,7 +2,7 @@
 // remaining and finish time, its target and its speed table.
 import type { ClockFormat } from '@/settings';
 import type { ChapterScope, Target } from '@/time-model';
-import { create } from './dom';
+import { create, createProgress } from './dom';
 import { timesText } from './scope-text';
 import { createSpeedTable } from './speed-table';
 import { createTarget } from './target';
@@ -21,6 +21,7 @@ export function createChapterScope(
   setTarget: (target: Target | undefined) => void,
 ): ChapterScopeView {
   const element = create('div', 'scope');
+  element.dataset.scope = 'chapter';
   element.setAttribute('role', 'group');
   element.setAttribute('aria-label', browser.i18n.getMessage('chapterScope'));
 
@@ -33,7 +34,8 @@ export function createChapterScope(
   times.append(remaining, finish);
   const target = createTarget('chapter', locale, setTarget, setSpeed);
   const table = createSpeedTable(locale, setSpeed, 'chapterSpeedTable');
-  element.append(label, title, times, target.element, table.element);
+  const progress = createProgress();
+  element.append(label, title, times, progress.element, target.element, table.element);
 
   return {
     element,
@@ -49,6 +51,7 @@ export function createChapterScope(
       const text = timesText(scope.times, now, locale, clockFormat);
       remaining.textContent = text.remaining;
       finish.textContent = text.finish;
+      progress.show(scope.times.progress);
     },
     setEnabled(enabled) {
       target.setEnabled(enabled);
