@@ -126,9 +126,10 @@ describe('Playlist summary', () => {
   });
 
   describe('on Watch Later and Liked videos', () => {
-    // TODO(#15): these are public playlist pages opened at Watch Later's and Liked videos'
-    // addresses, because a headless browser can't sign in. Replace them with real pages saved
-    // from a signed-in browser.
+    // TODO: these are public playlist pages opened at Watch Later's and Liked videos'
+    // addresses, because a headless browser can't sign in and no signed-in pages have been
+    // saved yet (deferred in Oct 2026). Replace them with real pages saved from a signed-in
+    // browser.
     it('works on Watch Later', async () => {
       openSavedPage('playlist-legacy-long', 'https://www.youtube.com/playlist?list=WL');
       await startChrono();
