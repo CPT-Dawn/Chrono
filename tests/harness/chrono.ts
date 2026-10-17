@@ -1,12 +1,12 @@
 // The Chrono side of Seam 1: runs the real content script on the current page and finds
 // what it shows the viewer. It also counts the work Chrono leaves running, which the viewer
 // can't see, so tests can check that Chrono stops all of it on pages it isn't on.
-import { queryAllByRole, queryByRole, within } from '@testing-library/dom';
+import { fireEvent, queryAllByRole, queryByRole, within } from '@testing-library/dom';
 import { onTestFinished } from 'vitest';
 import type { MainWorldContentScriptDefinition } from 'wxt';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { failedParts } from '@/diagnostics';
+import { ensureBackground, openedPages } from './background';
 import playerScript from '@/entrypoints/youtube-player.content';
 import contentScript from '@/entrypoints/youtube.content';
 
@@ -95,10 +95,24 @@ export function queryPanel() {
 }
 
 /**
- * The parts of YouTube's page Chrono reports it couldn't recognise: what the Report link
- * will carry as `failed`. A stopgap until the Panel has its "Report it" link (#16), when
- * tests should read `failed` from the link the viewer opens instead.
+ * Follows "Something look wrong? Report it" from the Panel's ⋮ menu, as the viewer does,
+ * and returns the page it opens. Starts Chrono's background script if the test hasn't.
  */
-export function reportedFailures(): string[] {
-  return failedParts();
+export async function followReportLink(): Promise<URL> {
+  await ensureBackground();
+  const panel = queryPanel();
+  if (!panel) throw new Error('There is no Panel to report from');
+  const before = (await openedPages()).length;
+  const menuButton = panel.getByRole('button', { name: 'More actions' });
+  if (menuButton.getAttribute('aria-expanded') !== 'true') fireEvent.click(menuButton);
+  fireEvent.click(panel.getByRole('menuitem', { name: 'Something look wrong? Report it' }));
+  await settle();
+  const opened = (await openedPages()).slice(before);
+  if (opened.length !== 1) throw new Error(`Report it opened ${opened.length} pages`);
+  return opened[0]!;
+}
+
+/** The parts of YouTube's page that "Report it" says Chrono couldn't recognise. */
+export async function reportedFailures(): Promise<string[]> {
+  return (await followReportLink()).searchParams.get('failed')?.split(',') ?? [];
 }

@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live';
+export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'player';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -106,6 +106,20 @@ interface PlayerSpeedApi {
 }
 
 const PLAYER = `${WATCH_PAGE} #movie_player`;
+
+/** YouTube's player: the one before the redesign, or the redesigned "Delhi" one. */
+export type PlayerVariant = 'legacy' | 'delhi';
+
+// YouTube rolled the redesigned player out in waves from Oct 2025. It flags it with this
+// class on the player element, as it still did in Oct 2026.
+const DELHI = 'ytp-delhi-modern';
+
+/** Which of YouTube's players the watch page has. */
+export function readPlayerVariant(doc: Document): Reading<PlayerVariant> {
+  const player = doc.querySelector(PLAYER);
+  if (!player) return unrecognised('player');
+  return recognised(player.classList.contains(DELHI) ? 'delhi' : 'legacy');
+}
 
 function readPlayerSpeedApi(doc: Document): Reading<PlayerSpeedApi> {
   const player = doc.querySelector(PLAYER) as Partial<PlayerSpeedApi> | null;

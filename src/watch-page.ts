@@ -1,5 +1,6 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { clearDiagnostics, noteReading } from '@/diagnostics';
+import { clearDiagnostics, failedParts, noteReading } from '@/diagnostics';
+import { answerPageReports, openLink, type PageReport } from '@/links';
 import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
 import { type VideoScope, type VideoState, videoScope } from '@/time-model';
@@ -10,6 +11,7 @@ import {
   readLive,
   readMediaSource,
   readPage,
+  readPlayerVariant,
   readSidebarMount,
   readTheme,
   watchNavigation,
@@ -78,6 +80,8 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     observer.observe(document, { childList: true, subtree: true });
     const video = readActiveVideo(document);
     const sidebar = readSidebarMount(document);
+    noteReading('video', video);
+    noteReading('sidebar', sidebar);
     if (!video.recognised || !sidebar.recognised) {
       removePanel();
       return;
@@ -88,6 +92,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       settings,
       setSpeed: (speed) => speedBridge.set(speed),
       changeSetting: (key, value) => void changeSetting(key, value),
+      openLink: (link) => void openLink(link, link === 'report' ? readPageReport() : undefined),
     });
     if (!themeWatch) {
       themeWatch = new AbortController();
@@ -186,6 +191,23 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     return { adBreak: adBreak.recognised && adBreak.value, live: live.recognised && live.value };
   }
 
+  /**
+   * What "Report it" says about the page, read when the viewer asks: which player and
+   * layout YouTube gave them, and what Chrono couldn't recognise. Undefined off a watch page.
+   */
+  function readPageReport(): PageReport | undefined {
+    if (isOrphaned() || readPage(location).kind !== 'watch') return undefined;
+    const player = readPlayerVariant(document);
+    const sidebar = readSidebarMount(document);
+    noteReading('player', player);
+    noteReading('sidebar', sidebar);
+    return {
+      player: player.recognised ? player.value : undefined,
+      layout: sidebar.recognised ? sidebar.value.placement : undefined,
+      failed: failedParts(),
+    };
+  }
+
   /** YouTube changed its player, which most often means nothing to the Panel. */
   function playerStateChanged(): void {
     const state = readPlayerState();
@@ -205,6 +227,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   const speedBridge = connectSpeedBridge(
     document,
     (speed) => {
+      noteReading('speed', speed);
       playerSpeed = speed.recognised ? speed.value : undefined;
       render();
     },
@@ -240,6 +263,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     },
     { signal: ctx.signal },
   );
+  answerPageReports(readPageReport, ctx.signal);
   ctx.onInvalidated(stop);
   refresh();
 }

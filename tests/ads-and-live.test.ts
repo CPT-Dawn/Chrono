@@ -101,7 +101,7 @@ describe('Ad breaks', () => {
       const panel = queryPanel()!;
       expect(panel.queryByText('Paused for ad')).toBeNull();
       panel.getByText('12:30 left at 1×');
-      expect(reportedFailures()).toContain('ads');
+      expect(await reportedFailures()).toContain('ads');
     });
 
     it("doesn't stay paused when the markup stops making sense in the middle of an ad", async () => {
@@ -117,7 +117,7 @@ describe('Ad breaks', () => {
       const panel = queryPanel()!;
       expect(panel.queryByText('Paused for ad')).toBeNull();
       panel.getByText('12:30 left at 1×');
-      expect(reportedFailures()).toContain('ads');
+      expect(await reportedFailures()).toContain('ads');
     });
 
     it("doesn't report failed=ads on a page whose ad markup is recognised", async () => {
@@ -127,7 +127,7 @@ describe('Ad breaks', () => {
       page.endAdBreak();
       await settle();
 
-      expect(reportedFailures()).not.toContain('ads');
+      expect(await reportedFailures()).not.toContain('ads');
     });
   });
 
@@ -217,7 +217,7 @@ describe('Live content', () => {
 
     queryPanel()!.getByText('Live');
     expectNoTimes();
-    expect(reportedFailures()).toContain('live');
+    expect(await reportedFailures()).toContain('live');
   });
 
   it('follows YouTube from a live stream to a video and back', async () => {

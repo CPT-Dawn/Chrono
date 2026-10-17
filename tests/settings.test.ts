@@ -221,21 +221,24 @@ describe('Settings', () => {
     it('lets the keyboard move through the settings with the arrow keys', async () => {
       const { panel, menu } = await openMenu();
       const focused = () => panel.element.shadowRoot!.activeElement;
+      // The menu's links follow its settings.
       const items = [
         ...menu.getAllByRole('menuitemradio'),
         menu.getByRole('menuitemcheckbox', { name: 'Panel starts expanded' }),
+        ...menu.getAllByRole('menuitem'),
       ];
+      const last = items.at(-1);
 
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[0]);
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[1]);
       fireEvent.keyDown(focused()!, { key: 'End' });
-      expect(focused()).toBe(items[3]);
+      expect(focused()).toBe(last);
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[0]);
       fireEvent.keyDown(focused()!, { key: 'ArrowUp' });
-      expect(focused()).toBe(items[3]);
+      expect(focused()).toBe(last);
       fireEvent.keyDown(focused()!, { key: 'Home' });
       expect(focused()).toBe(items[0]);
 
