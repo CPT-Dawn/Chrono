@@ -10,6 +10,8 @@ import type { MessageName } from '@/messages';
 export type ClockFormat = 'auto' | '12h' | '24h';
 
 export interface Settings {
+  /** Whether the Panel shows the Chapter scope on a video with chapters. */
+  showChapterScope: boolean;
   /** Whether the video's finish time shows next to the player's own time display. */
   playerBadge: boolean;
   clockFormat: ClockFormat;
@@ -21,6 +23,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
+  showChapterScope: true,
   playerBadge: true,
   clockFormat: 'auto',
   panelStartsExpanded: false,
@@ -51,6 +54,7 @@ export type SettingControl = ChoiceSetting<'clockFormat'> | ToggleSetting<Toggle
  * in messages.json.
  */
 export const SETTING_CONTROLS: readonly SettingControl[] = [
+  { kind: 'toggle', key: 'showChapterScope', label: 'showChapterScope' },
   { kind: 'toggle', key: 'playerBadge', label: 'playerBadge' },
   {
     kind: 'choice',
@@ -66,6 +70,9 @@ export const SETTING_CONTROLS: readonly SettingControl[] = [
 ];
 
 const storageItems = {
+  showChapterScope: storage.defineItem<boolean>('local:settings.showChapterScope', {
+    fallback: DEFAULT_SETTINGS.showChapterScope,
+  }),
   playerBadge: storage.defineItem<boolean>('local:settings.playerBadge', {
     fallback: DEFAULT_SETTINGS.playerBadge,
   }),

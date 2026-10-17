@@ -3,11 +3,19 @@ import { clearDiagnostics, noteReading } from '@/diagnostics';
 import { createPanel, type Panel } from '@/panel/panel';
 import { createPlayerBadge, type PlayerBadge } from '@/player-badge/player-badge';
 import { connectSpeedBridge } from '@/speed-bridge';
-import { type VideoScope, type VideoState, videoScope } from '@/time-model';
+import {
+  type ChapterScope,
+  chapterScope,
+  type VideoScope,
+  type VideoSnapshot,
+  type VideoState,
+  videoScope,
+} from '@/time-model';
 import { changeSetting, readSettings, watchSettings } from '@/settings';
 import {
   readActiveVideo,
   readAdBreak,
+  readChapters,
   readLive,
   readMediaSource,
   readPage,
@@ -220,19 +228,32 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     const now = new Date();
     const state = readPlayerState();
     shownPlayerState = state;
-    const scope: VideoScope =
-      !navigating && page.kind === 'watch' && ownerOf(video, page.videoId) === page.videoId
-        ? videoScope({
-            position: video.currentTime,
-            duration: video.duration,
-            speed: playerSpeed ?? video.playbackRate,
-            now,
-            ...state,
-          })
-        : { kind: 'unknown' };
+    /** The video the Panel describes, while the address and the video agree on it. */
+    const videoId =
+      !navigating && page.kind === 'watch' && ownerOf(video, page.videoId) === page.videoId ? page.videoId : undefined;
+    const snapshot: VideoSnapshot = {
+      position: video.currentTime,
+      duration: video.duration,
+      speed: playerSpeed ?? video.playbackRate,
+      now,
+    };
+    const scope: VideoScope = videoId ? videoScope({ ...snapshot, ...state }) : { kind: 'unknown' };
     panel?.showVideo(scope, now);
+    // During an ad or on live content there is no chapter to speak of either.
+    panel?.showChapter(videoId && scope.kind === 'times' ? currentChapter(videoId, snapshot) : undefined, now);
     panel?.showSpeed(playerSpeed);
     badge?.show(scope, now, settings.clockFormat);
+  }
+
+  /**
+   * The chapter of `videoId` that the playhead is in, when YouTube's chapters can be read.
+   * Chrono reads them even while the Chapter scope is hidden, so that a report says
+   * whether it could.
+   */
+  function currentChapter(videoId: string, snapshot: VideoSnapshot): ChapterScope | undefined {
+    const chapters = readChapters(document, videoId);
+    noteReading('chapters', chapters);
+    return chapters.recognised ? chapterScope(chapters.value, snapshot) : undefined;
   }
 
   /** What YouTube's player says about the video it is playing. */

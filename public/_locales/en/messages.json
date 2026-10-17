@@ -73,6 +73,14 @@
       "time": { "content": "$3", "example": "3:08 PM" }
     }
   },
+  "chapterScope": {
+    "message": "Chapter",
+    "description": "Label of the Chapter scope, which shows the chapter the playhead is in. Also its accessible name."
+  },
+  "chapterSpeedTable": {
+    "message": "Chapter speed table",
+    "description": "Accessible name of the Chapter scope's list of common speeds, each with the chapter's remaining watch time and finish time."
+  },
   "moreActions": {
     "message": "More actions",
     "description": "Accessible name of the Panel's ⋮ menu button and of the menu it opens."
@@ -100,6 +108,10 @@
   "clockFormat24h": {
     "message": "24-hour",
     "description": "Clock format choice: times like 15:45."
+  },
+  "showChapterScope": {
+    "message": "Show Chapter scope",
+    "description": "Setting: whether the Panel shows the current chapter's remaining and finish time on a video with chapters."
   },
   "panelStartsExpanded": {
     "message": "Panel starts expanded",

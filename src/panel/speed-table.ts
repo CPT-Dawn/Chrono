@@ -2,6 +2,7 @@
 // that speed. The current speed's row is highlighted, and clicking a row asks for its
 // speed. Any scope can show one.
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
+import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
 import type { SpeedTableRow } from '@/time-model';
 
@@ -13,11 +14,16 @@ export interface SpeedTable {
   setEnabled(enabled: boolean): void;
 }
 
-export function createSpeedTable(locale: string, setSpeed: (speed: number) => void): SpeedTable {
+/** A speed table, named for screen readers by the message `label`. */
+export function createSpeedTable(
+  locale: string,
+  setSpeed: (speed: number) => void,
+  label: MessageName = 'speedTable',
+): SpeedTable {
   const element = document.createElement('div');
   element.className = 'speed-table';
   element.setAttribute('role', 'group');
-  element.setAttribute('aria-label', browser.i18n.getMessage('speedTable'));
+  element.setAttribute('aria-label', browser.i18n.getMessage(label));
 
   // Rows are kept for as long as their speed is in the table, so one the keyboard is on
   // keeps focus while its times change.

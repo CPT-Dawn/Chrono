@@ -60,6 +60,10 @@ export interface SavedPage {
   readonly ads: Element;
   /** YouTube's player's time display, which it flags on live content. */
   readonly timeDisplay: Element;
+  /** The list of the video's chapters that YouTube keeps beside the video, on a video with chapters. */
+  readonly chapters: Element;
+  /** YouTube's progress bar's chapter segments: one per chapter, or one for a video without chapters. */
+  readonly chapterSegments: Element;
   /**
    * YouTube starts an ad break: it flags its player and renders the ad's overlay. The ad
    * plays in the same video element, which the test loads with the ad.
@@ -147,6 +151,12 @@ export function renderSavedPage(
     },
     get timeDisplay() {
       return required('ytd-watch-flexy #movie_player .ytp-time-display');
+    },
+    get chapters() {
+      return required('ytd-watch-flexy #panels > [target-id^="engagement-panel-macro-markers"]');
+    },
+    get chapterSegments() {
+      return required('ytd-watch-flexy #movie_player .ytp-chapters-container');
     },
     startAdBreak() {
       const playerElement = fromWatchPage(player);

@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'badge';
+export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'badge' | 'chapters';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -257,6 +257,68 @@ export function watchPlayerState(doc: Document, onChange: () => void, signal: Ab
   observer.observe(player, { attributes: true, attributeFilter: ['class'], childList: true });
   watchParts();
   signal.addEventListener('abort', () => observer.disconnect());
+}
+
+/** A chapter of a video, as YouTube lists it. */
+export interface Chapter {
+  title: string;
+  /** Where the chapter starts, in seconds of content time. It ends where the next one starts. */
+  start: number;
+}
+
+// YouTube lists a video's chapters in a panel it keeps beside the video, whichever player
+// it serves: one panel for chapters the creator wrote, another for chapters YouTube made.
+// Its progress bar has a segment per chapter, and one segment for a video without them.
+// All were so on the legacy and Delhi players in Oct 2026.
+const CHAPTER_LIST = [
+  'engagement-panel-macro-markers-description-chapters',
+  'engagement-panel-macro-markers-auto-chapters',
+]
+  .map((id) => `${WATCH_PAGE} #panels > ytd-engagement-panel-section-list-renderer[target-id="${id}"]`)
+  .join(', ');
+const CHAPTER_ITEM = ':scope ytd-macro-markers-list-item-renderer';
+const CHAPTER_LINK = ':scope > a#endpoint';
+const CHAPTER_TITLE = ':scope #details .macro-markers';
+const CHAPTER_SEGMENTS = ':scope .ytp-progress-bar .ytp-chapters-container';
+const CHAPTER_SEGMENT = ':scope > .ytp-chapter-hover-container';
+const YOUTUBE = 'https://www.youtube.com/';
+
+/**
+ * The chapters of `videoId`, the watch page's video, in order. An empty list for a video
+ * without chapters. The list only counts when YouTube's progress bar agrees about how many
+ * chapters there are, so a list YouTube hasn't yet replaced after navigating never does.
+ */
+export function readChapters(doc: Document, videoId: string): Reading<Chapter[]> {
+  const segments = doc.querySelector(PLAYER)?.querySelector(CHAPTER_SEGMENTS);
+  if (!segments) return unrecognised('chapters');
+  const segmentCount = segments.querySelectorAll(CHAPTER_SEGMENT).length;
+  const list = doc.querySelector(CHAPTER_LIST);
+  if (!list) return segmentCount === 1 ? recognised([]) : unrecognised('chapters');
+
+  const chapters: Chapter[] = [];
+  for (const item of list.querySelectorAll(CHAPTER_ITEM)) {
+    const chapter = readChapter(item, videoId);
+    // Each chapter starts after the one before, and the first at the very start.
+    const previous = chapters.at(-1);
+    if (!chapter || (previous ? chapter.start <= previous.start : chapter.start !== 0)) return unrecognised('chapters');
+    chapters.push(chapter);
+  }
+  return chapters.length === segmentCount ? recognised(chapters) : unrecognised('chapters');
+}
+
+/**
+ * One chapter of the list. Its link plays `videoId` from the chapter's start, given in
+ * whole seconds, e.g. `/watch?v=aircAruvnKk&t=67s`; the first chapter's has no start.
+ */
+function readChapter(item: Element, videoId: string): Chapter | undefined {
+  const link = item.querySelector(CHAPTER_LINK);
+  const title = link?.querySelector(CHAPTER_TITLE)?.textContent?.trim();
+  const href = link?.getAttribute('href');
+  if (!title || !href || !URL.canParse(href, YOUTUBE)) return undefined;
+  const params = new URL(href, YOUTUBE).searchParams;
+  if (params.get('v') !== videoId) return undefined;
+  const start = /^(\d+)s$/.exec(params.get('t') ?? '0s')?.[1];
+  return start === undefined ? undefined : { title, start: Number(start) };
 }
 
 export interface NavigationHandlers {

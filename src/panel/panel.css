@@ -228,6 +228,30 @@
   color: var(--text-secondary);
 }
 
+/* A scope other than the Video scope, below the Video scope's speed table. */
+.scope {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hover);
+}
+
+.scope-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.scope-title {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope .times {
+  margin-bottom: 4px;
+}
+
 [hidden] {
   display: none !important;
 }
