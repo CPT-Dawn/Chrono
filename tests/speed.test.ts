@@ -155,6 +155,40 @@ describe('Speed', () => {
     expect(page.player.speed).toBe(1.25);
   });
 
+  it("shows the speed controls when YouTube's player gains its API after the video has started", async () => {
+    const page = openSavedPage('watch-delhi', WATCH_URL, { playerApi: false });
+    page.video.load({ duration: 1000 });
+    page.video.seek(250);
+    page.video.play();
+    await startChrono();
+    const panel = queryPanel()!;
+    fireEvent.click(panel.getByRole('button', { name: 'Details' }));
+    const row = () =>
+      within(panel.getByRole('group', { name: 'Speed table' })).getByRole('button', { name: /^1\.5×/ }) as HTMLButtonElement;
+    expect(row().disabled).toBe(true);
+
+    page.player.addApi();
+    page.announcePlayer();
+
+    expect(row().disabled).toBe(false);
+    panel.getByRole('button', { name: 'Faster' }).click();
+    expect(page.player.speed).toBe(1.25);
+  });
+
+  it("keeps waiting for YouTube's player API when the browser starts the content script again", async () => {
+    const page = openSavedPage('watch-delhi', WATCH_URL, { playerApi: false });
+    page.video.load({ duration: 1000 });
+    await startChrono();
+    // The new content script stops the first one as it starts.
+    await startChrono();
+
+    page.player.addApi();
+    page.announcePlayer();
+
+    queryPanel()!.getByRole('button', { name: 'Faster' }).click();
+    expect(page.player.speed).toBe(1.25);
+  });
+
   it("shows the speed controls when a player YouTube swapped in during navigation gains its API late", async () => {
     const page = openSavedPage('watch-delhi', WATCH_URL);
     page.video.load({ duration: 1000 });

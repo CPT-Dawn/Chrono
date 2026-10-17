@@ -9,6 +9,7 @@ import { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { failedParts } from '@/diagnostics';
 import playerScript from '@/entrypoints/youtube-player.content';
 import contentScript from '@/entrypoints/youtube.content';
+import { ListenerRegistry } from './listeners';
 
 let ctx: ContentScriptContext | undefined;
 let stopPlayerScript: (() => void) | undefined;
@@ -32,26 +33,8 @@ export function countObservers(): number {
   return observing.size;
 }
 
-interface PageListener {
-  target: EventTarget;
-  type: string;
-  listener: EventListenerOrEventListenerObject;
-  capture: boolean;
-}
-
-// Keeps count of the event listeners on the document and the window, as the browser keeps
-// them: one per target, type, listener and phase.
-const pageListeners: PageListener[] = [];
-const indexOfPageListener = (entry: PageListener) =>
-  pageListeners.findIndex(
-    (l) => l.target === entry.target && l.type === entry.type && l.listener === entry.listener && l.capture === entry.capture,
-  );
-const forgetPageListener = (entry: PageListener) => {
-  const index = indexOfPageListener(entry);
-  if (index !== -1) pageListeners.splice(index, 1);
-};
-const usesCapture = (options?: boolean | EventListenerOptions) =>
-  typeof options === 'boolean' ? options : Boolean(options?.capture);
+// Keeps count of the event listeners on the document and the window.
+const pageListeners = new ListenerRegistry();
 /** The object `target` gets addEventListener from: itself or a prototype. */
 function eventTargetPrototype(target: EventTarget): EventTarget {
   let proto = target;
@@ -63,23 +46,17 @@ for (const proto of new Set([eventTargetPrototype(document), eventTargetPrototyp
   const { addEventListener, removeEventListener } = proto;
   proto.addEventListener = function (type, listener, options) {
     addEventListener.call(this, type, listener, options);
-    if ((this !== document && this !== window) || !listener) return;
-    const signal = typeof options === 'object' ? options.signal : undefined;
-    if (signal?.aborted) return;
-    const entry = { target: this, type, listener, capture: usesCapture(options) };
-    if (indexOfPageListener(entry) !== -1) return;
-    pageListeners.push(entry);
-    signal?.addEventListener('abort', () => forgetPageListener(entry));
+    if ((this === document || this === window) && listener) pageListeners.add(this, type, listener, options);
   };
   proto.removeEventListener = function (type, listener, options) {
     removeEventListener.call(this, type, listener, options);
-    if (listener) forgetPageListener({ target: this, type, listener, capture: usesCapture(options) });
+    if (listener) pageListeners.remove(this, type, listener, options);
   };
 }
 
 /** How many event listeners are on the document and the window. */
 export function countPageListeners(): number {
-  return pageListeners.length;
+  return pageListeners.count;
 }
 
 export interface StartOptions {

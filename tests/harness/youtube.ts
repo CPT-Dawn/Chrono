@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { vi } from 'vitest';
 import { settle } from './chrono';
+import { ListenerRegistry } from './listeners';
 
 /** The browser hides or shows the tab, as when the viewer switches tabs. */
 export function setTabVisibility(state: DocumentVisibilityState): void {
@@ -45,10 +46,8 @@ export interface SavedPage {
   /** YouTube replaces its video element with a new one, which becomes `video`. */
   replaceVideo(): FakeVideo;
   /**
-   * YouTube's watch page takes in the player YouTube started outside it (see
-   * `PageOptions.playerOutsideWatchPage`) and announces it. In Oct 2026, on a fresh page
-   * load, YouTube did this 2–3 s in, with the player's API attached and its video's
-   * metadata already loaded.
+   * YouTube's watch page takes in the player YouTube started outside it, API and video and
+   * all, and announces it. In Oct 2026 YouTube did this 2–3 s into a fresh page load.
    */
   adoptPlayer(): void;
   /**
@@ -74,9 +73,8 @@ export interface PageOptions {
   /** Whether YouTube's player exposes the speed API Chrono knows. Defaults to true. */
   playerApi?: boolean;
   /**
-   * Whether YouTube's player is still outside the watch page. On a fresh page load YouTube
-   * starts its player, API and video and all, in a holder of its own before it renders
-   * the watch page, and moves it in later (`adoptPlayer`). Defaults to false.
+   * Whether YouTube's player is still in the holder where YouTube starts it on a fresh
+   * page load, outside the watch page, until `adoptPlayer`. Defaults to false.
    */
   playerOutsideWatchPage?: boolean;
 }
@@ -264,16 +262,6 @@ function required<T extends Element>(selector: string): T {
 /** How often a playing video fires `timeupdate`, as in Chrome and Firefox. */
 const TIMEUPDATE_MS = 250;
 
-interface Listener {
-  type: string;
-  listener: EventListenerOrEventListenerObject;
-  capture: boolean;
-}
-
-function usesCapture(options?: boolean | EventListenerOptions): boolean {
-  return typeof options === 'boolean' ? options : Boolean(options?.capture);
-}
-
 let sourceCount = 0;
 
 /** A source like the ones YouTube's player gives its video element, one per video it loads. */
@@ -296,7 +284,7 @@ export class FakeVideo {
   #ticker: ReturnType<typeof setInterval> | undefined;
 
   /** The element's event listeners, as the browser keeps them: one per type, listener and phase. */
-  #listeners: Listener[] = [];
+  #listeners = new ListenerRegistry();
 
   constructor(readonly element: HTMLVideoElement) {
     const video = this;
@@ -309,11 +297,7 @@ export class FakeVideo {
           // A browser ignores a null listener.
           if (!listener) return;
           addEventListener(type, listener, options);
-          const signal = typeof options === 'object' ? options.signal : undefined;
-          if (signal?.aborted) return;
-          const entry = { type, listener, capture: usesCapture(options) };
-          if (video.#indexOf(entry) === -1) video.#listeners.push(entry);
-          signal?.addEventListener('abort', () => video.#forget(entry));
+          video.#listeners.add(element, type, listener, options);
         },
       },
       removeEventListener: {
@@ -321,7 +305,7 @@ export class FakeVideo {
         value(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions) {
           if (!listener) return;
           removeEventListener(type, listener, options);
-          video.#forget({ type, listener, capture: usesCapture(options) });
+          video.#listeners.remove(element, type, listener, options);
         },
       },
       src: { configurable: true, get: () => video.#source },
@@ -403,16 +387,7 @@ export class FakeVideo {
    * video it no longer describes.
    */
   get listenerCount(): number {
-    return this.#listeners.length;
-  }
-
-  #indexOf({ type, listener, capture }: Listener): number {
-    return this.#listeners.findIndex((l) => l.type === type && l.listener === listener && l.capture === capture);
-  }
-
-  #forget(entry: Listener): void {
-    const index = this.#indexOf(entry);
-    if (index !== -1) this.#listeners.splice(index, 1);
+    return this.#listeners.count;
   }
 
   #fire(...types: string[]): void {
