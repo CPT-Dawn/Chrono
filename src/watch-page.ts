@@ -5,6 +5,7 @@ import { connectSpeedBridge } from '@/speed-bridge';
 import { type PlaylistScope, type VideoScope, type VideoState, playlistScope, videoScope } from '@/time-model';
 import { changeSetting, readSettings, watchSettings } from '@/settings';
 import {
+  type Page,
   type Playlist,
   type Reading,
   readActiveVideo,
@@ -68,7 +69,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
    * a second, so Chrono reads the playlist again only when YouTube changes its panel or
    * the address.
    */
-  let playlist: { href: string; reading: Reading<Playlist | undefined> } | undefined;
+  let playlistCache: { href: string; reading: Reading<Playlist | undefined> } | undefined;
   /**
    * The entry the viewer chose to count the Playlist scope up to, in which playlist. It
    * lasts while the viewer stays in that playlist, and is never stored.
@@ -104,7 +105,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       setSpeed: (speed) => speedBridge.set(speed),
       changeSetting: (key, value) => void changeSetting(key, value),
       setPlaylistTarget(number) {
-        const reading = playlist?.reading;
+        const reading = playlistCache?.reading;
         if (reading?.recognised && reading.value) playlistTarget = { listId: reading.value.id, number };
         render();
       },
@@ -148,7 +149,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     followed = undefined;
     themeWatch?.abort();
     themeWatch = undefined;
-    playlist = undefined;
+    playlistCache = undefined;
   }
 
   /** Removes the Panel and stops watching the page until YouTube navigates to a watch page. */
@@ -202,29 +203,34 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   }
 
   /** The Playlist scope for the video in `videoState`, the video the address names. */
-  function currentPlaylistScope(videoState: VideoState | undefined, page: ReturnType<typeof readPage>): PlaylistScope {
+  function currentPlaylistScope(videoState: VideoState | undefined, page: Page): PlaylistScope {
     const reading = readCurrentPlaylist();
     noteReading('playlist', reading);
     if (!reading.recognised) return { kind: 'none' };
     // Leaving the playlist, or moving to another, forgets the target entry.
     if (reading.value?.id !== playlistTarget?.listId) playlistTarget = undefined;
     if (!videoState || page.kind !== 'watch') return { kind: 'none' };
-    return playlistScope({
-      video: videoState,
-      videoId: page.videoId,
-      playlist: reading.value,
-      target: playlistTarget?.number,
-    });
+    const playlist = reading.value;
+    // Just after YouTube moves to another video, its panel may still show the previous one.
+    const stale =
+      playlist?.kind === 'playlist' && playlist.entries.find((entry) => entry.selected)?.videoId !== page.videoId;
+    return playlistScope({ video: videoState, playlist: stale ? undefined : playlist, target: playlistTarget?.number });
   }
 
+  /**
+   * The playlist at the current address. A reading Chrono didn't recognise isn't kept, so
+   * Chrono looks again on the next update, as when YouTube hasn't rendered its panel yet.
+   */
   function readCurrentPlaylist(): Reading<Playlist | undefined> {
-    if (playlist?.href !== location.href) playlist = { href: location.href, reading: readPlaylist(document, location) };
-    return playlist.reading;
+    if (playlistCache?.href === location.href) return playlistCache.reading;
+    const reading = readPlaylist(document, location);
+    playlistCache = reading.recognised ? { href: location.href, reading } : undefined;
+    return reading;
   }
 
   /** YouTube changed its playlist panel. */
   function playlistChanged(): void {
-    playlist = undefined;
+    playlistCache = undefined;
     render();
   }
 

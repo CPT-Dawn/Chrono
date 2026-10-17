@@ -1,9 +1,9 @@
 // The Panel's Playlist scope: the remaining and finish time up to the target entry, notes on
 // what it couldn't count, the target entry input and the scope's speed table. With Shuffle
 // on it shows a notice instead.
-import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { ClockFormat } from '@/settings';
 import type { PlaylistScope } from '@/time-model';
+import { timesText } from './scope-text';
 import { createSpeedTable } from './speed-table';
 
 export interface PlaylistScopeView {
@@ -72,12 +72,9 @@ export function createPlaylistScope(
         shownTarget = undefined;
         return;
       }
-      const speed = browser.i18n.getMessage('speed', formatSpeed(scope.times.speed, locale));
-      remaining.textContent = browser.i18n.getMessage('remaining', [formatWatchTime(scope.times.remaining), speed]);
-      finish.textContent = browser.i18n.getMessage(
-        'finishTime',
-        formatClockTime(scope.times.finishTime, now, locale, clockFormat),
-      );
+      const text = timesText(scope.times, now, locale, clockFormat);
+      remaining.textContent = text.remaining;
+      finish.textContent = text.finish;
       const noteTexts = [
         scope.partial &&
           browser.i18n.getMessage('playlistPartial', [String(scope.partial.counted), String(scope.partial.total)]),

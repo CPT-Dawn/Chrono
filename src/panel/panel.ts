@@ -1,9 +1,9 @@
-import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { Settings } from '@/settings';
 import type { PlaylistScope, ScopeTimes, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createMenu } from './menu';
 import { createPlaylistScope } from './playlist-scope';
+import { speedText as writeSpeed, timesText } from './scope-text';
 import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
 import styles from './panel.css?inline';
@@ -62,7 +62,7 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
   times.append(remaining, finish);
 
   let currentSpeed = 1;
-  const speedText = (speed: number) => browser.i18n.getMessage('speed', formatSpeed(speed, locale));
+  const speedText = (speed: number) => writeSpeed(speed, locale);
   const speedLabel = create('span', 'speed');
   // − and + are symbols, not words; their accessible names are translated.
   const slower = speedButton('−', 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
@@ -109,7 +109,7 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
   /** The Video scope's latest times, for the details to show when they're expanded. */
   let videoTimes: { times: ScopeTimes; now: Date } | undefined;
   /** The Playlist scope's latest state, likewise. */
-  let playlist: { scope: PlaylistScope; now: Date } = { scope: { kind: 'none' }, now: new Date() };
+  let shownPlaylist: { scope: PlaylistScope; now: Date } = { scope: { kind: 'none' }, now: new Date() };
 
   function render() {
     toggle.setAttribute('aria-expanded', String(settings.panelStartsExpanded));
@@ -131,7 +131,7 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
 
   function renderPlaylist() {
     const showPlaylist = settings.panelStartsExpanded && settings.showPlaylistScope;
-    playlistView.show(showPlaylist ? playlist.scope : { kind: 'none' }, playlist.now, settings.clockFormat);
+    playlistView.show(showPlaylist ? shownPlaylist.scope : { kind: 'none' }, shownPlaylist.now, settings.clockFormat);
   }
   render();
 
@@ -147,12 +147,12 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
         return;
       }
       const { times } = scope;
-      const left = formatWatchTime(times.remaining);
-      remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
-      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, settings.clockFormat));
+      const text = timesText(times, now, locale, settings.clockFormat);
+      remaining.textContent = text.remaining;
+      finish.textContent = text.finish;
     },
     showPlaylist(scope, now) {
-      playlist = { scope, now };
+      shownPlaylist = { scope, now };
       renderPlaylist();
     },
     showSpeed(speed) {

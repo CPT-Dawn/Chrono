@@ -265,15 +265,18 @@ export type Playlist =
       hiddenUnavailable: number;
     };
 
-const PLAYLIST_PANEL = `${WATCH_PAGE} ytd-playlist-panel-renderer#playlist`;
+const PLAYLIST_PANEL_TAG = 'ytd-playlist-panel-renderer';
+const PLAYLIST_PANEL = `${WATCH_PAGE} ${PLAYLIST_PANEL_TAG}#playlist`;
 const PLAYLIST_ENTRIES = ':scope #items > ytd-playlist-panel-video-renderer';
 const PLAYLIST_HIDDEN_MESSAGE = ':scope #items > ytd-message-renderer';
 /** "2 / 8": the playing entry's number and the playlist's length, in the panel's header. */
 const PLAYLIST_POSITION = ':scope #publisher-container .index-message';
-const PLAYLIST_SHUFFLE = ':scope #playlist-action-menu ytd-toggle-button-renderer button[aria-pressed]';
+const PLAYLIST_ACTIONS = ':scope #playlist-action-menu';
+const PLAYLIST_LOOP = ':scope ytd-playlist-loop-button-renderer';
+const PLAYLIST_SHUFFLE = ':scope ytd-toggle-button-renderer button[aria-pressed]';
 const ENTRY_NUMBER = ':scope #index';
 const ENTRY_LINK = ':scope a#wc-endpoint';
-const ENTRY_DURATION = ':scope ytd-thumbnail-overlay-time-status-renderer :is(badge-shape, #text)';
+const ENTRY_TIME_STATUS = ':scope ytd-thumbnail-overlay-time-status-renderer :is(badge-shape, #text)';
 const ENTRY_UNPLAYABLE = ':scope #unplayableText:not([hidden])';
 
 /**
@@ -291,48 +294,69 @@ export function readPlaylist(doc: Document, location: Location): Reading<Playlis
     .map((element) => /\d[\d\s.,]*\/\s*(\d[\d\s.,]*)/.exec(element.textContent ?? '')?.[1])
     .find((length) => length !== undefined);
   const entries = readPlaylistEntries(panel);
-  if (total === undefined || entries.length === 0 || !entries.some((entry) => entry.selected)) {
-    return unrecognised('playlist');
-  }
+  const shuffle = readShuffle(panel);
+  if (total === undefined || !entries || shuffle === undefined) return unrecognised('playlist');
   // "8 unavailable videos are hidden", in the viewer's language.
   const hidden = /\d[\d\s.,]*/.exec(panel.querySelector(PLAYLIST_HIDDEN_MESSAGE)?.textContent ?? '')?.[0];
   return recognised({
     kind: 'playlist',
     id,
-    shuffle: panel.querySelector(PLAYLIST_SHUFFLE)?.getAttribute('aria-pressed') === 'true',
+    shuffle,
     entries,
     total: parseCount(total),
     hiddenUnavailable: hidden === undefined ? 0 : parseCount(hidden),
   });
 }
 
-function readPlaylistEntries(panel: Element): PlaylistEntry[] {
-  const entries = [...panel.querySelectorAll(PLAYLIST_ENTRIES)].map((entry) => {
-    const href = entry.querySelector(ENTRY_LINK)?.getAttribute('href');
-    const unplayable = entry.querySelector(ENTRY_UNPLAYABLE) !== null;
-    const duration = [...entry.querySelectorAll(ENTRY_DURATION)]
-      .map((element) => parseDuration(element.textContent ?? ''))
-      .find((seconds) => seconds !== undefined);
+/**
+ * Whether the panel's Shuffle button is on, or undefined when the panel has the Loop
+ * button that Shuffle sits beside but no Shuffle button Chrono knows. Some playlists, such
+ * as courses, have neither, and can't be shuffled.
+ */
+function readShuffle(panel: Element): boolean | undefined {
+  const actions = panel.querySelector(PLAYLIST_ACTIONS);
+  const button = actions?.querySelector(PLAYLIST_SHUFFLE);
+  if (button) return button.getAttribute('aria-pressed') === 'true';
+  return actions?.querySelector(PLAYLIST_LOOP) ? undefined : false;
+}
+
+/**
+ * The panel's entries, or undefined when they aren't markup Chrono knows: none playing, or
+ * entries YouTube can play whose lengths Chrono can't read.
+ */
+function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
+  const read = [...panel.querySelectorAll(PLAYLIST_ENTRIES)].map((entry) => {
+    const href = entry.querySelector(ENTRY_LINK)?.getAttribute('href') ?? '';
+    // The thumbnail says how long the entry is, or has a word such as LIVE or UPCOMING
+    // when the entry has no fixed length yet.
+    const timeStatus = [...entry.querySelectorAll(ENTRY_TIME_STATUS)].map((element) => element.textContent?.trim() ?? '');
+    const playable = !entry.querySelector(ENTRY_UNPLAYABLE);
     return {
       // The playing entry shows ▶ in place of its number.
       number: Number(entry.querySelector(ENTRY_NUMBER)?.textContent?.trim()) || undefined,
-      duration: unplayable ? undefined : duration,
+      duration: playable ? timeStatus.map(parseDuration).find((seconds) => seconds !== undefined) : undefined,
+      playable,
+      hasTimeStatus: timeStatus.some(Boolean),
       selected: entry.hasAttribute('selected'),
-      videoId: (href && new URL(href, 'https://www.youtube.com').searchParams.get('v')) || undefined,
+      videoId: new URLSearchParams(href.split('?')[1] ?? '').get('v') ?? undefined,
     };
   });
+  const playable = read.filter((entry) => entry.playable);
+  // A playable entry with no time on its thumbnail, or no readable length on any of them,
+  // means YouTube changed how it shows lengths.
+  const lengthsKnown =
+    playable.every((entry) => entry.hasTimeStatus) &&
+    (playable.length === 0 || playable.some((entry) => entry.duration !== undefined));
+  if (!read.some((entry) => entry.selected) || !lengthsKnown) return undefined;
+
   // Entries are numbered one after another, so a missing number follows from its neighbours.
-  return entries.map((entry, i) => {
-    if (entry.number !== undefined) return { ...entry, number: entry.number };
-    const before = entries.slice(0, i).findLastIndex((e) => e.number !== undefined);
-    const after = entries.findIndex((e, j) => j > i && e.number !== undefined);
-    const number =
-      before !== -1
-        ? entries[before]!.number! + (i - before)
-        : after !== -1
-          ? entries[after]!.number! - (after - i)
-          : i + 1;
-    return { ...entry, number };
+  return read.map(({ number, duration, selected, videoId }, i) => {
+    const before = read.slice(0, i).findLastIndex((e) => e.number !== undefined);
+    const after = read.findIndex((e, j) => j > i && e.number !== undefined);
+    const filled =
+      number ??
+      (before !== -1 ? read[before]!.number! + (i - before) : after !== -1 ? read[after]!.number! - (after - i) : i + 1);
+    return { number: filled, duration, selected, videoId };
   });
 }
 
@@ -343,31 +367,35 @@ function parseCount(text: string): number {
 
 /** A length written the way YouTube writes one, e.g. "4:05" or "1:02:03", in seconds. */
 function parseDuration(text: string): number | undefined {
-  const parts = text.trim().split(':');
+  const parts = text.split(':');
   if (parts.length < 2 || parts.length > 3 || !parts.every((part) => /^\d+$/.test(part))) return undefined;
   return parts.reduce((seconds, part) => seconds * 60 + Number(part), 0);
 }
 
 /**
- * Calls `onChange` whenever YouTube may have changed the playlist panel: loaded more
- * entries, moved to another entry or turned Shuffle on or off. It stops when `signal`
- * aborts.
+ * Calls `onChange` whenever YouTube may have changed the playlist panel: rendered it,
+ * loaded more entries, moved to another entry or turned Shuffle on or off. It stops when
+ * `signal` aborts.
  */
 export function watchPlaylist(doc: Document, onChange: () => void, signal: AbortSignal): void {
   const watchPage = doc.querySelector(WATCH_PAGE);
   if (!watchPage) return;
   // YouTube may render the panel after the watch page, so this watches the whole watch
-  // page and passes on only changes inside a playlist panel.
+  // page and passes on only changes in, or of, a playlist panel.
+  const isPanel = (node: Node) =>
+    node instanceof Element && (node.localName === PLAYLIST_PANEL_TAG || node.querySelector(PLAYLIST_PANEL_TAG) !== null);
   const observer = new MutationObserver((records) => {
-    const inPanel = records.some(({ target }) =>
-      (target instanceof Element ? target : target.parentElement)?.closest('ytd-playlist-panel-renderer'),
+    const changed = records.some(
+      ({ target, addedNodes, removedNodes }) =>
+        (target instanceof Element && target.closest(PLAYLIST_PANEL_TAG) !== null) ||
+        [...addedNodes].some(isPanel) ||
+        [...removedNodes].some(isPanel),
     );
-    if (inPanel) onChange();
+    if (changed) onChange();
   });
   observer.observe(watchPage, {
     childList: true,
     subtree: true,
-    characterData: true,
     attributes: true,
     attributeFilter: ['selected', 'aria-pressed'],
   });

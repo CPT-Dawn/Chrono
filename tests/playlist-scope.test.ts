@@ -164,10 +164,13 @@ describe('Playlist scope', () => {
   });
 
   describe('is honest about what it can count', () => {
+    /** The first video of the 317-video "Blender Today LIVE" playlist, 1:48:08 long. */
+    const LONG = 'https://www.youtube.com/watch?v=oMeecNng9TM&list=PLa1F2ddGya_87HJ72v_IgKUTNLIXSMfvB';
+
     it('counts only the entries YouTube has loaded of a long playlist, and says so', async () => {
       // YouTube loaded 200 of the playlist's 317 entries. 6,000 s left of video 1, then
       // 896,936 s in entries 2–200: 902,936 s.
-      await openPlaylist('watch-playlist-long', `https://www.youtube.com/watch?v=oMeecNng9TM&list=PLa1F2ddGya_87HJ72v_IgKUTNLIXSMfvB`, {
+      await openPlaylist('watch-playlist-long', LONG, {
         duration: 6488,
         position: 488,
       });
@@ -179,7 +182,7 @@ describe('Playlist scope', () => {
     });
 
     it("doesn't say it's partial when the target entry is among those loaded", async () => {
-      await openPlaylist('watch-playlist-long', `https://www.youtube.com/watch?v=oMeecNng9TM&list=PLa1F2ddGya_87HJ72v_IgKUTNLIXSMfvB`, {
+      await openPlaylist('watch-playlist-long', LONG, {
         duration: 6488,
         position: 488,
       });
@@ -204,6 +207,18 @@ describe('Playlist scope', () => {
       scope.getByText('27:22 left at 1×');
       expect(scope.queryByText(/counted/)).toBeNull();
       expect(targetInput().max).toBe('16');
+    });
+
+    it("doesn't count the hidden unavailable entries when the scope stops short of the end", async () => {
+      // YouTube says how many it hid, but not where they are.
+      await openPlaylist('watch-playlist-unavailable', 'https://www.youtube.com/watch?v=NlMYWuGUZlM&list=PL9249A44A70958524', {
+        duration: 217,
+        position: 117,
+      });
+
+      setTarget('5');
+
+      expect(playlistScope().queryByText(/unavailable/)).toBeNull();
     });
 
     it('shows no Playlist scope in a Mix, which has no end', async () => {
@@ -257,6 +272,50 @@ describe('Playlist scope', () => {
     expect(queryPlaylistScope()).toBeNull();
     panel.getByText('8:20 left at 1×');
     expect(reportedFailures()).toEqual(['playlist']);
+  });
+
+  it("hides quietly, and reports failed=playlist, when it can't read the entries' lengths", async () => {
+    const page = openSavedPage('watch-playlist', SETTLERS_2);
+    // YouTube starts writing lengths in words.
+    for (const length of page.playlistPanel.querySelectorAll('ytd-thumbnail-overlay-time-status-renderer :is(badge-shape, #text)')) {
+      length.textContent = '18 minutes';
+    }
+    page.video.load({ duration: 927 });
+    page.video.seek(427);
+    await startChrono();
+    fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+
+    expect(queryPlaylistScope()).toBeNull();
+    expect(reportedFailures()).toEqual(['playlist']);
+  });
+
+  it("hides quietly, and reports failed=playlist, when it can't find the Shuffle button", async () => {
+    const page = openSavedPage('watch-playlist', SETTLERS_2);
+    // YouTube replaces its Shuffle button with one Chrono doesn't know, beside the Loop button.
+    page.playlistPanel.querySelector('ytd-toggle-button-renderer')!.remove();
+    page.video.load({ duration: 927 });
+    page.video.seek(427);
+    await startChrono();
+    fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+
+    expect(queryPlaylistScope()).toBeNull();
+    expect(reportedFailures()).toEqual(['playlist']);
+  });
+
+  it('appears once YouTube renders its playlist panel, after the rest of the watch page', async () => {
+    const page = openSavedPage('watch-playlist', SETTLERS_2);
+    const restore = page.withhold(page.playlistPanel);
+    page.video.load({ duration: 927 });
+    page.video.seek(427);
+    await startChrono();
+    fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+    expect(queryPlaylistScope()).toBeNull();
+
+    restore();
+    await settle();
+
+    playlistScope().getByText('3:28:59 left at 1×');
+    expect(reportedFailures()).toEqual([]);
   });
 
   it('shows nothing, and reports nothing, on a video outside any playlist', async () => {

@@ -90,7 +90,10 @@ export type PlaylistScope =
       target: number;
       /** The latest possible target entry. */
       last: number;
-      /** When the scope runs past the entries YouTube has loaded: how many are counted, of how many. */
+      /**
+       * When the scope runs past the entries YouTube has loaded: the last loaded entry's
+       * number, and how many entries the playlist has.
+       */
       partial: { counted: number; total: number } | undefined;
       /** How many unavailable entries the scope skips. */
       unavailable: number;
@@ -98,8 +101,7 @@ export type PlaylistScope =
 
 export interface PlaylistState {
   video: VideoState;
-  /** The video in the address, which the playlist's playing entry must be. */
-  videoId: string;
+  /** The playlist `video` plays in, if any. Its selected entry is `video`. */
   playlist: Playlist | undefined;
   /** The entry number the viewer chose to count up to, if any. The last entry otherwise. */
   target: number | undefined;
@@ -110,14 +112,13 @@ export interface PlaylistState {
  * including the target entry. Only entries YouTube has loaded count, and unavailable ones
  * are skipped.
  */
-export function playlistScope({ video, videoId, playlist, target }: PlaylistState): PlaylistScope {
+export function playlistScope({ video, playlist, target }: PlaylistState): PlaylistScope {
   const scope = videoScope(video);
   if (!playlist || playlist.kind === 'mix' || scope.kind !== 'times') return { kind: 'none' };
   if (playlist.shuffle) return { kind: 'shuffle' };
   const { entries, total, hiddenUnavailable } = playlist;
   const playing = entries.findIndex((entry) => entry.selected);
-  // Just after YouTube moves to another video, its panel may still show the previous one.
-  if (playing === -1 || entries[playing]!.videoId !== videoId) return { kind: 'none' };
+  if (playing === -1) return { kind: 'none' };
 
   const current = entries[playing]!.number;
   const lastLoaded = entries.at(-1)!.number;
@@ -135,8 +136,11 @@ export function playlistScope({ video, videoId, playlist, target }: PlaylistStat
     current,
     target: until,
     last,
-    partial: until > lastLoaded ? { counted: loaded, total } : undefined,
-    unavailable: following.filter((entry) => entry.duration === undefined).length + hiddenUnavailable,
+    partial: until > lastLoaded ? { counted: lastLoaded, total } : undefined,
+    // YouTube says only how many entries it hid, not where they are, so the scope counts
+    // them when it runs to the end of the playlist.
+    unavailable:
+      following.filter((entry) => entry.duration === undefined).length + (until === last ? hiddenUnavailable : 0),
   };
 }
 
