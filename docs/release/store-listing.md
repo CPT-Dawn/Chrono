@@ -37,7 +37,7 @@ ALSO
 • 12- or 24-hour clock, or automatic.
 
 PRIVACY
-Chrono collects no data. No analytics, no tracking, no accounts. It needs only storage for your settings and access to youtube.com.
+Chrono collects no data. No analytics, no tracking, no accounts. It needs only storage for your settings and access to www.youtube.com.
 
 Chrono is not affiliated with or endorsed by YouTube or Google.
 
@@ -46,7 +46,7 @@ Chrono is not affiliated with or endorsed by YouTube or Google.
 - Chrome Web Store: "This extension does not collect or use your data."
   - Single purpose: show watch time and finish times for YouTube videos at the viewer's speed.
   - `storage`: keeps the viewer's settings.
-  - Host access to youtube.com: where Chrono shows its Panel, Player badge and Playlist summary.
+  - Host access to www.youtube.com: where Chrono shows its Panel, Player badge and Playlist summary.
 - Firefox Add-ons: `data_collection_permissions: none` is declared in the manifest.
 
 ## Links

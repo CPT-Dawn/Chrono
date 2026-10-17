@@ -17,7 +17,7 @@ Website: [chrono.cptdawn.dev](https://chrono.cptdawn.dev/)
 
 ## Supported browsers
 
-- Chrome 121 or later, and Chromium browsers that install from the Chrome Web Store (Edge, Brave, Vivaldi, Arc).
+- Chrome 121 or later. Other Chromium browsers that install from the Chrome Web Store, such as Edge, Brave, Vivaldi and Arc, should work too but aren't tested.
 - Firefox 128 or later, on desktop.
 
 ## Privacy
@@ -49,6 +49,8 @@ It writes three files to `.output/` and then runs `web-ext lint` on the Firefox 
 - `chrono-<version>-chrome.zip`, for the Chrome Web Store;
 - `chrono-<version>-firefox.zip`, for Firefox Add-ons;
 - `chrono-<version>-sources.zip`, the source package Firefox Add-ons asks for.
+
+To build the Firefox extension from the sources package (for Firefox Add-ons source review), run `npm ci && npm run build:firefox`; the result is in `.output/firefox-mv3`.
 
 To try a build by hand, load `.output/chrome-mv3` as an unpacked extension in `chrome://extensions`, or `.output/firefox-mv3/manifest.json` as a temporary add-on in `about:debugging`.
 
