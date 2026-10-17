@@ -1,19 +1,24 @@
 // The Panel's Chapter scope: the title of the chapter the playhead is in, the chapter's
-// remaining and finish time, and its speed table.
+// remaining and finish time, its target and its speed table.
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { ClockFormat } from '@/settings';
-import type { ChapterScope } from '@/time-model';
+import type { ChapterScope, Target } from '@/time-model';
 import { createSpeedTable } from './speed-table';
+import { createTarget } from './target';
 
 export interface ChapterScopeView {
   element: HTMLElement;
   /** Shows the chapter, or hides the Chapter scope when there is none to show. */
   show(scope: ChapterScope | undefined, now: Date, clockFormat: ClockFormat): void;
-  /** Lets the speed table apply its speeds, or not while YouTube's speed can't be reached. */
+  /** Lets the speed table and target apply speeds, or not while YouTube's speed can't be reached. */
   setEnabled(enabled: boolean): void;
 }
 
-export function createChapterScope(locale: string, setSpeed: (speed: number) => void): ChapterScopeView {
+export function createChapterScope(
+  locale: string,
+  setSpeed: (speed: number) => void,
+  setTarget: (target: Target | undefined) => void,
+): ChapterScopeView {
   const element = document.createElement('div');
   element.className = 'scope';
   element.setAttribute('role', 'group');
@@ -31,14 +36,16 @@ export function createChapterScope(locale: string, setSpeed: (speed: number) => 
   const times = document.createElement('div');
   times.className = 'times';
   times.append(remaining, finish);
+  const target = createTarget('chapter', 'chapterTarget', locale, setTarget, setSpeed);
   const table = createSpeedTable(locale, setSpeed, 'chapterSpeedTable');
-  element.append(label, title, times, table.element);
+  element.append(label, title, times, target.element, table.element);
 
   return {
     element,
     show(scope, now, clockFormat) {
       element.hidden = !scope;
       // A hidden Chapter scope stays empty, so Chrono doesn't keep updating what nobody sees.
+      target.show(scope?.times, now, clockFormat);
       table.show(scope?.times.speedTable ?? [], now, clockFormat);
       if (!scope) return;
       const { times } = scope;
@@ -50,6 +57,7 @@ export function createChapterScope(locale: string, setSpeed: (speed: number) => 
       finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, clockFormat));
     },
     setEnabled(enabled) {
+      target.setEnabled(enabled);
       table.setEnabled(enabled);
     },
   };

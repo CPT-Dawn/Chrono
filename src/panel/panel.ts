@@ -1,6 +1,6 @@
 import { OUTWARD_LINKS, type OutwardLink } from '@/links';
 import type { Settings } from '@/settings';
-import type { ChapterScope, PlaylistScope, ScopeTimes, VideoScope } from '@/time-model';
+import type { ChapterScope, PlaylistScope, ScopeTimes, Target, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createChapterScope } from './chapter-scope';
 import { createActionItem, createMenu } from './menu';
@@ -8,6 +8,7 @@ import { createPlaylistScope } from './playlist-scope';
 import { speedText as writeSpeed, timesText } from './scope-text';
 import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
+import { createTarget } from './target';
 import styles from './panel.css?inline';
 
 export interface PanelOptions {
@@ -22,7 +23,9 @@ export interface PanelOptions {
    */
   changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): void;
   /** Called with the playlist entry number the viewer chooses to count the Playlist scope up to. */
-  setPlaylistTarget(target: number): void;
+  setPlaylistTargetEntry(entry: number): void;
+  /** Called with the target the viewer sets on a scope, or undefined when they clear it. */
+  setTarget(scope: TargetScope, target: Target | undefined): void;
   /** Called with the link the viewer follows from the ⋮ menu. */
   openLink(link: OutwardLink): void;
 }
@@ -49,6 +52,9 @@ export interface Panel {
   setSettings(settings: Settings): void;
 }
 
+/** The scopes the viewer can set a target on. */
+export type TargetScope = 'video' | 'chapter' | 'playlist';
+
 /** How far − and + change speed, as YouTube's Shift+< and Shift+> do. */
 const SPEED_STEP = 0.25;
 
@@ -61,7 +67,8 @@ export function createPanel({
   settings,
   setSpeed,
   changeSetting,
-  setPlaylistTarget,
+  setPlaylistTargetEntry,
+  setTarget,
   openLink,
 }: PanelOptions): Panel {
   const element = document.createElement('section');
@@ -87,10 +94,13 @@ export function createPanel({
   details.id = 'details';
   details.setAttribute('role', 'region');
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
+  const videoTarget = createTarget('video', 'videoTarget', locale, (target) => setTarget('video', target), setSpeed);
   const videoTable = createSpeedTable(locale, setSpeed);
-  const chapterView = createChapterScope(locale, setSpeed);
-  const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTarget);
-  details.append(videoTable.element, chapterView.element, playlistView.element);
+  const chapterView = createChapterScope(locale, setSpeed, (target) => setTarget('chapter', target));
+  const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTargetEntry, (target) =>
+    setTarget('playlist', target),
+  );
+  details.append(videoTarget.element, videoTable.element, chapterView.element, playlistView.element);
 
   const toggle = create('button', 'icon-button toggle') as HTMLButtonElement;
   toggle.type = 'button';
@@ -149,8 +159,9 @@ export function createPanel({
   }
 
   function renderVideoDetails() {
-    const rows = settings.panelStartsExpanded && videoTimes ? videoTimes.times.speedTable : [];
-    videoTable.show(rows, videoTimes?.now ?? new Date(), settings.clockFormat);
+    const shownVideo = settings.panelStartsExpanded ? videoTimes : undefined;
+    videoTarget.show(shownVideo?.times, shownVideo?.now ?? new Date(), settings.clockFormat);
+    videoTable.show(shownVideo?.times.speedTable ?? [], shownVideo?.now ?? new Date(), settings.clockFormat);
     const shownChapter = settings.panelStartsExpanded && settings.showChapterScope ? chapter : undefined;
     chapterView.show(shownChapter?.scope, shownChapter?.now ?? new Date(), settings.clockFormat);
   }
@@ -187,6 +198,7 @@ export function createPanel({
     },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
+      videoTarget.setEnabled(speed !== undefined);
       videoTable.setEnabled(speed !== undefined);
       chapterView.setEnabled(speed !== undefined);
       playlistView.setEnabled(speed !== undefined);

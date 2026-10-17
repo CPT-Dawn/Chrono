@@ -10,6 +10,7 @@ import {
   chapterScope,
   type PlaylistScope,
   playlistScope,
+  type Target,
   type VideoScope,
   type VideoSnapshot,
   type VideoState,
@@ -88,10 +89,18 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
    */
   let playlistCache: { href: string; reading: Reading<Playlist | undefined> } | undefined;
   /**
-   * The entry the viewer chose to count the Playlist scope up to, in which playlist. It
-   * lasts while the viewer stays in that playlist, and is never stored.
+   * The entry the viewer chose to count the Playlist scope up to and the target they set on
+   * the Playlist scope, in which playlist. They last while the viewer stays in that
+   * playlist, and are never stored.
    */
-  let playlistTarget: { listId: string; number: number } | undefined;
+  let playlistTargets: { listId: string; entry?: number; target?: Target } | undefined;
+  /**
+   * The targets the viewer set on the Video and Chapter scopes, for which video. They clear
+   * when the Panel moves to another video, and are never stored.
+   */
+  let videoTargets: { videoId: string; video?: Target; chapter?: Target } | undefined;
+  /** The video the Panel last described, which a new Video or Chapter target is for. */
+  let shownVideoId: string | undefined;
 
   // YouTube renders, re-renders and swaps parts of the watch page whenever it likes, so
   // Chrono looks again after every change to the page.
@@ -147,9 +156,17 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       settings,
       setSpeed: (speed) => speedBridge.set(speed),
       changeSetting: (key, value) => void changeSetting(key, value),
-      setPlaylistTarget(number) {
-        const reading = playlistCache?.reading;
-        if (reading?.recognised && reading.value) playlistTarget = { listId: reading.value.id, number };
+      setPlaylistTargetEntry(entry) {
+        setPlaylistTargets({ entry });
+      },
+      setTarget(scope, target) {
+        if (scope === 'playlist') {
+          setPlaylistTargets({ target });
+          return;
+        }
+        if (!shownVideoId) return;
+        if (videoTargets?.videoId !== shownVideoId) videoTargets = { videoId: shownVideoId };
+        videoTargets[scope] = target;
         render();
       },
       openLink: (link) => void openLink(link, linkWantsPage(link) ? readPageReport() : undefined),
@@ -230,8 +247,19 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   function stop(): void {
     observer.disconnect();
     removeSurfaces();
-    playlistTarget = undefined;
+    playlistTargets = undefined;
+    videoTargets = undefined;
     clearDiagnostics('watch');
+  }
+
+  /** Changes what the viewer chose for the Playlist scope of the playlist the Panel shows. */
+  function setPlaylistTargets(change: { entry?: number; target?: Target }): void {
+    const reading = playlistCache?.reading;
+    if (reading?.recognised && reading.value) {
+      const listId = reading.value.id;
+      playlistTargets = { ...(playlistTargets?.listId === listId ? playlistTargets : {}), listId, ...change };
+    }
+    render();
   }
 
   function setClock(running: boolean): void {
@@ -269,8 +297,11 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       speed: playerSpeed ?? video.playbackRate,
       now,
     };
+    // Moving to another video clears the targets set on the previous one.
+    if (videoId && videoTargets && videoTargets.videoId !== videoId) videoTargets = undefined;
+    shownVideoId = videoId;
     const videoState: VideoState | undefined = videoId ? { ...snapshot, ...state } : undefined;
-    const scope: VideoScope = videoState ? videoScope(videoState) : { kind: 'unknown' };
+    const scope: VideoScope = videoState ? videoScope(videoState, videoTargets?.video) : { kind: 'unknown' };
     panel?.showVideo(scope, now);
     // During an ad or on live content there is no chapter to speak of either.
     panel?.showChapter(videoId && scope.kind === 'times' ? currentChapter(videoId, snapshot) : undefined, now);
@@ -287,7 +318,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   function currentChapter(videoId: string, snapshot: VideoSnapshot): ChapterScope | undefined {
     const chapters = readChapters(document, videoId);
     noteReading('chapters', chapters);
-    return chapters.recognised ? chapterScope(chapters.value, snapshot) : undefined;
+    return chapters.recognised ? chapterScope(chapters.value, snapshot, videoTargets?.chapter) : undefined;
   }
 
   /** The Playlist scope for the video in `videoState`, the video the address names. */
@@ -295,14 +326,19 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     const reading = readCurrentPlaylist();
     noteReading('playlist', reading);
     if (!reading.recognised) return { kind: 'none' };
-    // Leaving the playlist, or moving to another, forgets the target entry.
-    if (reading.value?.id !== playlistTarget?.listId) playlistTarget = undefined;
+    // Leaving the playlist, or moving to another, forgets the target entry and the target.
+    if (reading.value?.id !== playlistTargets?.listId) playlistTargets = undefined;
     if (!videoState || page.kind !== 'watch') return { kind: 'none' };
     const playlist = reading.value;
     // Just after YouTube moves to another video, its panel may still show the previous one.
     const stale =
       playlist?.kind === 'playlist' && playlist.entries.find((entry) => entry.selected)?.videoId !== page.videoId;
-    return playlistScope({ video: videoState, playlist: stale ? undefined : playlist, target: playlistTarget?.number });
+    return playlistScope({
+      video: videoState,
+      playlist: stale ? undefined : playlist,
+      targetEntry: playlistTargets?.entry,
+      target: playlistTargets?.target,
+    });
   }
 
   /**

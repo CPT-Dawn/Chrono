@@ -8,6 +8,7 @@
 //
 // Firefox hides objects that cross between page scripts and content scripts, so every
 // message carries a plain number or nothing.
+import { MAX_SPEED, MIN_SPEED, roundToSpeedStep } from '@/time-model';
 import {
   type Reading,
   readPlayerSpeed,
@@ -15,12 +16,6 @@ import {
   watchPlayerAnnounced,
   watchPlayerSpeed,
 } from '@/youtube/adapter';
-
-/** YouTube's speed range. */
-const MIN_SPEED = 0.25;
-const MAX_SPEED = 2;
-/** YouTube's speed menu works in 0.05× steps: 20 to each 1×. */
-const STEPS_PER_SPEED = 20;
 
 const MESSAGES = {
   /** Page → content: the page script has loaded. */
@@ -166,6 +161,5 @@ export function connectSpeedBridge(
 
 /** A speed YouTube's menu can show: within 0.25×–2×, in 0.05× steps. */
 function toYouTubeSpeed(speed: number): number {
-  const clamped = Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed));
-  return Math.round(clamped * STEPS_PER_SPEED) / STEPS_PER_SPEED;
+  return roundToSpeedStep(Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed)));
 }
