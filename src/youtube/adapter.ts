@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar' | 'speed';
+export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -153,6 +153,60 @@ export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: Ab
   for (const type of ['ratechange', 'loadedmetadata', 'playing']) {
     doc.addEventListener(type, listener, { capture: true, signal });
   }
+}
+
+// YouTube's player marks an ad break on its own element, and renders the ad's overlay
+// into its ads module. Both were so in player 0229cd64 (Oct 2026).
+const AD_BREAK = 'ad-showing';
+const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
+
+/**
+ * Whether YouTube's player is playing an ad, in the watch page's own video element. An ad
+ * break counts only when the player's ads module has rendered the ad: a player flagged as
+ * in an ad break without one is markup Chrono doesn't know, and isn't trusted to pause.
+ */
+export function readAdBreak(doc: Document): Reading<boolean> {
+  const player = doc.querySelector(PLAYER);
+  if (!player) return unrecognised('ads');
+  if (!player.classList.contains(AD_BREAK)) return recognised(false);
+  const ads = player.querySelector(ADS_MODULE);
+  return ads && ads.childElementCount > 0 ? recognised(true) : unrecognised('ads');
+}
+
+// The player's time display is flagged on live streams, rewindable or not, and on
+// premieres and streams that haven't started yet.
+const TIME_DISPLAY = ':scope .ytp-time-display';
+const LIVE = 'ytp-live';
+
+/** Whether the watch page's video is live, or is a premiere or stream still to start. */
+export function readLive(doc: Document): Reading<boolean> {
+  const timeDisplay = doc.querySelector(PLAYER)?.querySelector(TIME_DISPLAY);
+  return timeDisplay ? recognised(timeDisplay.classList.contains(LIVE)) : unrecognised('live');
+}
+
+/**
+ * Calls `onChange` whenever YouTube's player may have started or ended an ad break or a
+ * live stream, until `signal` aborts. It watches only the parts that say so, because the
+ * rest of the player changes many times a second while a video plays.
+ */
+export function watchPlayerState(doc: Document, onChange: () => void, signal: AbortSignal): void {
+  const player = doc.querySelector(PLAYER);
+  if (!player) return;
+  const observer = new MutationObserver(() => {
+    // YouTube adds its ads module, and may render a new time display, after the player.
+    watchParts();
+    onChange();
+  });
+  const watchParts = () => {
+    const ads = player.querySelector(ADS_MODULE);
+    if (ads) observer.observe(ads, { childList: true });
+    const timeDisplay = player.querySelector(TIME_DISPLAY);
+    if (timeDisplay) observer.observe(timeDisplay, { attributes: true, attributeFilter: ['class'] });
+  };
+  // The player's own flags, and the ads module coming and going among its children.
+  observer.observe(player, { attributes: true, attributeFilter: ['class'], childList: true });
+  watchParts();
+  signal.addEventListener('abort', () => observer.disconnect());
 }
 
 export interface NavigationHandlers {

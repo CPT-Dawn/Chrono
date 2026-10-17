@@ -6,6 +6,7 @@ import { onTestFinished } from 'vitest';
 import type { MainWorldContentScriptDefinition } from 'wxt';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { ContentScriptContext } from 'wxt/utils/content-script-context';
+import { failedParts } from '@/diagnostics';
 import playerScript from '@/entrypoints/youtube-player.content';
 import contentScript from '@/entrypoints/youtube.content';
 
@@ -91,4 +92,13 @@ export function queryPanel() {
   const element = queryByRole(document.body, 'region', { name: 'Chrono' });
   if (!element) return null;
   return { element, ...within((element.shadowRoot ?? element) as HTMLElement) };
+}
+
+/**
+ * The parts of YouTube's page Chrono reports it couldn't recognise: what the Report link
+ * will carry as `failed`. A stopgap until the Panel has its "Report it" link (#16), when
+ * tests should read `failed` from the link the viewer opens instead.
+ */
+export function reportedFailures(): string[] {
+  return failedParts();
 }

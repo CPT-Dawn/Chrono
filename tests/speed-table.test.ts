@@ -190,4 +190,35 @@ describe('Speed table', () => {
 
     expect(rows()[0]).toBe('1×: 12:30 left, ends 15:12');
   });
+
+  it('hides during an ad, and comes back with the video when the ad ends', async () => {
+    const { page, panel } = await openSpeedTable();
+
+    page.startAdBreak();
+    page.video.startLoading();
+    page.video.load({ duration: 30 });
+    page.video.play();
+    await settle();
+    expect(panel.queryByRole('group', { name: 'Speed table' })).toBeNull();
+
+    page.endAdBreak();
+    page.video.startLoading();
+    page.video.load({ duration: 1000 });
+    page.video.seek(250);
+    await settle();
+    panel.getByRole('group', { name: 'Speed table' });
+  });
+
+  it('hides on a live stream, which has no remaining time', async () => {
+    const page = openSavedPage('watch-live', 'https://www.youtube.com/watch?v=56llPN9tS88');
+    page.video.load({ duration: 50_400 });
+    page.video.seek(50_390);
+    await startChrono();
+    const panel = queryPanel()!;
+    fireEvent.click(panel.getByRole('button', { name: 'Details' }));
+
+    panel.getByText('Live');
+    expect(panel.queryByRole('group', { name: 'Speed table' })).toBeNull();
+  });
 });
+

@@ -1,17 +1,24 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+import { clearDiagnostics, noteReading } from '@/diagnostics';
 import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
-import { videoScopeTimes } from '@/time-model';
+import { type VideoScope, type VideoState, videoScope } from '@/time-model';
 import { changeSetting, readSettings, watchSettings } from '@/settings';
 import {
   readActiveVideo,
+  readAdBreak,
+  readLive,
   readMediaSource,
   readPage,
   readSidebarMount,
   readTheme,
   watchNavigation,
+  watchPlayerState,
   watchTheme,
 } from '@/youtube/adapter';
+
+/** What YouTube's player says about the video it is playing. */
+type PlayerState = Pick<VideoState, 'adBreak' | 'live'>;
 
 /** The video's events that can change what the Panel shows. */
 const VIDEO_EVENTS = ['durationchange', 'timeupdate', 'seeking', 'ratechange', 'play', 'pause'];
@@ -50,6 +57,8 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   let themeWatch: AbortController | undefined;
   /** YouTube's player speed, while the Speed bridge can reach it. */
   let playerSpeed: number | undefined;
+  /** What the player said about its video when the Panel was last updated. */
+  let shownPlayerState: PlayerState | undefined;
 
   // YouTube renders, re-renders and swaps parts of the watch page whenever it likes, so
   // Chrono looks again after every change to the page.
@@ -125,6 +134,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   function stop(): void {
     observer.disconnect();
     removePanel();
+    clearDiagnostics();
   }
 
   function setClock(running: boolean): void {
@@ -140,6 +150,8 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     followed?.listening.abort();
     const listening = new AbortController();
     for (const type of VIDEO_EVENTS) video.addEventListener(type, render, { signal: listening.signal });
+    // YouTube starts and ends an ad break without always firing a video event.
+    watchPlayerState(document, playerStateChanged, listening.signal);
     followed = { video, listening };
   }
 
@@ -148,12 +160,36 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     const { video } = followed;
     const page = readPage(location);
     const now = new Date();
-    const times =
+    const state = readPlayerState();
+    shownPlayerState = state;
+    const scope: VideoScope =
       !navigating && page.kind === 'watch' && ownerOf(video, page.videoId) === page.videoId
-        ? videoScopeTimes({ position: video.currentTime, duration: video.duration, speed: playerSpeed ?? video.playbackRate, now })
-        : undefined;
-    panel.showVideo(times, now);
+        ? videoScope({
+            position: video.currentTime,
+            duration: video.duration,
+            speed: playerSpeed ?? video.playbackRate,
+            now,
+            ...state,
+          })
+        : { kind: 'unknown' };
+    panel.showVideo(scope, now);
     panel.showSpeed(playerSpeed);
+  }
+
+  /** What YouTube's player says about the video it is playing. */
+  function readPlayerState(): PlayerState {
+    const adBreak = readAdBreak(document);
+    const live = readLive(document);
+    noteReading('ads', adBreak);
+    noteReading('live', live);
+    // Markup Chrono doesn't know never pauses the Panel.
+    return { adBreak: adBreak.recognised && adBreak.value, live: live.recognised && live.value };
+  }
+
+  /** YouTube changed its player, which most often means nothing to the Panel. */
+  function playerStateChanged(): void {
+    const state = readPlayerState();
+    if (state.adBreak !== shownPlayerState?.adBreak || state.live !== shownPlayerState.live) render();
   }
 
   /**
