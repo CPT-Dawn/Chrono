@@ -38,6 +38,8 @@ npm run typecheck
 npm test
 ```
 
+The tests run Chrono on saved YouTube pages in `tests/pages/`. When YouTube changes its page, save the new one from a real browser and trim it into a saved page with `npm run trim-page -- <saved.html> tests/pages/<name>.html`. It removes scripts, styles and anything personal, such as the signed-in masthead and comments, and writes one element per line so diffs stay readable.
+
 Build the store packages with one command:
 
 ```sh
