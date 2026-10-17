@@ -7,7 +7,9 @@ export default defineConfig({
     short_name: '__MSG_extShortName__',
     description: '__MSG_extDescription__',
     default_locale: 'en',
+    homepage_url: 'https://chrono.cptdawn.dev/',
     permissions: ['storage'],
+    ...(browser !== 'firefox' && { minimum_chrome_version: '121' }),
     ...(browser === 'firefox' && {
       browser_specific_settings: {
         gecko: {
