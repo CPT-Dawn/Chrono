@@ -30,16 +30,16 @@ export function createPlayerBadge(locale: string): PlayerBadge {
   return {
     element,
     show(scope, now, clockFormat) {
-      const shown =
+      const label =
         scope.kind === 'times'
           ? browser.i18n.getMessage(
               'playerBadgeFinishTime',
               formatClockTime(scope.times.finishTime, now, locale, clockFormat),
             )
           : '';
-      element.hidden = !shown;
+      element.hidden = !label;
       // The player is busy while a video plays, so the badge changes only when its text does.
-      if (text.textContent !== shown) text.textContent = shown;
+      if (text.textContent !== label) text.textContent = label;
     },
   };
 }

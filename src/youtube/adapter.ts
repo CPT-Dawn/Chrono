@@ -186,10 +186,11 @@ export function readLive(doc: Document): Reading<boolean> {
 
 // The time display's own times, "0:03 / 10:34", as YouTube's player 0229cd64 built them in
 // Oct 2026. Both of its players put them in a contents element, inside a wrapper that also
-// holds the live badge. The redesigned (Delhi) player flags itself and that wrapper.
+// holds the live badge. The redesigned (Delhi) player flags itself. It flags the wrapper as
+// Delhi too, but only on videos, not on live streams, so that flag says nothing about the
+// player.
 const DELHI = 'ytp-delhi-modern';
 const TIME_WRAPPER = ':scope > .ytp-time-wrapper';
-const DELHI_TIME_WRAPPER = 'ytp-time-wrapper-delhi';
 const TIME_CONTENTS = ':scope > .ytp-time-contents';
 const TIMES = [':scope > .ytp-time-current', ':scope > .ytp-time-separator', ':scope > .ytp-time-duration'];
 
@@ -218,10 +219,7 @@ export function readTimeDisplayMount(doc: Document): Reading<TimeDisplayMount> {
   const contents = wrapper?.querySelector(TIME_CONTENTS);
   const [current, separator, duration] = TIMES.map((part) => contents?.querySelector(part));
   if (!player || !wrapper || !current || !separator || !duration) return unrecognised('badge');
-  const variant: PlayerVariant = player.classList.contains(DELHI) ? 'delhi' : 'legacy';
-  // A Delhi time display in a legacy player, or the other way round, is a layout Chrono doesn't know.
-  if (wrapper.classList.contains(DELHI_TIME_WRAPPER) !== (variant === 'delhi')) return unrecognised('badge');
-  return recognised({ variant, duration });
+  return recognised({ variant: player.classList.contains(DELHI) ? 'delhi' : 'legacy', duration });
 }
 
 /**

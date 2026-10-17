@@ -7,6 +7,7 @@ import {
   reportedFailures,
   settle,
   startChrono,
+  withoutPlayerBadge,
 } from './harness/chrono';
 import { openPopup } from './harness/popup';
 import { finishNavigation, navigate, openSavedPage, renderSavedPage, startNavigation } from './harness/youtube';
@@ -85,7 +86,7 @@ describe('Player badge', () => {
       vi.advanceTimersByTime(60_000);
 
       expect(queryPlayerBadge()).not.toBeNull();
-      expect(withoutBadge(page.timeDisplay)).toBe(rendered);
+      expect(withoutPlayerBadge(page.timeDisplay)).toBe(rendered);
       expect(reportedFailures()).not.toContain('badge');
     });
   });
@@ -103,14 +104,17 @@ describe('Player badge', () => {
         (timeDisplay) => timeDisplay.querySelector('.ytp-time-duration')!.remove(),
       ],
       [
-        'a Delhi player has a legacy time display',
+        'the times are written straight into the wrapper',
         'watch-delhi',
-        (timeDisplay) => timeDisplay.querySelector('.ytp-time-wrapper')!.classList.remove('ytp-time-wrapper-delhi'),
+        (timeDisplay) => {
+          const contents = timeDisplay.querySelector('.ytp-time-contents')!;
+          contents.replaceWith(...contents.childNodes);
+        },
       ],
       [
-        'a legacy player has a Delhi time display',
+        'the time display has no separator',
         'watch-legacy',
-        (timeDisplay) => timeDisplay.querySelector('.ytp-time-wrapper')!.classList.add('ytp-time-wrapper-delhi'),
+        (timeDisplay) => timeDisplay.querySelector('.ytp-time-separator')!.remove(),
       ],
     ])("shows no badge, leaves YouTube's time display untouched, and reports failed=badge when %s", async (_, savedPage, change) => {
       const page = openSavedPage(savedPage, WATCH_URL);
@@ -135,8 +139,8 @@ describe('Player badge', () => {
       await startChrono();
       expect(queryPlayerBadge()).not.toBeNull();
 
-      page.timeDisplay.querySelector('.ytp-time-wrapper')!.classList.remove('ytp-time-wrapper-delhi');
-      // YouTube writes the time display's times again.
+      // YouTube renders its times in a box Chrono doesn't know.
+      page.timeDisplay.querySelector('.ytp-time-wrapper')!.classList.replace('ytp-time-wrapper', 'ytp-time-box');
       page.timeDisplay.querySelector('.ytp-time-duration')!.textContent = '16:40';
       await settle();
 
@@ -192,6 +196,8 @@ describe('Player badge', () => {
       vi.advanceTimersByTime(5000);
 
       expect(queryPlayerBadge()).toBeNull();
+      // Hidden because the stream is live, not because the player wasn't recognised.
+      expect(reportedFailures()).not.toContain('badge');
     });
 
     it('hides before a scheduled stream or premiere starts', async () => {
@@ -199,6 +205,21 @@ describe('Player badge', () => {
       await startChrono();
 
       expect(queryPlayerBadge()).toBeNull();
+      expect(reportedFailures()).not.toContain('badge');
+    });
+
+    it('comes back when YouTube turns a live stream into a video', async () => {
+      // As when a premiere ends: YouTube drops the live flag from the time display.
+      const page = openSavedPage('watch-live', LIVE_URL);
+      page.video.load({ duration: 1000 });
+      page.video.seek(250);
+      await startChrono();
+      expect(queryPlayerBadge()).toBeNull();
+
+      page.timeDisplay.classList.remove('ytp-live');
+      await settle();
+
+      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
     });
 
     it('hides for a video with no end', async () => {
@@ -329,7 +350,7 @@ describe('Player badge', () => {
 
     it('takes the badge out of the player when it moves to the miniplayer, and puts it back after', async () => {
       const { page } = await openWatchPage();
-      const rendered = withoutBadge(page.timeDisplay);
+      const rendered = withoutPlayerBadge(page.timeDisplay);
 
       await startNavigation('https://www.youtube.com/');
       page.movePlayer('miniplayer');
@@ -344,7 +365,7 @@ describe('Player badge', () => {
 
     it('takes the badge away when the extension is updated or removed', async () => {
       const { page } = await openWatchPage();
-      const rendered = withoutBadge(page.timeDisplay);
+      const rendered = withoutPlayerBadge(page.timeDisplay);
 
       invalidateExtensionContext();
       vi.advanceTimersByTime(1000);
@@ -380,17 +401,4 @@ async function turnOffBadgeInPopup(): Promise<void> {
   const popup = await openPopup();
   fireEvent.click(popup.getByRole('checkbox', { name: 'Player badge' }));
   await settle();
-}
-
-/**
- * YouTube's time display as it would be without Chrono's badge. The badge is the only
- * element in it with a shadow root.
- */
-function withoutBadge(timeDisplay: Element): string {
-  const badges = [...timeDisplay.querySelectorAll('*')].filter((element) => element.shadowRoot);
-  const places = badges.map((badge) => ({ badge, parent: badge.parentNode!, next: badge.nextSibling }));
-  for (const badge of badges) badge.remove();
-  const html = timeDisplay.outerHTML;
-  for (const { badge, parent, next } of places) parent.insertBefore(badge, next);
-  return html;
 }

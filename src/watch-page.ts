@@ -162,6 +162,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     return ctx.isInvalid;
   }
 
+  /** Removes the Panel and stops it following YouTube's theme. */
   function removePanel(): void {
     panel?.element.remove();
     panel = undefined;
@@ -169,6 +170,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     themeWatch = undefined;
   }
 
+  /** Takes the Player badge out of the player, leaving YouTube's time display as it was. */
   function removeBadge(): void {
     badge?.element.remove();
     badge = undefined;
@@ -183,7 +185,10 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     followed = undefined;
   }
 
-  /** Removes everything Chrono shows and stops watching the page until YouTube navigates to a watch page. */
+  /**
+   * Removes everything Chrono shows and stops watching the page until YouTube navigates to
+   * a watch page.
+   */
   function stop(): void {
     observer.disconnect();
     removeSurfaces();
@@ -267,7 +272,8 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   watchSettings((value) => {
     settings = value;
     panel?.setSettings(value);
-    // The Player badge comes and goes with its setting.
+    // The Player badge comes and goes with its setting. Rendering again after that applies
+    // the rest, such as the clock format, when nothing moved.
     refresh();
     render();
   }, ctx.signal);
