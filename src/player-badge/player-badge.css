@@ -1,0 +1,19 @@
+/*
+ * The badge takes its font, size and colour from YouTube's time display, so it needs no
+ * palette of its own. It never wraps, so it can't push YouTube's controls onto two lines.
+ * Its spacing is on the inner text: YouTube's player styles override what the host sets
+ * for itself.
+ */
+:host {
+  display: inline;
+  white-space: nowrap;
+}
+
+/* Important here beats any rule in YouTube's page that would show the hidden badge. */
+:host([hidden]) {
+  display: none !important;
+}
+
+.text {
+  padding-inline-start: 4px;
+}

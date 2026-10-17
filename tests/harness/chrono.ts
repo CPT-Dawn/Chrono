@@ -102,3 +102,18 @@ export function queryPanel() {
 export function reportedFailures(): string[] {
   return failedParts();
 }
+
+/**
+ * Chrono's Player badge as the viewer reads it next to YouTube's time display in the watch
+ * page's player, or null when none shows there.
+ */
+export function queryPlayerBadge(): string | null {
+  const timeDisplay = document.querySelector('ytd-watch-flexy #movie_player .ytp-time-display');
+  // YouTube's player uses no shadow roots, so one in its time display is Chrono's.
+  const badges = [...(timeDisplay?.querySelectorAll('*') ?? [])].filter((element) => element.shadowRoot);
+  if (badges.length > 1) throw new Error(`${badges.length} Player badges in the time display`);
+  const badge = badges[0] as HTMLElement | undefined;
+  if (!badge || badge.hidden) return null;
+  const parts = [...badge.shadowRoot!.childNodes].filter((node) => node.nodeName !== 'STYLE');
+  return parts.map((node) => node.textContent).join('').trim();
+}

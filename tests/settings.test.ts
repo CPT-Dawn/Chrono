@@ -222,6 +222,7 @@ describe('Settings', () => {
       const { panel, menu } = await openMenu();
       const focused = () => panel.element.shadowRoot!.activeElement;
       const items = [
+        menu.getByRole('menuitemcheckbox', { name: 'Player badge' }),
         ...menu.getAllByRole('menuitemradio'),
         menu.getByRole('menuitemcheckbox', { name: 'Panel starts expanded' }),
       ];
@@ -231,18 +232,20 @@ describe('Settings', () => {
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[1]);
       fireEvent.keyDown(focused()!, { key: 'End' });
-      expect(focused()).toBe(items[3]);
+      expect(focused()).toBe(items[4]);
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[0]);
       fireEvent.keyDown(focused()!, { key: 'ArrowUp' });
-      expect(focused()).toBe(items[3]);
+      expect(focused()).toBe(items[4]);
       fireEvent.keyDown(focused()!, { key: 'Home' });
       expect(focused()).toBe(items[0]);
 
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
+      fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
+      expect(focused()).toBe(items[2]);
       fireEvent.keyDown(focused()!, { key: 'Enter' });
       await settle();
-      expect(isChecked(items[1]!)).toBe(true);
+      expect(isChecked(items[2]!)).toBe(true);
     });
   });
 

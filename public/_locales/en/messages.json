@@ -33,6 +33,13 @@
       "time": { "content": "$1", "example": "3:45 PM" }
     }
   },
+  "playerBadgeFinishTime": {
+    "message": "· ends $TIME$",
+    "description": "The Player badge: the video's finish time, shown after the player's own time display (\"0:03 / 10:34 · ends 3:45 PM\"). The dot separates it from YouTube's times.",
+    "placeholders": {
+      "time": { "content": "$1", "example": "3:45 PM" }
+    }
+  },
   "pausedForAd": {
     "message": "Paused for ad",
     "description": "Shown in place of the remaining and finish time while YouTube plays an ad, when Chrono pauses its calculations."
@@ -73,6 +80,10 @@
   "settings": {
     "message": "Settings",
     "description": "Heading of Chrono's settings in the toolbar popup."
+  },
+  "playerBadge": {
+    "message": "Player badge",
+    "description": "Setting: whether the video's finish time shows next to the player's own time display."
   },
   "clockFormat": {
     "message": "Clock format",
