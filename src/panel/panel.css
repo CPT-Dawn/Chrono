@@ -10,6 +10,7 @@
   --hover: rgba(0, 0, 0, 0.1);
   --menu: rgb(255, 255, 255);
   --menu-shadow: 0 4px 32px rgba(0, 0, 0, 0.1);
+  --error: rgb(204, 0, 0);
 
   display: block;
   margin-bottom: 12px;
@@ -26,6 +27,7 @@
   --hover: rgba(255, 255, 255, 0.2);
   --menu: rgb(40, 40, 40);
   --menu-shadow: none;
+  --error: rgb(255, 78, 69);
 }
 
 /* YouTube leaves no gap between the video and what it moves below it. */
@@ -314,6 +316,11 @@
 
 .target-fields input {
   width: 52px;
+}
+
+/* A value outside the field's range doesn't change the target, so the field says so. */
+.target-fields input:invalid {
+  border-color: var(--error);
 }
 
 .target-unit {

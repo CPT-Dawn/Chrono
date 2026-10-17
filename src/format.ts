@@ -52,6 +52,13 @@ export function dayPeriodNames(locale: string): [string, string] {
   return [name(1), name(13)];
 }
 
+/** What the locale writes between hours and minutes: ":" in "3:45", "." in Finnish "15.45". */
+export function timeSeparator(locale: string): string {
+  const parts = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).formatToParts(new Date(2026, 0, 1, 15, 45));
+  const hour = parts.findIndex((part) => part.type === 'hour');
+  return parts[hour + 1]?.type === 'literal' ? parts[hour + 1]!.value : ':';
+}
+
 const HOUR_CYCLES: Record<ClockFormat, Intl.DateTimeFormatOptions['hourCycle']> = {
   auto: undefined,
   '12h': 'h12',

@@ -1,7 +1,7 @@
 // A scope's target: the viewer chooses a finish time ("Done by 3:30 PM") or the watch time
 // they have ("I have 0 h 45 min"), and sees the required speed, with a button that applies
 // it when YouTube's player can play it. Any scope can show one.
-import { dayPeriodNames, usesTwelveHourClock } from '@/format';
+import { dayPeriodNames, timeSeparator, usesTwelveHourClock } from '@/format';
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
 import { clockTimeNear, MAX_SPEED, MIN_SPEED, type RequiredSpeed, type ScopeTimes, type Target } from '@/time-model';
@@ -47,7 +47,7 @@ export function createTarget(
   const [am, pm] = dayPeriodNames(locale);
   period.append(option(am, 'am'), option(pm, 'pm'));
   const colon = create('span', 'target-unit');
-  colon.textContent = ':';
+  colon.textContent = timeSeparator(locale);
   const finishFields = create('span', 'target-fields');
   finishFields.append(hour, colon, minute, period);
 
