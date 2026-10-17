@@ -366,6 +366,14 @@ describe('Playlist summary', () => {
       expect(queryPlaylistSummary()).toBe('2h 40m total · 2 unavailable · 38 of 39 counted');
       expect(await reportedFailures()).not.toContain('summary');
     });
+
+    it("doesn't report YouTube's speed as unrecognised while the miniplayer holds YouTube's player", async () => {
+      // The player's speed API is the one Chrono knows; it's only outside the watch page.
+      openSavedPage('playlist-lockups-now-playing', LOCKUPS_URL);
+      await startChrono();
+
+      expect(await reportedFailures()).toEqual([]);
+    });
   });
 
   describe("on a page that mixes YouTube's old and new elements", () => {

@@ -404,7 +404,9 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   const speedBridge = connectSpeedBridge(
     document,
     (speed) => {
-      noteReading('speed', speed);
+      // While the miniplayer holds YouTube's player, the watch page has no player to ask,
+      // which says nothing about whether Chrono knows its speed API.
+      if (speed.recognised || readPlayerVariant(document).recognised) noteReading('speed', speed);
       playerSpeed = speed.recognised ? speed.value : undefined;
       render();
     },
