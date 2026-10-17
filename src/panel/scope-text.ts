@@ -1,5 +1,5 @@
-// How every scope words its times, so the Video scope, the Playlist scope and their speed
-// tables all say them the same way.
+// How every scope words its times, so the Video, Chapter and Playlist scopes and their
+// speed tables all say them the same way.
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { ClockFormat } from '@/settings';
 import type { TimesAtSpeed } from '@/time-model';

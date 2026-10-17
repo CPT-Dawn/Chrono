@@ -6,7 +6,7 @@ import { createChapterScope } from './chapter-scope';
 import { create } from './dom';
 import { createActionItem, createMenu } from './menu';
 import { createPlaylistScope } from './playlist-scope';
-import { speedText as writeSpeed, timesText } from './scope-text';
+import { speedText, timesText } from './scope-text';
 import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
 import { createTarget } from './target';
@@ -83,7 +83,6 @@ export function createPanel({
   times.append(remaining, finish);
 
   let currentSpeed = 1;
-  const speedText = (speed: number) => writeSpeed(speed, locale);
   const speedLabel = create('span', 'speed');
   // − and + are symbols, not words; their accessible names are translated.
   const slower = speedButton('−', 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
@@ -205,7 +204,7 @@ export function createPanel({
       playlistView.setEnabled(speed !== undefined);
       if (speed === undefined) return;
       currentSpeed = speed;
-      speedLabel.textContent = speedText(speed);
+      speedLabel.textContent = speedText(speed, locale);
     },
     setSettings(value) {
       settings = value;

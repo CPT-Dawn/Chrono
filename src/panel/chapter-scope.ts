@@ -1,9 +1,9 @@
 // The Panel's Chapter scope: the title of the chapter the playhead is in, the chapter's
 // remaining and finish time, its target and its speed table.
-import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { ClockFormat } from '@/settings';
 import type { ChapterScope, Target } from '@/time-model';
 import { create } from './dom';
+import { timesText } from './scope-text';
 import { createSpeedTable } from './speed-table';
 import { createTarget } from './target';
 
@@ -43,13 +43,12 @@ export function createChapterScope(
       target.show(scope?.times, now, clockFormat);
       table.show(scope?.times.speedTable ?? [], now, clockFormat);
       if (!scope) return;
-      const { times } = scope;
       title.textContent = scope.title;
       // A long title is cut short; hovering shows it in full.
       title.title = scope.title;
-      const speed = browser.i18n.getMessage('speed', formatSpeed(times.speed, locale));
-      remaining.textContent = browser.i18n.getMessage('remaining', [formatWatchTime(times.remaining), speed]);
-      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, clockFormat));
+      const text = timesText(scope.times, now, locale, clockFormat);
+      remaining.textContent = text.remaining;
+      finish.textContent = text.finish;
     },
     setEnabled(enabled) {
       target.setEnabled(enabled);

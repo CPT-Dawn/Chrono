@@ -1,4 +1,4 @@
-import { formatSpeed } from '@/format';
+import { speedText } from '@/panel/scope-text';
 import type { PlaylistSummary } from '@/time-model';
 import styles from './playlist-summary.css?inline';
 
@@ -31,8 +31,7 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
     show({ contentTime, atSpeed, unavailable, partial }) {
       const parts = [browser.i18n.getMessage('playlistSummaryTotal', length(contentTime))];
       if (atSpeed) {
-        const speed = browser.i18n.getMessage('speed', formatSpeed(atSpeed.speed, locale));
-        parts.push(browser.i18n.getMessage('playlistSummaryAtSpeed', [length(atSpeed.watchTime), speed]));
+        parts.push(browser.i18n.getMessage('playlistSummaryAtSpeed', [length(atSpeed.watchTime), speedText(atSpeed.speed, locale)]));
       }
       if (unavailable > 0) parts.push(browser.i18n.getMessage('playlistSummaryUnavailable', count(unavailable)));
       if (partial) {
