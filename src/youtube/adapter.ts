@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live';
+export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'badge';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -194,6 +194,44 @@ const LIVE = 'ytp-live';
 export function readLive(doc: Document): Reading<boolean> {
   const timeDisplay = doc.querySelector(PLAYER)?.querySelector(TIME_DISPLAY);
   return timeDisplay ? recognised(timeDisplay.classList.contains(LIVE)) : unrecognised('live');
+}
+
+// The time display's own times, "0:03 / 10:34", as YouTube's player 0229cd64 built them in
+// Oct 2026. Both of its players put them in a contents element, inside a wrapper that also
+// holds the live badge. The redesigned (Delhi) player flags itself. It flags the wrapper as
+// Delhi too, but only on videos, not on live streams, so that flag says nothing about the
+// player.
+const DELHI = 'ytp-delhi-modern';
+const TIME_WRAPPER = ':scope > .ytp-time-wrapper';
+const TIME_CONTENTS = ':scope > .ytp-time-contents';
+const TIMES = [':scope > .ytp-time-current', ':scope > .ytp-time-separator', ':scope > .ytp-time-duration'];
+
+/** Which of YouTube's two players the watch page has: the legacy one or the redesigned (Delhi) one. */
+export type PlayerVariant = 'legacy' | 'delhi';
+
+export interface TimeDisplayMount {
+  variant: PlayerVariant;
+  /**
+   * The time display's duration, "10:34", which the Player badge goes right after. In both
+   * players everything else in the wrapper starts a new line, and the Delhi player's
+   * rounded background goes round the wrapper, so only here does the badge read on the
+   * same line as YouTube's times.
+   */
+  duration: Element;
+}
+
+/**
+ * Where the Player badge goes in the player's time display. It is recognised only when
+ * the time display is laid out exactly as one of YouTube's two players lays it out, so the
+ * badge never goes anywhere that could break YouTube's display.
+ */
+export function readTimeDisplayMount(doc: Document): Reading<TimeDisplayMount> {
+  const player = doc.querySelector(PLAYER);
+  const wrapper = player?.querySelector(TIME_DISPLAY)?.querySelector(TIME_WRAPPER);
+  const contents = wrapper?.querySelector(TIME_CONTENTS);
+  const [current, separator, duration] = TIMES.map((part) => contents?.querySelector(part));
+  if (!player || !wrapper || !current || !separator || !duration) return unrecognised('badge');
+  return recognised({ variant: player.classList.contains(DELHI) ? 'delhi' : 'legacy', duration });
 }
 
 /**
