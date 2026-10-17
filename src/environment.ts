@@ -24,6 +24,7 @@ const CHROMIUM_BRANDS: Record<string, string> = {
   Opera: 'opera',
 };
 
+/** Chrono's version, and the browser and OS it runs in. */
 export async function readEnvironment(): Promise<Environment> {
   const [browserInfo, platform] = await Promise.all([readBrowser(), browser.runtime.getPlatformInfo()]);
   return { v: browser.runtime.getManifest().version, ...browserInfo, os: platform.os };

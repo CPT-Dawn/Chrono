@@ -30,19 +30,24 @@ export interface PageReport {
   failed: FailureLabel[];
 }
 
-/** Each page on Chrono's site, its path, and the parameters it takes. */
-interface Pages {
-  home: { path: '/'; params: Record<never, never> };
-  welcome: { path: '/welcome'; params: Record<never, never> };
-  whatsNew: { path: '/whats-new'; params: { from: string; to: string } };
-  goodbye: { path: '/goodbye'; params: { v: string } };
-  help: { path: '/help'; params: Environment & Partial<Omit<PageReport, 'failed'>> & { failed?: FailureLabel[] } };
-  tip: { path: '/tip'; params: Record<never, never> };
+/** What the help page takes: the environment, and for a report, the page's too. */
+type HelpParams = Environment & Partial<PageReport>;
+
+/** The values each page on Chrono's site takes as parameters. */
+interface Params {
+  home: Record<never, never>;
+  welcome: Record<never, never>;
+  whatsNew: { from: string; to: string };
+  goodbye: Pick<Environment, 'v'>;
+  help: HelpParams;
+  tip: Record<never, never>;
 }
 
-export type SitePage = keyof Pages;
+/** A page on Chrono's site. */
+export type SitePage = keyof Params;
 
-const PAGES: { [P in SitePage]: { path: Pages[P]['path']; params: readonly (keyof Pages[P]['params'])[] } } = {
+/** Each page's path, and the parameters that go in its URL, in order. */
+const PAGES: { [P in SitePage]: { path: string; params: readonly (keyof Params[P])[] } } = {
   home: { path: '/', params: [] },
   welcome: { path: '/welcome', params: [] },
   whatsNew: { path: '/whats-new', params: ['from', 'to'] },
@@ -55,7 +60,7 @@ const PAGES: { [P in SitePage]: { path: Pages[P]['path']; params: readonly (keyo
  * The URL of `page` on Chrono's site with `params`. Only the parameters that page takes
  * make it into the URL. Lists are comma-separated, and empty ones left out.
  */
-export function siteUrl<P extends SitePage>(page: P, params: Pages[P]['params']): string {
+export function siteUrl<P extends SitePage>(page: P, params: Params[P]): string {
   const { path, params: allowed } = PAGES[page];
   const url = new URL(path, SITE);
   for (const name of allowed) {
@@ -69,78 +74,41 @@ export function siteUrl<P extends SitePage>(page: P, params: Pages[P]['params'])
 /** The links the Panel's ⋮ menu and the popup offer the viewer. */
 export type OutwardLink = 'tip' | 'help' | 'report';
 
-/** The links with their labels, in the order the ⋮ menu and the popup show them. */
-export const OUTWARD_LINKS: readonly { link: OutwardLink; label: MessageName }[] = [
-  { link: 'tip', label: 'supportChrono' },
-  { link: 'help', label: 'getHelp' },
-  { link: 'report', label: 'reportIt' },
+/**
+ * The links with their labels, in the order the ⋮ menu and the popup show them. A report
+ * carries what Chrono detected on the viewer's YouTube page.
+ */
+export const OUTWARD_LINKS: readonly { link: OutwardLink; label: MessageName; withPage: boolean }[] = [
+  { link: 'tip', label: 'supportChrono', withPage: false },
+  { link: 'help', label: 'getHelp', withPage: false },
+  { link: 'report', label: 'reportIt', withPage: true },
 ];
 
-/** A content script or the popup asks the background script to open a link. */
-export interface OpenLinkRequest {
-  type: 'chrono:open-link';
-  link: OutwardLink;
-  /** For "Report it": what Chrono detected on the YouTube page, if the viewer is on one. */
-  page?: PageReport;
-}
-
-/** Asks the background script to open `link` in a new tab. */
-export async function openLink(link: OutwardLink, page?: PageReport): Promise<void> {
-  const request: OpenLinkRequest = { type: 'chrono:open-link', link, page };
-  try {
-    await browser.runtime.sendMessage(request);
-  } catch {
-    // The extension was updated or removed while this page stayed open. Nothing can open.
-  }
-}
-
-export function isOpenLinkRequest(message: unknown): message is OpenLinkRequest {
-  return (message as Partial<OpenLinkRequest> | null)?.type === 'chrono:open-link';
-}
-
-/** The URL `request`'s link opens, for a copy of Chrono running in `environment`. */
-export function linkUrl({ link, page }: OpenLinkRequest, environment: Environment): string {
-  switch (link) {
-    case 'tip':
-      return siteUrl('tip', {});
-    case 'help':
-      return siteUrl('help', environment);
-    case 'report':
-      return siteUrl('help', { ...page, ...environment });
-  }
-}
-
-/** The popup asks the content script in the viewer's tab what it detected on the page. */
-interface PageReportRequest {
-  type: 'chrono:page-report';
+/** Whether following `link` sends what Chrono detected on the page. */
+export function linkWantsPage(link: OutwardLink): boolean {
+  return OUTWARD_LINKS.some((entry) => entry.link === link && entry.withPage);
 }
 
 /**
- * What Chrono detected on the page in tab `tabId`, or undefined when the tab isn't a
- * YouTube watch page Chrono is on.
+ * The URL `link` opens for a copy of Chrono running in `environment`, from a page Chrono
+ * reported as `page`. Each detail of the page goes in only if it is one Chrono knows,
+ * so a report can't carry anything else whoever sends it.
  */
-export async function askForPageReport(tabId: number): Promise<PageReport | undefined> {
-  const request: PageReportRequest = { type: 'chrono:page-report' };
-  try {
-    return ((await browser.tabs.sendMessage(tabId, request)) as PageReport | undefined) ?? undefined;
-  } catch {
-    // No content script of Chrono's is listening in that tab.
-    return undefined;
-  }
+export function linkUrl(link: OutwardLink, environment: Environment, page?: PageReport): string {
+  if (link === 'tip') return siteUrl('tip', {});
+  const report = link === 'report' && page ? checkedReport(page) : {};
+  return siteUrl('help', { ...report, ...environment });
 }
 
-/**
- * Answers the popup's questions about the page with `readPageReport`, until `signal`
- * aborts. Runs in the content script.
- */
-export function answerPageReports(readPageReport: () => PageReport | undefined, signal: AbortSignal): void {
-  const listener = (message: unknown, _sender: unknown, sendResponse: (response: unknown) => void) => {
-    if ((message as Partial<PageReportRequest> | null)?.type !== 'chrono:page-report') return;
-    const report = readPageReport();
-    if (!report) return;
-    sendResponse(report);
-    return true;
+const PLAYERS: readonly unknown[] = ['legacy', 'delhi'] satisfies PlayerVariant[];
+const LAYOUTS: readonly unknown[] = ['sidebar', 'below-video'] satisfies SidebarMount['placement'][];
+/** Failure labels are short lower-case words naming a part of YouTube's page. */
+const FAILURE_LABEL = /^[a-z]{1,16}$/;
+
+function checkedReport({ player, layout, failed }: PageReport): Partial<PageReport> {
+  return {
+    player: PLAYERS.includes(player) ? player : undefined,
+    layout: LAYOUTS.includes(layout) ? layout : undefined,
+    failed: Array.isArray(failed) ? failed.filter((label) => typeof label === 'string' && FAILURE_LABEL.test(label)) : [],
   };
-  browser.runtime.onMessage.addListener(listener);
-  signal.addEventListener('abort', () => browser.runtime.onMessage.removeListener(listener));
 }

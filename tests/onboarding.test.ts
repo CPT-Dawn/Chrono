@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { openLink } from '@/links';
+import { openLink } from '@/link-requests';
 import { install, openedPages, startBackground, uninstallPage } from './harness/background';
 import { settle } from './harness/chrono';
 
@@ -103,5 +103,18 @@ describe('Links', () => {
     const [report] = await openedPages();
     expect([...report!.searchParams.keys()]).toEqual(REPORT_PARAMS);
     expect(report!.href).not.toMatch(/aqz-KE-bpKQ|Bunny/);
+  });
+
+  it('a report leaves out details that are not ones Chrono knows', async () => {
+    await startBackground();
+
+    // As if a content script put page content where Chrono's detections go.
+    const page = { player: 'aqz-KE-bpKQ', layout: 'https://www.youtube.com/', failed: ['ads', 'Big Buck Bunny'] };
+    await openLink('report', page as never);
+
+    const [report] = await openedPages();
+    expect(report!.searchParams.get('player')).toBeNull();
+    expect(report!.searchParams.get('layout')).toBeNull();
+    expect(report!.searchParams.get('failed')).toBe('ads');
   });
 });

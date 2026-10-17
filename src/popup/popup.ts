@@ -1,13 +1,14 @@
 // The toolbar popup: Chrono's settings and links, reachable from any tab. Apart from
 // "Report it", which asks the viewer's tab what Chrono detected there, it works the same
 // whatever page the active tab shows.
-import { askForPageReport, OUTWARD_LINKS, openLink, type OutwardLink } from '@/links';
+import { askForPageReport, openLink } from '@/link-requests';
+import { linkWantsPage, OUTWARD_LINKS, type OutwardLink } from '@/links';
 import { changeSetting, readSettings, SETTING_CONTROLS, watchSettings, type Settings } from '@/settings';
 import type { MessageName } from '@/messages';
 
 /** Opens `link`. A report carries what Chrono detected on the page in the viewer's tab. */
 async function follow(link: OutwardLink): Promise<void> {
-  if (link !== 'report') return openLink(link);
+  if (!linkWantsPage(link)) return openLink(link);
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   const page = tab?.id === undefined ? undefined : await askForPageReport(tab.id);
   return openLink(link, page);

@@ -1,6 +1,7 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { clearDiagnostics, failedParts, noteReading } from '@/diagnostics';
-import { answerPageReports, openLink, type PageReport } from '@/links';
+import { answerPageReports, openLink } from '@/link-requests';
+import { linkWantsPage, type PageReport } from '@/links';
 import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
 import { type VideoScope, type VideoState, videoScope } from '@/time-model';
@@ -92,7 +93,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       settings,
       setSpeed: (speed) => speedBridge.set(speed),
       changeSetting: (key, value) => void changeSetting(key, value),
-      openLink: (link) => void openLink(link, link === 'report' ? readPageReport() : undefined),
+      openLink: (link) => void openLink(link, linkWantsPage(link) ? readPageReport() : undefined),
     });
     if (!themeWatch) {
       themeWatch = new AbortController();
