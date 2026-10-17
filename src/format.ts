@@ -37,6 +37,21 @@ export function formatClockTime(time: Date, now: Date, locale: string, clockForm
   }).format(time);
 }
 
+/** Whether clock times are written with AM and PM, as `clockFormat` or else the locale says. */
+export function usesTwelveHourClock(locale: string, clockFormat: ClockFormat): boolean {
+  if (clockFormat !== 'auto') return clockFormat === '12h';
+  const { hourCycle } = new Intl.DateTimeFormat(locale, { hour: 'numeric' }).resolvedOptions();
+  return hourCycle === 'h11' || hourCycle === 'h12';
+}
+
+/** The locale's words for the morning and afternoon halves of a 12-hour clock: "AM" and "PM". */
+export function dayPeriodNames(locale: string): [string, string] {
+  const format = new Intl.DateTimeFormat(locale, { hour: 'numeric', hourCycle: 'h12' });
+  const name = (hour: number) =>
+    format.formatToParts(new Date(2026, 0, 1, hour)).find((part) => part.type === 'dayPeriod')?.value ?? '';
+  return [name(1), name(13)];
+}
+
 const HOUR_CYCLES: Record<ClockFormat, Intl.DateTimeFormatOptions['hourCycle']> = {
   auto: undefined,
   '12h': 'h12',
