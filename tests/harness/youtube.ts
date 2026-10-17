@@ -55,6 +55,19 @@ export interface SavedPage {
   startAdBreak(): void;
   /** YouTube ends the ad break. It hides the ad's overlay rather than removing it. */
   endAdBreak(): void;
+  /**
+   * Lays a playlist page out as YouTube's styles do for the window's width: its header in
+   * a column beside the list, or (in a narrow window) above it. YouTube renders both
+   * headers and its styles hide one. The browser fires `resize` as the window crosses
+   * YouTube's breakpoint. Saved playlist pages open laid out wide.
+   */
+  setPlaylistLayout(layout: 'wide' | 'narrow'): void;
+  /**
+   * YouTube loads more entries into a playlist page's list, as it does when the viewer
+   * scrolls to its end: the next `count` (or all the rest) of the entries saved in
+   * `tests/pages/<name>.html`. After the last load, YouTube removes the list's continuation.
+   */
+  loadMoreEntries(name: string, options?: { count?: number; last?: boolean }): void;
 }
 
 export interface PageOptions {
@@ -73,10 +86,10 @@ export function openSavedPage(name: string, url: string, options: PageOptions = 
  * YouTube had rendered the page from scratch.
  */
 export function renderSavedPage(name: string, { playerApi = true }: PageOptions = {}): SavedPage {
-  const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
-  const saved = new DOMParser().parseFromString(html, 'text/html');
+  const saved = parseSavedPage(name);
   document.documentElement.remove();
   document.appendChild(document.importNode(saved.documentElement, true));
+  if (document.querySelector(PLAYLIST_PAGE)) setPlaylistLayout('wide');
 
   // Pages other than watch pages have no watch page, or only a hidden one.
   const player = document.querySelector('ytd-watch-flexy #movie_player');
@@ -85,6 +98,8 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
   const videoElement = player?.querySelector('video');
   let video = videoElement && new FakeVideo(videoElement);
   const fakePlayer = player && new FakePlayer(player, () => fromWatchPage(video), playerApi);
+  /** How many of each saved page's entries YouTube has loaded into a playlist page so far. */
+  const entriesLoaded = new Map<string, number>();
   /** A part of the watch page, or an error for a saved page without one. */
   const fromWatchPage = <T>(part: T | null | undefined): T => {
     if (!part) throw new Error(`Saved page ${name} has no watch page`);
@@ -146,7 +161,40 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
       video = new FakeVideo(element);
       return video;
     },
+    setPlaylistLayout,
+    loadMoreEntries(fragment, { count, last = false } = {}) {
+      const continuation = required(
+        `${PLAYLIST_PAGE} ytd-playlist-video-list-renderer > #contents > ytd-continuation-item-renderer`,
+      );
+      const from = entriesLoaded.get(fragment) ?? 0;
+      const to = count === undefined ? undefined : from + count;
+      const entries = [...parseSavedPage(fragment).body.children].slice(from, to);
+      entriesLoaded.set(fragment, from + entries.length);
+      continuation.before(...entries.map((entry) => document.importNode(entry, true)));
+      if (last) continuation.remove();
+    },
   };
+}
+
+function parseSavedPage(name: string): Document {
+  const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
+  return new DOMParser().parseFromString(html, 'text/html');
+}
+
+const PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]';
+
+// Where YouTube's playlist page header is in each layout, measured on youtube.com in Oct
+// 2026: beside the list from about 1100px wide, above it in narrower windows.
+const PLAYLIST_HEADERS = {
+  wide: `${PLAYLIST_PAGE} > yt-page-header-renderer`,
+  narrow: `${PLAYLIST_PAGE} > #header`,
+};
+
+function setPlaylistLayout(layout: 'wide' | 'narrow'): void {
+  for (const [headerLayout, selector] of Object.entries(PLAYLIST_HEADERS)) {
+    required<HTMLElement>(selector).style.display = headerLayout === layout ? '' : 'none';
+  }
+  window.dispatchEvent(new Event('resize'));
 }
 
 /** An ad's overlay, as YouTube's player script built it in Oct 2026 (player 0229cd64). */

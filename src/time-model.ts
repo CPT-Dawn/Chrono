@@ -87,6 +87,53 @@ function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
   };
 }
 
+/** What a playlist page shows of its playlist. */
+export interface PlaylistPageState {
+  /** How many entries YouTube says the playlist has, counting any it hides. */
+  entryCount: number;
+  /** The content time of each entry YouTube has loaded; undefined when it shows none. */
+  entryLengths: (number | undefined)[];
+  /** Whether YouTube has more entries to load. */
+  moreToLoad: boolean;
+  /** The viewer's YouTube speed, when Chrono can read it. */
+  speed: number | undefined;
+}
+
+/** What the Playlist summary says. */
+export interface PlaylistSummary {
+  /** The content time of every available entry counted, each at full length. */
+  contentTime: number;
+  /** The watch time at the viewer's speed, unless the speed is unknown or 1×. */
+  atSpeed?: { watchTime: number; speed: number };
+  /** How many entries are unavailable: shown with no length, or hidden by YouTube. */
+  unavailable: number;
+  /** When YouTube has loaded only part of the playlist: how many entries were counted, of how many. */
+  partial?: { counted: number; of: number };
+}
+
+/**
+ * The Playlist summary, or undefined for a playlist with nothing in it. YouTube leaves
+ * unavailable entries out of the list but not out of its count, so once the whole list
+ * has loaded, the entries missing from it are the unavailable ones. Before then, the
+ * summary can only say how far it got.
+ */
+export function playlistSummary({ entryCount, entryLengths, moreToLoad, speed }: PlaylistPageState): PlaylistSummary | undefined {
+  if (entryCount === 0) return undefined;
+  const lengths = entryLengths.filter((length) => length !== undefined);
+  const contentTime = lengths.reduce((sum, length) => sum + length, 0);
+  const loaded = entryLengths.length;
+  const partial = moreToLoad && loaded < entryCount;
+  const hidden = partial ? 0 : Math.max(0, entryCount - loaded);
+  // At 1× the watch time is the content time, which the summary already says.
+  const knownSpeed = speed !== undefined && Number.isFinite(speed) && speed > 0 && !sameSpeed(speed, 1);
+  return {
+    contentTime,
+    atSpeed: knownSpeed ? { watchTime: contentTime / speed, speed } : undefined,
+    unavailable: loaded - lengths.length + hidden,
+    partial: partial ? { counted: loaded, of: entryCount } : undefined,
+  };
+}
+
 function timesAtSpeed(contentLeft: number, speed: number, now: Date): TimesAtSpeed {
   const remaining = contentLeft / speed;
   return { remaining, finishTime: new Date(now.getTime() + remaining * 1000), speed };

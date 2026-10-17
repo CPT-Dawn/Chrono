@@ -94,6 +94,62 @@
     "message": "Panel starts expanded",
     "description": "Setting: whether the Panel's details are open when a watch page opens."
   },
+  "playlistSummary": {
+    "message": "Playlist summary",
+    "description": "Setting: whether Chrono adds its one-line total to playlist pages. Also the accessible name of that line."
+  },
+  "playlistSummaryTotal": {
+    "message": "$TIME$ total",
+    "description": "Playlist summary: the content time of every available entry, e.g. \"4h 12m total\".",
+    "placeholders": {
+      "time": { "content": "$1", "example": "4h 12m" }
+    }
+  },
+  "playlistSummaryAtSpeed": {
+    "message": "$TIME$ at $SPEED$",
+    "description": "Playlist summary: how long the playlist takes at the viewer's YouTube speed, e.g. \"2h 48m at 1.5×\".",
+    "placeholders": {
+      "time": { "content": "$1", "example": "2h 48m" },
+      "speed": { "content": "$2", "example": "1.5×" }
+    }
+  },
+  "playlistSummaryUnavailable": {
+    "message": "$COUNT$ unavailable",
+    "description": "Playlist summary: how many entries are deleted, private or otherwise unavailable, and not counted, e.g. \"3 unavailable\".",
+    "placeholders": {
+      "count": { "content": "$1", "example": "3" }
+    }
+  },
+  "playlistSummaryPartial": {
+    "message": "first $COUNTED$ of $TOTAL$ counted",
+    "description": "Playlist summary: YouTube has loaded only part of the playlist, so only that part is counted, e.g. \"first 100 of 412 counted\".",
+    "placeholders": {
+      "counted": { "content": "$1", "example": "100" },
+      "total": { "content": "$2", "example": "412" }
+    }
+  },
+  "hoursMinutes": {
+    "message": "$HOURS$h $MINUTES$m",
+    "description": "A length in hours and minutes, e.g. \"4h 12m\".",
+    "placeholders": {
+      "hours": { "content": "$1", "example": "4" },
+      "minutes": { "content": "$2", "example": "12" }
+    }
+  },
+  "hours": {
+    "message": "$HOURS$h",
+    "description": "A length in whole hours, e.g. \"4h\".",
+    "placeholders": {
+      "hours": { "content": "$1", "example": "4" }
+    }
+  },
+  "minutes": {
+    "message": "$MINUTES$m",
+    "description": "A length in minutes, under an hour, e.g. \"48m\".",
+    "placeholders": {
+      "minutes": { "content": "$1", "example": "48" }
+    }
+  },
   "popupNote": {
     "message": "Chrono works on YouTube watch and playlist pages.",
     "description": "Note in the toolbar popup saying where Chrono shows up."

@@ -134,7 +134,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   function stop(): void {
     observer.disconnect();
     removePanel();
-    clearDiagnostics();
+    clearDiagnostics('watch');
   }
 
   function setClock(running: boolean): void {

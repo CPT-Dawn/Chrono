@@ -94,6 +94,24 @@ export function queryPanel() {
   return { element, ...within((element.shadowRoot ?? element) as HTMLElement) };
 }
 
+const PLAYLIST_SUMMARY = { name: 'Playlist summary' };
+
+/** How many Playlist summaries are in the page, including any YouTube's styles hide. */
+export function countPlaylistSummaries(): number {
+  return queryAllByRole(document.body, 'note', { ...PLAYLIST_SUMMARY, hidden: true }).length;
+}
+
+/** The text of the Playlist summary the viewer sees, or null when there isn't one. */
+export function queryPlaylistSummary(): string | null {
+  const element = queryByRole(document.body, 'note', PLAYLIST_SUMMARY);
+  if (!element) return null;
+  const root = element.shadowRoot ?? element;
+  return [...root.children]
+    .filter((child) => child.localName !== 'style')
+    .map((child) => child.textContent)
+    .join('');
+}
+
 /**
  * The parts of YouTube's page Chrono reports it couldn't recognise: what the Report link
  * will carry as `failed`. A stopgap until the Panel has its "Report it" link (#16), when
