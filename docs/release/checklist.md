@@ -34,7 +34,7 @@ YouTube serves two players, legacy and Delhi (the redesign). Check both where yo
 - [ ] **Speed sync**: changing speed in YouTube's menu updates Chrono, and Chrono's − / + changes YouTube's speed.
 - [ ] **Light / dark**: switch YouTube's theme. The Panel follows.
 - [ ] **Theater** and **fullscreen**: the Panel and the Player badge behave in both.
-- [ ] **Popup and ⋮ menu**: settings save, and "Support Chrono" and "Get help" open the right chrono.cptdawn.dev pages.
+- [ ] **Popup and ⋮ menu**: settings save, and "Support Chrono" and "Get help" open the right chrono.cptdawn.dev pages. "Get help" pre-fills the version, browser and OS; "Report it" also adds `player`, `layout` and `failed`, and neither carries a video ID, title or address.
 - [ ] **Install**: a fresh install opens the welcome page.
 - [ ] **Update**: updating from the previous release opens the what's-new page on a major update, and nothing on a minor one.
 - [ ] **Uninstall**: uninstalling opens the goodbye page.
