@@ -15,19 +15,24 @@ export type FailureLabel =
   | 'badge'
   | 'chapters'
   | 'playlist'
-  | 'player';
+  | 'player'
+  | 'summary';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
 
-export type Page = { kind: 'watch'; videoId: string } | { kind: 'unsupported' };
+export type Page = { kind: 'watch'; videoId: string } | { kind: 'playlist' } | { kind: 'unsupported' };
 
 /**
  * What kind of YouTube page the address points at, and on a watch page, which video.
  * YouTube shows its watch page at /watch?v=<id>, and at /live/<id> for live streams and
- * their recordings.
+ * their recordings. Playlist pages, Watch Later (list=WL) and Liked videos (list=LL)
+ * among them, are at /playlist?list=<id>.
  */
 export function readPage(location: Location): Page {
+  if (location.pathname === '/playlist') {
+    return new URLSearchParams(location.search).has('list') ? { kind: 'playlist' } : { kind: 'unsupported' };
+  }
   const videoId =
     location.pathname === '/watch'
       ? new URLSearchParams(location.search).get('v')
@@ -534,5 +539,139 @@ export function watchPlaylist(doc: Document, onChange: () => void, signal: Abort
     attributes: true,
     attributeFilter: ['selected', 'aria-pressed'],
   });
+  signal.addEventListener('abort', () => observer.disconnect());
+}
+
+// Playlist pages. In Oct 2026 YouTube served two designs of the list, A/B tested per page
+// load: ytd-playlist-video-renderer entries, or lockups. It also served two headers: most
+// playlists had the older one, and the rest the newer one, in two copies (one per layout).
+// A page with the newer header still carries the older one, empty and hidden, and its
+// sidebar, so every query is scoped to the one part it means.
+const PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]:not([hidden])';
+/** The header's stats in each header, and the parts the stats are made of. */
+const PLAYLIST_STATS = [
+  // The newer header, in the copy beside the list (wide windows) and above it (narrow).
+  {
+    stats: ':scope > :is(yt-page-header-renderer, #header) yt-page-header-view-model yt-content-metadata-view-model',
+    parts: ':scope [role="group"] > span[role="text"]',
+  },
+  // The older header's byline, e.g. "139 videos · Last updated on Nov 9, 2024".
+  {
+    stats: ':scope > ytd-playlist-header-renderer:not([hidden]) ytd-playlist-byline-renderer',
+    parts: ':scope yt-formatted-string',
+  },
+];
+const LEGACY_LIST = ':scope ytd-playlist-video-list-renderer > #contents';
+const LEGACY_ENTRY = ':scope > ytd-playlist-video-renderer';
+const LEGACY_MORE = ':scope > ytd-continuation-item-renderer';
+// The lockup design's section list also has a continuation at its end, which loads
+// YouTube's recommendations below the list, and puts their lockups in a shelf.
+const LOCKUP_LIST = ':scope yt-section-list-renderer yt-item-section-renderer > #contents';
+const LOCKUP_ENTRY = ':scope > * > yt-lockup-view-model';
+const LOCKUP_MORE = ':scope > * > yt-continuation-item-view-model';
+/** The badges on an entry's thumbnail, one of which is its length. */
+const ENTRY_BADGES = ':scope :is(ytd-thumbnail, yt-thumbnail-view-model) badge-shape';
+/**
+ * The badge on the lockup YouTube is playing, in the miniplayer, which says "Now playing"
+ * with an animated icon in place of the length. It says the length only in words, in the
+ * viewer's language, for screen readers.
+ */
+const ENTRY_NOW_PLAYING = ':scope yt-thumbnail-view-model badge-shape lottie-component';
+const PAGE_ENTRY_LINK = ':scope a[href*="/watch?"]';
+
+export interface PlaylistPage {
+  /** YouTube's stats under the playlist's title, e.g. "Playlist • 412 videos • 3,021 views". */
+  stats: Element;
+  /** How many entries the stats say the playlist has, counting any YouTube hides. */
+  entryCount: number;
+  /**
+   * The content time of each entry YouTube has loaded into the list, in seconds, in order.
+   * Undefined for an entry that shows no length, as YouTube shows a deleted or private video,
+   * and unknown for the entry YouTube is playing, when Chrono hasn't seen its length.
+   */
+  entryLengths: (number | 'unknown' | undefined)[];
+  /** Whether YouTube loads more entries when the viewer scrolls to the end of the list. */
+  moreToLoad: boolean;
+}
+
+/**
+ * A reader for playlist pages. It remembers each video's length, because YouTube takes the
+ * length badge off a lockup while the pointer is over it, and off the lockup it is playing.
+ * Use one for as long as the tab is open, so that coming back to a playlist page still
+ * counts the video the viewer went on to play from it.
+ */
+export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistPage> {
+  const lengths = new Map<string, number>();
+
+  const readLength = (entry: Element): number | 'unknown' | undefined => {
+    const href = entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href') ?? '';
+    const videoId = new URLSearchParams(href.split('?')[1]).get('v');
+    for (const badge of entry.querySelectorAll(ENTRY_BADGES)) {
+      const length = parseDuration(badge.textContent?.trim() ?? '');
+      if (length === undefined) continue;
+      if (videoId) lengths.set(videoId, length);
+      return length;
+    }
+    const remembered = videoId ? lengths.get(videoId) : undefined;
+    if (remembered === undefined && entry.querySelector(ENTRY_NOW_PLAYING)) return 'unknown';
+    return remembered;
+  };
+
+  return (doc) => {
+    const page = doc.querySelector(PLAYLIST_PAGE);
+    const statsCopies = PLAYLIST_STATS.flatMap(({ stats, parts }) =>
+      page ? [...page.querySelectorAll(stats)].map((element) => ({ element, parts })) : [],
+    );
+    // YouTube's styles show one copy of the newer header, depending on the window's width.
+    const shown = statsCopies.find((copy) => copy.element.checkVisibility()) ?? statsCopies[0];
+    const stats = shown?.element;
+    const list = page && readPlaylistList(page);
+    // An empty playlist's stats say so in words ("No videos"), so the first number in them
+    // is something else. A list with nothing to load has nothing to count, whatever they say.
+    const empty = list && list.entries.length === 0 && !list.moreToLoad;
+    const entryCount = empty ? 0 : shown && readEntryCount(shown.element, shown.parts);
+    if (!stats || entryCount === undefined || !list) return unrecognised('summary');
+    const entryLengths = list.entries.map(readLength);
+    // Stats that count fewer entries than the list has aren't the stats Chrono knows.
+    if (entryCount < entryLengths.length) return unrecognised('summary');
+    return recognised({ stats, entryCount, entryLengths, moreToLoad: list.moreToLoad });
+  };
+}
+
+/** The playlist's list, in whichever design YouTube served. */
+function readPlaylistList(page: Element): { entries: Element[]; moreToLoad: boolean } | undefined {
+  const legacy = page.querySelector(LEGACY_LIST);
+  const lists = [
+    ...(legacy ? [{ list: legacy, entry: LEGACY_ENTRY, more: LEGACY_MORE }] : []),
+    ...[...page.querySelectorAll(LOCKUP_LIST)].map((list) => ({ list, entry: LOCKUP_ENTRY, more: LOCKUP_MORE })),
+  ].map(({ list, entry, more }) => ({
+    entries: [...list.querySelectorAll(entry)],
+    moreToLoad: list.querySelector(more) !== null,
+  }));
+  // Lockup sections other than the playlist's, such as YouTube's recommendations, hold none.
+  return lists.find((list) => list.entries.length > 0 || list.moreToLoad) ?? lists[0];
+}
+
+/**
+ * The entry count in the stats: the first of its `parts` with a number in it, e.g.
+ * "412 videos" or "1.234 Videos", whatever language YouTube is in. The channel isn't a part.
+ */
+function readEntryCount(stats: Element, parts: string): number | undefined {
+  for (const part of stats.querySelectorAll(parts)) {
+    const number = /\d[\d.,'\s]*/.exec(part.textContent ?? '')?.[0];
+    if (number) return Number(number.replace(/\D/g, ''));
+  }
+  return undefined;
+}
+
+/**
+ * Calls `onChange` whenever the playlist page may show something new, until `signal`
+ * aborts: YouTube renders the page, loads more entries, or switches its header between
+ * layouts. The switch is in YouTube's styles alone, so only the window's resizing tells.
+ */
+export function watchPlaylistPage(doc: Document, onChange: () => void, signal: AbortSignal): void {
+  const observer = new MutationObserver(() => onChange());
+  observer.observe(doc, { childList: true, subtree: true, characterData: true });
+  doc.defaultView?.addEventListener('resize', () => onChange(), { signal });
   signal.addEventListener('abort', () => observer.disconnect());
 }

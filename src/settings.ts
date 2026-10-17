@@ -22,6 +22,8 @@ export interface Settings {
    * collapsing them sets this too, so it is also how the viewer last left the Panel.
    */
   panelStartsExpanded: boolean;
+  /** Whether Chrono adds its one-line total to playlist pages. */
+  playlistSummary: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   playerBadge: true,
   clockFormat: 'auto',
   panelStartsExpanded: false,
+  playlistSummary: true,
 };
 
 /** A setting the viewer picks from a list, with the message name of each choice's label. */
@@ -71,6 +74,7 @@ export const SETTING_CONTROLS: readonly SettingControl[] = [
     ],
   },
   { kind: 'toggle', key: 'panelStartsExpanded', label: 'panelStartsExpanded' },
+  { kind: 'toggle', key: 'playlistSummary', label: 'playlistSummary' },
 ];
 
 const storageItems = {
@@ -88,6 +92,9 @@ const storageItems = {
   }),
   panelStartsExpanded: storage.defineItem<boolean>('local:settings.panelStartsExpanded', {
     fallback: DEFAULT_SETTINGS.panelStartsExpanded,
+  }),
+  playlistSummary: storage.defineItem<boolean>('local:settings.playlistSummary', {
+    fallback: DEFAULT_SETTINGS.playlistSummary,
   }),
 } satisfies { [K in keyof Settings]: WxtStorageItem<Settings[K], {}> };
 

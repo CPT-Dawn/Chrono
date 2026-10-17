@@ -249,7 +249,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     removeSurfaces();
     playlistTargets = undefined;
     videoTargets = undefined;
-    clearDiagnostics();
+    clearDiagnostics('watch');
   }
 
   /** Changes what the viewer chose for the Playlist scope of the playlist the Panel shows. */

@@ -226,6 +226,62 @@ function scopeTimes(contentLeft: number, speed: number, now: Date, target: Targe
   };
 }
 
+/** What a playlist page shows of its playlist. */
+export interface PlaylistPageState {
+  /** How many entries YouTube says the playlist has, counting any it hides. */
+  entryCount: number;
+  /**
+   * The content time of each entry YouTube has loaded: undefined for an unavailable entry,
+   * and unknown for an available one whose length Chrono can't read.
+   */
+  entryLengths: (number | 'unknown' | undefined)[];
+  /** Whether YouTube has more entries to load. */
+  moreToLoad: boolean;
+  /** The viewer's YouTube speed, when Chrono can read it. */
+  speed: number | undefined;
+}
+
+/** What the Playlist summary says. */
+export interface PlaylistSummary {
+  /** The content time of every available entry counted, each at full length. */
+  contentTime: number;
+  /** The watch time at the viewer's speed, unless the speed is unknown or 1×. */
+  atSpeed?: { watchTime: number; speed: number };
+  /** How many entries are unavailable: shown with no length, or hidden by YouTube. */
+  unavailable: number;
+  /**
+   * When the summary counts only part of the playlist: how many entries were counted, of
+   * how many, and whether those are the first ones, because YouTube hasn't loaded the rest.
+   */
+  partial?: { counted: number; of: number; first: boolean };
+}
+
+/**
+ * The Playlist summary, or undefined for a playlist with nothing in it. YouTube leaves
+ * unavailable entries out of the list but not out of its count, so once the whole list
+ * has loaded, the entries missing from it are the unavailable ones. Before then, the
+ * summary can only say how far it got. An available entry whose length Chrono can't read
+ * is left out of the total, and the summary says so too.
+ */
+export function playlistSummary({ entryCount, entryLengths, moreToLoad, speed }: PlaylistPageState): PlaylistSummary | undefined {
+  if (entryCount === 0) return undefined;
+  const lengths = entryLengths.filter((length) => typeof length === 'number');
+  const contentTime = lengths.reduce((sum, length) => sum + length, 0);
+  const unknown = entryLengths.filter((length) => length === 'unknown').length;
+  const loaded = entryLengths.length;
+  const loading = moreToLoad && loaded < entryCount;
+  const hidden = loading ? 0 : Math.max(0, entryCount - loaded);
+  const counted = (loading ? loaded : entryCount) - unknown;
+  // At 1× the watch time is the content time, which the summary already says.
+  const knownSpeed = speed !== undefined && Number.isFinite(speed) && speed > 0 && !sameSpeed(speed, 1);
+  return {
+    contentTime,
+    atSpeed: knownSpeed ? { watchTime: contentTime / speed, speed } : undefined,
+    unavailable: loaded - lengths.length - unknown + hidden,
+    partial: counted < entryCount ? { counted, of: entryCount, first: unknown === 0 } : undefined,
+  };
+}
+
 /** The speed at which `contentLeft` seconds of content take exactly the watch time `target` allows. */
 function requiredSpeed(contentLeft: number, target: Target, now: Date): RequiredSpeed {
   const available = target.kind === 'finish-time' ? (target.time.getTime() - now.getTime()) / 1000 : target.seconds;

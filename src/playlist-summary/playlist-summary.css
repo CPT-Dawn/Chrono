@@ -1,0 +1,13 @@
+/*
+ * One more row of YouTube's playlist stats: their font and spacing, measured on youtube.com
+ * in Oct 2026. The colour is inherited from the stats, which YouTube sets for its header.
+ */
+:host {
+  display: block;
+  margin-top: 2px;
+  color: inherit;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+}

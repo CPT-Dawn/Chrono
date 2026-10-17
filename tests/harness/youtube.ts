@@ -78,6 +78,19 @@ export interface SavedPage {
    * video starts: it marks that entry as playing, with ▶ in place of its number.
    */
   selectPlaylistEntry(number: number): void;
+  /**
+   * Lays a playlist page out as YouTube's styles do for the window's width: its header in
+   * a column beside the list, or (in a narrow window) above it. YouTube renders both
+   * headers and its styles hide one. The browser fires `resize` as the window crosses
+   * YouTube's breakpoint. Saved playlist pages open laid out wide.
+   */
+  setPlaylistLayout(layout: 'wide' | 'narrow'): void;
+  /**
+   * YouTube loads more entries into a playlist page's list, as it does when the viewer
+   * scrolls to its end: the next `count` (or all the rest) of the entries saved in
+   * `tests/pages/<name>.html`. After the last load, YouTube removes the list's continuation.
+   */
+  loadMoreEntries(name: string, options?: { count?: number; last?: boolean }): void;
 }
 
 export interface PageOptions {
@@ -104,10 +117,10 @@ export function renderSavedPage(
   name: string,
   { playerApi = true, playerOutsideWatchPage = false }: PageOptions = {},
 ): SavedPage {
-  const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
-  const saved = new DOMParser().parseFromString(html, 'text/html');
+  const saved = parseSavedPage(name);
   document.documentElement.remove();
   document.appendChild(document.importNode(saved.documentElement, true));
+  if (document.querySelector(PLAYLIST_PAGE)) setPlaylistLayout('wide');
 
   // Pages other than watch pages have no watch page, or only a hidden one.
   const player = document.querySelector('ytd-watch-flexy #movie_player');
@@ -117,6 +130,8 @@ export function renderSavedPage(
   let video = videoElement && new FakeVideo(videoElement);
   const fakePlayer = player && new FakePlayer(player, () => fromWatchPage(video), playerApi);
   if (player && playerOutsideWatchPage) playerHolder().append(player);
+  /** How many of each saved page's entries YouTube has loaded into a playlist page so far. */
+  const entriesLoaded = new Map<string, number>();
   /** A part of the watch page, or an error for a saved page without one. */
   const fromWatchPage = <T>(part: T | null | undefined): T => {
     if (!part) throw new Error(`Saved page ${name} has no watch page`);
@@ -201,7 +216,53 @@ export function renderSavedPage(
       video = new FakeVideo(element);
       return video;
     },
+    setPlaylistLayout,
+    loadMoreEntries(fragment, { count, last = false } = {}) {
+      // The list's continuation, in either design. A lockup list wraps it, as each entry.
+      const continuation =
+        document.querySelector(`${PLAYLIST_PAGE} ytd-playlist-video-list-renderer > #contents > ytd-continuation-item-renderer`) ??
+        required(`${PLAYLIST_PAGE} yt-item-section-renderer > #contents > * > yt-continuation-item-view-model`).parentElement!;
+      const saved = [...parseSavedPage(fragment).body.children].map((element) => document.importNode(element, true));
+      // After a lockup list's entries, the saved page has the section YouTube loads below it.
+      const sections = saved.filter((element) => element.localName === 'yt-item-section-renderer');
+      const from = entriesLoaded.get(fragment) ?? 0;
+      const to = count === undefined ? undefined : from + count;
+      const entries = saved.filter((element) => !sections.includes(element)).slice(from, to);
+      entriesLoaded.set(fragment, from + entries.length);
+      continuation.before(...entries);
+      if (!last) return;
+      const listSection = continuation.closest('yt-item-section-renderer');
+      continuation.remove();
+      if (listSection && sections.length > 0) {
+        listSection.after(...sections);
+        // YouTube has loaded the section its section list's continuation was for.
+        listSection.parentElement!.querySelector(':scope > yt-continuation-item-view-model')?.remove();
+      }
+    },
   };
+}
+
+function parseSavedPage(name: string): Document {
+  const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
+  return new DOMParser().parseFromString(html, 'text/html');
+}
+
+const PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]';
+
+// Where YouTube's newer playlist page header is in each layout, measured on youtube.com in
+// Oct 2026: beside the list from about 1100px wide, above it in narrower windows. Its older
+// header, which most playlists still had, is one header for both layouts.
+const PLAYLIST_HEADERS = {
+  wide: `${PLAYLIST_PAGE} > yt-page-header-renderer`,
+  narrow: `${PLAYLIST_PAGE} > #header`,
+};
+
+function setPlaylistLayout(layout: 'wide' | 'narrow'): void {
+  const newerHeader = document.querySelector(PLAYLIST_HEADERS.wide);
+  for (const [headerLayout, selector] of Object.entries(newerHeader ? PLAYLIST_HEADERS : {})) {
+    required<HTMLElement>(selector).style.display = headerLayout === layout ? '' : 'none';
+  }
+  window.dispatchEvent(new Event('resize'));
 }
 
 /**

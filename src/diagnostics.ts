@@ -16,7 +16,16 @@ export function failedParts(): FailureLabel[] {
   return [...failed].sort();
 }
 
-/** Forgets everything, as when Chrono leaves the page. */
-export function clearDiagnostics(): void {
-  failed.clear();
+/** The parts Chrono reads on a playlist page. It reads every other part on a watch page. */
+const PLAYLIST_PAGE_PARTS: readonly FailureLabel[] = ['summary'];
+
+/**
+ * Forgets what Chrono couldn't recognise on one kind of page, as when it leaves that page.
+ * Each page's lifecycle forgets only its own parts, so neither wipes the other's.
+ */
+export function clearDiagnostics(page: 'watch' | 'playlist'): void {
+  for (const part of failed) {
+    const pageOfPart = PLAYLIST_PAGE_PARTS.includes(part) ? 'playlist' : 'watch';
+    if (pageOfPart === page) failed.delete(part);
+  }
 }

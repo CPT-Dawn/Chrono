@@ -36,6 +36,28 @@ const VIDEO_LISTS = [
   '.ytFullscreenVideoRecommendationsHost',
 ];
 const VIDEO_LIST_KEEP = 3;
+// A playlist page lists up to a hundred entries at once, all of which tests need. Inside
+// each, these parts only make the saved page huge: images, avatars, the channel and view
+// count, empty badge slots, menus and hover effects. Titles, links and lengths stay.
+const PLAYLIST_ENTRIES = 'ytd-playlist-video-renderer, yt-lockup-view-model';
+const PLAYLIST_ENTRY_CLUTTER = [
+  'img',
+  'yt-image',
+  'yt-icon',
+  'dom-repeat',
+  'tp-yt-paper-tooltip',
+  'yt-interaction',
+  'yt-touch-feedback-shape',
+  'ytd-menu-renderer',
+  'button-view-model',
+  'ytd-badge-supported-renderer',
+  'ytd-video-meta-block',
+  'yt-content-metadata-view-model',
+  'ytd-thumbnail-overlay-now-playing-renderer',
+  'thumbnail-overlay-avatar-stack-view-model',
+  'yt-thumbnail-hover-overlay-toggle-actions-view-model',
+  'yt-decorated-avatar-view-model',
+];
 const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'source', 'track', 'wbr']);
 
 const window = new Window({
@@ -51,6 +73,9 @@ const doc = new window.DOMParser().parseFromString(readFileSync(input, 'utf8'), 
 for (const el of doc.querySelectorAll(REMOVE.join(','))) el.remove();
 for (const list of doc.querySelectorAll(VIDEO_LISTS.join(','))) {
   for (const item of [...list.children].slice(VIDEO_LIST_KEEP)) item.remove();
+}
+for (const entry of doc.querySelectorAll(PLAYLIST_ENTRIES)) {
+  for (const el of entry.querySelectorAll(PLAYLIST_ENTRY_CLUTTER.join(','))) el.remove();
 }
 // The video's blob: source means nothing outside the browser that saved the page.
 for (const video of doc.querySelectorAll('video')) video.removeAttribute('src');
