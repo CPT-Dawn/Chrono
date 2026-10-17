@@ -74,8 +74,35 @@ export function videoScopeTimes({ position, duration, speed, now }: VideoSnapsho
   return scopeTimes(Math.max(0, duration - position), speed, now);
 }
 
+/** A chapter of a video, as YouTube lists it. */
+export interface Chapter {
+  title: string;
+  /** Where the chapter starts, in seconds of content time. It ends where the next one starts. */
+  start: number;
+}
+
+/** What the Chapter scope shows: the chapter the playhead is in. */
+export interface ChapterScope {
+  title: string;
+  times: ScopeTimes;
+}
+
+/**
+ * The Chapter scope, given the video's chapters in order, or undefined when the video has
+ * none or its times aren't known.
+ */
+export function chapterScope(chapters: readonly Chapter[], { position, duration, speed, now }: VideoSnapshot): ChapterScope | undefined {
+  if (![duration, position, speed].every(Number.isFinite) || speed <= 0) return undefined;
+  const last = chapters.at(-1);
+  // Chapters that don't fit in the video are another video's.
+  if (!last || last.start >= duration) return undefined;
+  const index = Math.max(0, chapters.findLastIndex((chapter) => chapter.start <= position));
+  const end = chapters[index + 1]?.start ?? duration;
+  return { title: chapters[index]!.title, times: scopeTimes(Math.max(0, end - position), speed, now) };
+}
+
 /** A scope's times, given the content time it has left. */
-function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
+export function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
   const isCommon = TABLE_SPEEDS.some((common) => sameSpeed(common, speed));
   const speeds = isCommon ? TABLE_SPEEDS : [...TABLE_SPEEDS, speed].sort((a, b) => a - b);
   return {
