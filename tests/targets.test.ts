@@ -455,11 +455,12 @@ describe('Targets', () => {
         control.getByRole('spinbutton', { name: 'Minute' }),
         control.getByRole('combobox', { name: 'AM or PM' }),
       ];
-      // Native form controls, which browsers let the keyboard focus and change.
+      // Each is in the keyboard's tab order, takes the focus and can be changed.
       for (const field of fields) {
-        expect(['SELECT', 'INPUT']).toContain(field.tagName);
         expect(field.tabIndex).toBe(0);
-        expect((field as HTMLInputElement).disabled).toBe(false);
+        field.focus();
+        expect((field.getRootNode() as ShadowRoot).activeElement).toBe(field);
+        expect(field).toHaveProperty('disabled', false);
       }
     });
 
