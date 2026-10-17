@@ -223,7 +223,7 @@ describe('Settings', () => {
       const focused = () => panel.element.shadowRoot!.activeElement;
       // Every item, top to bottom.
       const items = [...menu.getAllByRole('menuitemcheckbox'), ...menu.getAllByRole('menuitemradio')].sort((a, b) =>
-        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+        a === b ? 0 : a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
       );
       const last = items.at(-1);
       const twelveHour = menu.getByRole('menuitemradio', { name: '12-hour' });

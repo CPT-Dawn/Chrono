@@ -1,5 +1,7 @@
 // Pure time maths. Vocabulary follows GLOSSARY.md: remaining is always watch time.
 
+import type { Chapter } from '@/youtube/adapter';
+
 export interface VideoSnapshot {
   /** Playhead position, in seconds of content time. */
   position: number;
@@ -74,13 +76,6 @@ export function videoScopeTimes({ position, duration, speed, now }: VideoSnapsho
   return scopeTimes(Math.max(0, duration - position), speed, now);
 }
 
-/** A chapter of a video, as YouTube lists it. */
-export interface Chapter {
-  title: string;
-  /** Where the chapter starts, in seconds of content time. It ends where the next one starts. */
-  start: number;
-}
-
 /** What the Chapter scope shows: the chapter the playhead is in. */
 export interface ChapterScope {
   title: string;
@@ -102,7 +97,7 @@ export function chapterScope(chapters: readonly Chapter[], { position, duration,
 }
 
 /** A scope's times, given the content time it has left. */
-export function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
+function scopeTimes(contentLeft: number, speed: number, now: Date): ScopeTimes {
   const isCommon = TABLE_SPEEDS.some((common) => sameSpeed(common, speed));
   const speeds = isCommon ? TABLE_SPEEDS : [...TABLE_SPEEDS, speed].sort((a, b) => a - b);
   return {

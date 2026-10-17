@@ -4,8 +4,6 @@
 // Readers never throw. Each returns a value, or an "unrecognised" result whose label
 // names what Chrono couldn't find.
 
-import type { Chapter } from '@/time-model';
-
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
 export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'chapters';
@@ -209,6 +207,13 @@ export function watchPlayerState(doc: Document, onChange: () => void, signal: Ab
   observer.observe(player, { attributes: true, attributeFilter: ['class'], childList: true });
   watchParts();
   signal.addEventListener('abort', () => observer.disconnect());
+}
+
+/** A chapter of a video, as YouTube lists it. */
+export interface Chapter {
+  title: string;
+  /** Where the chapter starts, in seconds of content time. It ends where the next one starts. */
+  start: number;
 }
 
 // YouTube lists a video's chapters in a panel it keeps beside the video, whichever player

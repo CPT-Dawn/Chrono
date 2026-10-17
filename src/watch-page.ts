@@ -182,12 +182,16 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     const scope: VideoScope = videoId ? videoScope({ ...snapshot, ...state }) : { kind: 'unknown' };
     panel.showVideo(scope, now);
     // During an ad or on live content there is no chapter to speak of either.
-    panel.showChapter(videoId && scope.kind === 'times' ? readChapterScope(videoId, snapshot) : undefined, now);
+    panel.showChapter(videoId && scope.kind === 'times' ? currentChapter(videoId, snapshot) : undefined, now);
     panel.showSpeed(playerSpeed);
   }
 
-  /** The chapter of `videoId` that the playhead is in, when YouTube's chapters can be read. */
-  function readChapterScope(videoId: string, snapshot: VideoSnapshot): ChapterScope | undefined {
+  /**
+   * The chapter of `videoId` that the playhead is in, when YouTube's chapters can be read.
+   * Chrono reads them even while the Chapter scope is hidden, so that a report says
+   * whether it could.
+   */
+  function currentChapter(videoId: string, snapshot: VideoSnapshot): ChapterScope | undefined {
     const chapters = readChapters(document, videoId);
     noteReading('chapters', chapters);
     return chapters.recognised ? chapterScope(chapters.value, snapshot) : undefined;
