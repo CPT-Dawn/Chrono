@@ -1,8 +1,9 @@
+import { OUTWARD_LINKS, type OutwardLink } from '@/links';
 import type { Settings } from '@/settings';
 import type { ChapterScope, PlaylistScope, ScopeTimes, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createChapterScope } from './chapter-scope';
-import { createMenu } from './menu';
+import { createActionItem, createMenu } from './menu';
 import { createPlaylistScope } from './playlist-scope';
 import { speedText as writeSpeed, timesText } from './scope-text';
 import { createSettingsMenu } from './settings-menu';
@@ -22,6 +23,8 @@ export interface PanelOptions {
   changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): void;
   /** Called with the playlist entry number the viewer chooses to count the Playlist scope up to. */
   setPlaylistTarget(target: number): void;
+  /** Called with the link the viewer follows from the ⋮ menu. */
+  openLink(link: OutwardLink): void;
 }
 
 export interface Panel {
@@ -53,7 +56,14 @@ const SPEED_STEP = 0.25;
  * Chrono's Panel. It lives in a shadow root so YouTube's styles and Chrono's styles
  * can't affect each other.
  */
-export function createPanel({ locale, settings, setSpeed, changeSetting, setPlaylistTarget }: PanelOptions): Panel {
+export function createPanel({
+  locale,
+  settings,
+  setSpeed,
+  changeSetting,
+  setPlaylistTarget,
+  openLink,
+}: PanelOptions): Panel {
   const element = document.createElement('section');
   element.setAttribute('aria-label', browser.i18n.getMessage('extShortName'));
   const style = document.createElement('style');
@@ -102,7 +112,15 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
   title.textContent = browser.i18n.getMessage('extShortName');
   const menu = createMenu('menu', browser.i18n.getMessage('moreActions'));
   const settingsMenu = createSettingsMenu(changeSetting);
-  menu.popup.append(...settingsMenu.elements);
+  const separator = create('div', 'menu-separator');
+  separator.setAttribute('role', 'separator');
+  const links = OUTWARD_LINKS.map(({ link, label }) =>
+    createActionItem(browser.i18n.getMessage(label), () => {
+      menu.close();
+      openLink(link);
+    }),
+  );
+  menu.popup.append(...settingsMenu.elements, separator, ...links);
   const header = create('div', 'header');
   header.append(title, menu.button, menu.popup);
 

@@ -88,6 +88,10 @@
   outline: none;
 }
 
+.menu-item[role='menuitem'] {
+  padding-left: 16px;
+}
+
 .menu-item svg {
   flex: none;
   visibility: hidden;

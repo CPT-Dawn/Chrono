@@ -7,10 +7,13 @@ import { within } from '@testing-library/dom';
 import { Window } from 'happy-dom';
 import { onTestFinished } from 'vitest';
 import { startPopup } from '@/popup/popup';
+import { focusWindow } from './background';
 import { settle } from './chrono';
 
 /** Opens Chrono's popup and returns queries scoped to what it shows. */
 export async function openPopup() {
+  // The viewer clicks the toolbar icon in the window they're using.
+  await focusWindow();
   const window = new Window({
     url: 'chrome-extension://chrono/popup.html',
     // The test runs the popup's script itself, below, the same way its entry point does.

@@ -221,10 +221,12 @@ describe('Settings', () => {
     it('lets the keyboard move through the settings with the arrow keys', async () => {
       const { panel, menu } = await openMenu();
       const focused = () => panel.element.shadowRoot!.activeElement;
-      // Every item, top to bottom.
-      const items = [...menu.getAllByRole('menuitemcheckbox'), ...menu.getAllByRole('menuitemradio')].sort((a, b) =>
-        a === b ? 0 : a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
-      );
+      // Every item, top to bottom: the settings, then the links.
+      const items = [
+        ...menu.getAllByRole('menuitemcheckbox'),
+        ...menu.getAllByRole('menuitemradio'),
+        ...menu.getAllByRole('menuitem'),
+      ].sort((a, b) => (a === b ? 0 : a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
       const last = items.at(-1);
       const twelveHour = menu.getByRole('menuitemradio', { name: '12-hour' });
 

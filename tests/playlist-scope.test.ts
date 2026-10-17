@@ -242,7 +242,7 @@ describe('Playlist scope', () => {
       expect(queryPlaylistScope()).toBeNull();
       // The rest of the Panel carries on.
       queryPanel()!.getByText('3:20 left at 1×');
-      expect(reportedFailures()).toEqual([]);
+      expect(await reportedFailures()).toEqual([]);
     });
 
     it('says why there is no estimate while Shuffle is on', async () => {
@@ -283,7 +283,7 @@ describe('Playlist scope', () => {
 
     expect(queryPlaylistScope()).toBeNull();
     panel.getByText('8:20 left at 1×');
-    expect(reportedFailures()).toEqual(['playlist']);
+    expect(await reportedFailures()).toEqual(['playlist']);
   });
 
   it("hides quietly, and reports failed=playlist, when it can't read the entries' lengths", async () => {
@@ -298,7 +298,7 @@ describe('Playlist scope', () => {
     fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
 
     expect(queryPlaylistScope()).toBeNull();
-    expect(reportedFailures()).toEqual(['playlist']);
+    expect(await reportedFailures()).toEqual(['playlist']);
   });
 
   it("hides quietly, and reports failed=playlist, when it can't find the Shuffle button", async () => {
@@ -311,7 +311,7 @@ describe('Playlist scope', () => {
     fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
 
     expect(queryPlaylistScope()).toBeNull();
-    expect(reportedFailures()).toEqual(['playlist']);
+    expect(await reportedFailures()).toEqual(['playlist']);
   });
 
   it('appears once YouTube renders its playlist panel, after the rest of the watch page', async () => {
@@ -327,7 +327,7 @@ describe('Playlist scope', () => {
     await settle();
 
     playlistScope().getByText('3:28:59 left at 1×');
-    expect(reportedFailures()).toEqual([]);
+    expect(await reportedFailures()).toEqual([]);
   });
 
   it('shows nothing, and reports nothing, on a video outside any playlist', async () => {
@@ -337,7 +337,7 @@ describe('Playlist scope', () => {
     fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
 
     expect(queryPlaylistScope()).toBeNull();
-    expect(reportedFailures()).toEqual([]);
+    expect(await reportedFailures()).toEqual([]);
   });
 
   it('hides during an ad, when the video element plays the ad', async () => {
