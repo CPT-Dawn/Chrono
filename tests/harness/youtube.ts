@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { vi } from 'vitest';
 import { settle } from './chrono';
+import { ListenerRegistry } from './listeners';
 
 /** The browser hides or shows the tab, as when the viewer switches tabs. */
 export function setTabVisibility(state: DocumentVisibilityState): void {
@@ -44,10 +45,25 @@ export interface SavedPage {
   movePlayer(to: 'miniplayer' | 'watch-page'): void;
   /** YouTube replaces its video element with a new one, which becomes `video`. */
   replaceVideo(): FakeVideo;
+  /**
+   * YouTube's watch page takes in the player YouTube started outside it, API and video and
+   * all, and announces it. In Oct 2026 YouTube did this 2–3 s into a fresh page load.
+   */
+  adoptPlayer(): void;
+  /**
+   * YouTube's watch page announces its player by firing yt-player-updated on its
+   * ytd-player, which bubbles up. In Oct 2026 YouTube did this after taking in its player
+   * on a fresh page load, and early in every navigation without a reload.
+   */
+  announcePlayer(): void;
   /** YouTube's player's ads module, which it adds once the player first prepares for ads. */
   readonly ads: Element;
   /** YouTube's player's time display, which it flags on live content. */
   readonly timeDisplay: Element;
+  /** The list of the video's chapters that YouTube keeps beside the video, on a video with chapters. */
+  readonly chapters: Element;
+  /** YouTube's progress bar's chapter segments: one per chapter, or one for a video without chapters. */
+  readonly chapterSegments: Element;
   /**
    * YouTube starts an ad break: it flags its player and renders the ad's overlay. The ad
    * plays in the same video element, which the test loads with the ad.
@@ -73,6 +89,11 @@ export interface SavedPage {
 export interface PageOptions {
   /** Whether YouTube's player exposes the speed API Chrono knows. Defaults to true. */
   playerApi?: boolean;
+  /**
+   * Whether YouTube's player is still in the holder where YouTube starts it on a fresh
+   * page load, outside the watch page, until `adoptPlayer`. Defaults to false.
+   */
+  playerOutsideWatchPage?: boolean;
 }
 
 /** Loads `tests/pages/<name>.html` as the current document, at `url`. */
@@ -85,7 +106,10 @@ export function openSavedPage(name: string, url: string, options: PageOptions = 
  * Replaces the whole page with `tests/pages/<name>.html` and keeps the address, as if
  * YouTube had rendered the page from scratch.
  */
-export function renderSavedPage(name: string, { playerApi = true }: PageOptions = {}): SavedPage {
+export function renderSavedPage(
+  name: string,
+  { playerApi = true, playerOutsideWatchPage = false }: PageOptions = {},
+): SavedPage {
   const saved = parseSavedPage(name);
   document.documentElement.remove();
   document.appendChild(document.importNode(saved.documentElement, true));
@@ -98,6 +122,7 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
   const videoElement = player?.querySelector('video');
   let video = videoElement && new FakeVideo(videoElement);
   const fakePlayer = player && new FakePlayer(player, () => fromWatchPage(video), playerApi);
+  if (player && playerOutsideWatchPage) playerHolder().append(player);
   /** How many of each saved page's entries YouTube has loaded into a playlist page so far. */
   const entriesLoaded = new Map<string, number>();
   /** A part of the watch page, or an error for a saved page without one. */
@@ -128,6 +153,11 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
       element.remove();
       return () => parent.insertBefore(element, next);
     },
+    adoptPlayer() {
+      fromWatchPage(playerHome).append(fromWatchPage(player));
+      announcePlayer();
+    },
+    announcePlayer,
     movePlayer(to) {
       (to === 'miniplayer' ? required('ytd-miniplayer') : fromWatchPage(playerHome)).append(fromWatchPage(player));
     },
@@ -136,6 +166,12 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
     },
     get timeDisplay() {
       return required('ytd-watch-flexy #movie_player .ytp-time-display');
+    },
+    get chapters() {
+      return required('ytd-watch-flexy #panels > [target-id^="engagement-panel-macro-markers"]');
+    },
+    get chapterSegments() {
+      return required('ytd-watch-flexy #movie_player .ytp-chapters-container');
     },
     startAdBreak() {
       const playerElement = fromWatchPage(player);
@@ -208,6 +244,20 @@ function setPlaylistLayout(layout: 'wide' | 'narrow'): void {
   window.dispatchEvent(new Event('resize'));
 }
 
+/**
+ * Where YouTube starts its player before it renders the watch page, as on youtube.com in
+ * Oct 2026: `<body>` > div#player > div#player-wrap > div#player-api.
+ */
+function playerHolder(): Element {
+  const existing = document.querySelector('body > #player > #player-wrap > #player-api');
+  if (existing) return existing;
+  const holder = document.createElement('div');
+  holder.id = 'player';
+  holder.innerHTML = '<div id="player-wrap"><div id="player-api"></div></div>';
+  document.body.append(holder);
+  return holder.querySelector('#player-api')!;
+}
+
 /** An ad's overlay, as YouTube's player script built it in Oct 2026 (player 0229cd64). */
 const AD_OVERLAY =
   '<div class="ytp-ad-player-overlay-layout">' +
@@ -252,6 +302,12 @@ const SIDEBAR_BLOCKS = {
   'one-column': ['#playlist', '#panels', '#chat-container', '#inline-panels'],
 };
 
+function announcePlayer(): void {
+  required('ytd-watch-flexy ytd-player').dispatchEvent(
+    new CustomEvent('yt-player-updated', { bubbles: true, composed: true }),
+  );
+}
+
 function setLayout(layout: 'two-columns' | 'one-column'): void {
   const flexy = required('ytd-watch-flexy');
   const blocks = SIDEBAR_BLOCKS[layout].map((id) => required(`ytd-watch-flexy ${id}`));
@@ -275,16 +331,6 @@ function required<T extends Element>(selector: string): T {
 /** How often a playing video fires `timeupdate`, as in Chrome and Firefox. */
 const TIMEUPDATE_MS = 250;
 
-interface Listener {
-  type: string;
-  listener: EventListenerOrEventListenerObject;
-  capture: boolean;
-}
-
-function usesCapture(options?: boolean | EventListenerOptions): boolean {
-  return typeof options === 'boolean' ? options : Boolean(options?.capture);
-}
-
 let sourceCount = 0;
 
 /** A source like the ones YouTube's player gives its video element, one per video it loads. */
@@ -307,7 +353,7 @@ export class FakeVideo {
   #ticker: ReturnType<typeof setInterval> | undefined;
 
   /** The element's event listeners, as the browser keeps them: one per type, listener and phase. */
-  #listeners: Listener[] = [];
+  #listeners = new ListenerRegistry();
 
   constructor(readonly element: HTMLVideoElement) {
     const video = this;
@@ -320,11 +366,7 @@ export class FakeVideo {
           // A browser ignores a null listener.
           if (!listener) return;
           addEventListener(type, listener, options);
-          const signal = typeof options === 'object' ? options.signal : undefined;
-          if (signal?.aborted) return;
-          const entry = { type, listener, capture: usesCapture(options) };
-          if (video.#indexOf(entry) === -1) video.#listeners.push(entry);
-          signal?.addEventListener('abort', () => video.#forget(entry));
+          video.#listeners.add(element, type, listener, options);
         },
       },
       removeEventListener: {
@@ -332,7 +374,7 @@ export class FakeVideo {
         value(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions) {
           if (!listener) return;
           removeEventListener(type, listener, options);
-          video.#forget({ type, listener, capture: usesCapture(options) });
+          video.#listeners.remove(element, type, listener, options);
         },
       },
       src: { configurable: true, get: () => video.#source },
@@ -414,16 +456,7 @@ export class FakeVideo {
    * video it no longer describes.
    */
   get listenerCount(): number {
-    return this.#listeners.length;
-  }
-
-  #indexOf({ type, listener, capture }: Listener): number {
-    return this.#listeners.findIndex((l) => l.type === type && l.listener === listener && l.capture === capture);
-  }
-
-  #forget(entry: Listener): void {
-    const index = this.#indexOf(entry);
-    if (index !== -1) this.#listeners.splice(index, 1);
+    return this.#listeners.count;
   }
 
   #fire(...types: string[]): void {

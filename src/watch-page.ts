@@ -1,17 +1,27 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { clearDiagnostics, noteReading } from '@/diagnostics';
 import { createPanel, type Panel } from '@/panel/panel';
+import { createPlayerBadge, type PlayerBadge } from '@/player-badge/player-badge';
 import { connectSpeedBridge } from '@/speed-bridge';
-import { type VideoScope, type VideoState, videoScope } from '@/time-model';
+import {
+  type ChapterScope,
+  chapterScope,
+  type VideoScope,
+  type VideoSnapshot,
+  type VideoState,
+  videoScope,
+} from '@/time-model';
 import { changeSetting, readSettings, watchSettings } from '@/settings';
 import {
   readActiveVideo,
   readAdBreak,
+  readChapters,
   readLive,
   readMediaSource,
   readPage,
   readSidebarMount,
   readTheme,
+  readTimeDisplayMount,
   watchNavigation,
   watchPlayerState,
   watchTheme,
@@ -24,10 +34,11 @@ type PlayerState = Pick<VideoState, 'adBreak' | 'live'>;
 const VIDEO_EVENTS = ['durationchange', 'timeupdate', 'seeking', 'ratechange', 'play', 'pause'];
 
 /**
- * Keeps one Panel on the watch page, up to date, and only there. Chrono waits, with no
- * timeouts, until the viewer has seen the tab and YouTube has rendered the video and the
- * sidebar. It follows YouTube's navigation and video swaps without a reload, and on every
- * other page it removes the Panel and stops everything the Panel used.
+ * Keeps one Panel and one Player badge on the watch page, up to date, and only there.
+ * Chrono waits, with no timeouts, until the viewer has seen the tab and YouTube has
+ * rendered the video and the sidebar (for the Panel) or the player's time display (for the
+ * badge). It follows YouTube's navigation and video swaps without a reload, and on every
+ * other page it removes both and stops everything they used.
  */
 export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   // Read while YouTube is still rendering, so the Panel appears the way the viewer left it.
@@ -36,6 +47,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   // A tab opened in the background waits until the viewer first looks at it.
   let seen = document.visibilityState === 'visible';
   let panel: Panel | undefined;
+  let badge: PlayerBadge | undefined;
   /** The once-a-second tick that keeps the finish time moving with the clock. */
   let clock: ReturnType<typeof setInterval> | undefined;
   /** The video the Panel describes, and what stops Chrono listening to it. */
@@ -65,9 +77,9 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   const observer = new MutationObserver(() => refresh());
 
   /**
-   * Puts the Panel where the page says it belongs, following the page's current video.
-   * It updates the Panel only when it moves it or follows another video: the rest of the
-   * time, video events and the clock do.
+   * Puts the Panel and the Player badge where the page says they belong, following the
+   * page's current video. It updates them only when it moves one or follows another video:
+   * the rest of the time, video events and the clock do.
    */
   function refresh(): void {
     if (isOrphaned()) return;
@@ -77,12 +89,36 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     }
     observer.observe(document, { childList: true, subtree: true });
     const video = readActiveVideo(document);
-    const sidebar = readSidebarMount(document);
-    if (!video.recognised || !sidebar.recognised) {
-      removePanel();
+    if (!video.recognised) {
+      removeSurfaces();
       return;
     }
+    // The Panel and the Player badge each step aside alone when their part of the page
+    // isn't recognised.
+    const panelMoved = placePanel();
+    const badgeMoved = placeBadge();
+    if (!panel && !badge) {
+      removeSurfaces();
+      return;
+    }
+    // The finish time moves with the clock even when the video doesn't, though nobody
+    // sees it move in a hidden tab.
+    setClock(document.visibilityState === 'visible');
+    const switched = followed?.video !== video.value;
+    if (switched) follow(video.value);
+    if (panelMoved || badgeMoved || switched) render();
+  }
 
+  /**
+   * Puts the Panel above the sidebar's blocks, or removes it when the sidebar isn't
+   * recognised. Returns whether it moved.
+   */
+  function placePanel(): boolean {
+    const sidebar = readSidebarMount(document);
+    if (!sidebar.recognised) {
+      removePanel();
+      return false;
+    }
     panel ??= createPanel({
       locale: navigator.language,
       settings,
@@ -94,9 +130,6 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       panel.setTheme(readTheme(document));
       watchTheme(document, (theme) => panel?.setTheme(theme), themeWatch.signal);
     }
-    // The finish time moves with the clock even when the video doesn't, though nobody
-    // sees it move in a hidden tab.
-    setClock(document.visibilityState === 'visible');
     const { container, firstBlock, placement } = sidebar.value;
     const moved = firstBlock
       ? panel.element.nextElementSibling !== firstBlock
@@ -106,9 +139,27 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       else container.prepend(panel.element);
     }
     panel.setPlacement(placement);
-    const switched = followed?.video !== video.value;
-    if (switched) follow(video.value);
-    if (moved || switched) render();
+    return moved;
+  }
+
+  /**
+   * Puts the Player badge right after the time display's duration, or removes it when the
+   * viewer has turned it off or the player's layout isn't recognised. Then Chrono adds
+   * nothing to the player at all. Returns whether it moved.
+   */
+  function placeBadge(): boolean {
+    const mount = readTimeDisplayMount(document);
+    // A layout Chrono doesn't recognise is worth reporting even while the badge is off.
+    noteReading('badge', mount);
+    if (!mount.recognised || !settings.playerBadge) {
+      removeBadge();
+      return false;
+    }
+    badge ??= createPlayerBadge(navigator.language);
+    const { duration } = mount.value;
+    const moved = duration.nextElementSibling !== badge.element;
+    if (moved) duration.after(badge.element);
+    return moved;
   }
 
   /**
@@ -119,21 +170,36 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     return ctx.isInvalid;
   }
 
-  /** Removes the Panel and stops everything it uses. */
+  /** Removes the Panel and stops it following YouTube's theme. */
   function removePanel(): void {
     panel?.element.remove();
     panel = undefined;
-    setClock(false);
-    followed?.listening.abort();
-    followed = undefined;
     themeWatch?.abort();
     themeWatch = undefined;
   }
 
-  /** Removes the Panel and stops watching the page until YouTube navigates to a watch page. */
+  /** Takes the Player badge out of the player, leaving YouTube's time display as it was. */
+  function removeBadge(): void {
+    badge?.element.remove();
+    badge = undefined;
+  }
+
+  /** Removes the Panel and the Player badge, and stops everything they use. */
+  function removeSurfaces(): void {
+    removePanel();
+    removeBadge();
+    setClock(false);
+    followed?.listening.abort();
+    followed = undefined;
+  }
+
+  /**
+   * Removes everything Chrono shows and stops watching the page until YouTube navigates to
+   * a watch page.
+   */
   function stop(): void {
     observer.disconnect();
-    removePanel();
+    removeSurfaces();
     clearDiagnostics('watch');
   }
 
@@ -156,24 +222,38 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   }
 
   function render(): void {
-    if (isOrphaned() || !panel || !followed) return;
+    if (isOrphaned() || !followed || (!panel && !badge)) return;
     const { video } = followed;
     const page = readPage(location);
     const now = new Date();
     const state = readPlayerState();
     shownPlayerState = state;
-    const scope: VideoScope =
-      !navigating && page.kind === 'watch' && ownerOf(video, page.videoId) === page.videoId
-        ? videoScope({
-            position: video.currentTime,
-            duration: video.duration,
-            speed: playerSpeed ?? video.playbackRate,
-            now,
-            ...state,
-          })
-        : { kind: 'unknown' };
-    panel.showVideo(scope, now);
-    panel.showSpeed(playerSpeed);
+    /** The video the Panel describes, while the address and the video agree on it. */
+    const videoId =
+      !navigating && page.kind === 'watch' && ownerOf(video, page.videoId) === page.videoId ? page.videoId : undefined;
+    const snapshot: VideoSnapshot = {
+      position: video.currentTime,
+      duration: video.duration,
+      speed: playerSpeed ?? video.playbackRate,
+      now,
+    };
+    const scope: VideoScope = videoId ? videoScope({ ...snapshot, ...state }) : { kind: 'unknown' };
+    panel?.showVideo(scope, now);
+    // During an ad or on live content there is no chapter to speak of either.
+    panel?.showChapter(videoId && scope.kind === 'times' ? currentChapter(videoId, snapshot) : undefined, now);
+    panel?.showSpeed(playerSpeed);
+    badge?.show(scope, now, settings.clockFormat);
+  }
+
+  /**
+   * The chapter of `videoId` that the playhead is in, when YouTube's chapters can be read.
+   * Chrono reads them even while the Chapter scope is hidden, so that a report says
+   * whether it could.
+   */
+  function currentChapter(videoId: string, snapshot: VideoSnapshot): ChapterScope | undefined {
+    const chapters = readChapters(document, videoId);
+    noteReading('chapters', chapters);
+    return chapters.recognised ? chapterScope(chapters.value, snapshot) : undefined;
   }
 
   /** What YouTube's player says about the video it is playing. */
@@ -213,6 +293,9 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   watchSettings((value) => {
     settings = value;
     panel?.setSettings(value);
+    // The Player badge comes and goes with its setting. Rendering again after that applies
+    // the rest, such as the clock format, when nothing moved.
+    refresh();
     render();
   }, ctx.signal);
   watchNavigation(

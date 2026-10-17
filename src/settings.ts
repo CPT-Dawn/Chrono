@@ -10,6 +10,10 @@ import type { MessageName } from '@/messages';
 export type ClockFormat = 'auto' | '12h' | '24h';
 
 export interface Settings {
+  /** Whether the Panel shows the Chapter scope on a video with chapters. */
+  showChapterScope: boolean;
+  /** Whether the video's finish time shows next to the player's own time display. */
+  playerBadge: boolean;
   clockFormat: ClockFormat;
   /**
    * Whether the Panel's details start expanded on a fresh watch page. Expanding or
@@ -21,6 +25,8 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
+  showChapterScope: true,
+  playerBadge: true,
   clockFormat: 'auto',
   panelStartsExpanded: false,
   playlistSummary: true,
@@ -41,16 +47,18 @@ export interface ToggleSetting<K extends keyof Settings> {
   label: MessageName;
 }
 
-export type SettingControl =
-  | ChoiceSetting<'clockFormat'>
-  | ToggleSetting<'panelStartsExpanded'>
-  | ToggleSetting<'playlistSummary'>;
+/** The settings that are on or off. */
+type ToggleKey = { [K in keyof Settings]: Settings[K] extends boolean ? K : never }[keyof Settings];
+
+export type SettingControl = ChoiceSetting<'clockFormat'> | ToggleSetting<ToggleKey>;
 
 /**
  * Every setting, in the order the ⋮ menu and the popup show them. Labels are message names
  * in messages.json.
  */
 export const SETTING_CONTROLS: readonly SettingControl[] = [
+  { kind: 'toggle', key: 'showChapterScope', label: 'showChapterScope' },
+  { kind: 'toggle', key: 'playerBadge', label: 'playerBadge' },
   {
     kind: 'choice',
     key: 'clockFormat',
@@ -66,6 +74,12 @@ export const SETTING_CONTROLS: readonly SettingControl[] = [
 ];
 
 const storageItems = {
+  showChapterScope: storage.defineItem<boolean>('local:settings.showChapterScope', {
+    fallback: DEFAULT_SETTINGS.showChapterScope,
+  }),
+  playerBadge: storage.defineItem<boolean>('local:settings.playerBadge', {
+    fallback: DEFAULT_SETTINGS.playerBadge,
+  }),
   clockFormat: storage.defineItem<ClockFormat>('local:settings.clockFormat', {
     fallback: DEFAULT_SETTINGS.clockFormat,
   }),

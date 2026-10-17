@@ -6,7 +6,7 @@
 
 export type Reading<T> = { recognised: true; value: T } | { recognised: false; failed: FailureLabel };
 
-export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'summary';
+export type FailureLabel = 'video' | 'sidebar' | 'speed' | 'ads' | 'live' | 'badge' | 'chapters' | 'summary';
 
 const recognised = <T>(value: T): Reading<T> => ({ recognised: true, value });
 const unrecognised = <T>(failed: FailureLabel): Reading<T> => ({ recognised: false, failed });
@@ -159,6 +159,18 @@ export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: Ab
   }
 }
 
+/**
+ * Calls `onAnnounced` each time YouTube's watch page announces its player, until `signal`
+ * aborts. The player may have arrived in the watch page with no video event to tell: on
+ * a fresh page load YouTube starts its player, API and video and all, outside the watch
+ * page, and moves it in a few seconds later. In Oct 2026 (player 0229cd64) YouTube fired
+ * yt-player-updated on its ytd-player just after that move, and early in every
+ * navigation without a reload. It bubbles up to the document.
+ */
+export function watchPlayerAnnounced(doc: Document, onAnnounced: () => void, signal: AbortSignal): void {
+  doc.addEventListener('yt-player-updated', () => onAnnounced(), { signal });
+}
+
 // YouTube's player marks an ad break on its own element, and renders the ad's overlay
 // into its ads module. Both were so in player 0229cd64 (Oct 2026).
 const AD_BREAK = 'ad-showing';
@@ -188,6 +200,44 @@ export function readLive(doc: Document): Reading<boolean> {
   return timeDisplay ? recognised(timeDisplay.classList.contains(LIVE)) : unrecognised('live');
 }
 
+// The time display's own times, "0:03 / 10:34", as YouTube's player 0229cd64 built them in
+// Oct 2026. Both of its players put them in a contents element, inside a wrapper that also
+// holds the live badge. The redesigned (Delhi) player flags itself. It flags the wrapper as
+// Delhi too, but only on videos, not on live streams, so that flag says nothing about the
+// player.
+const DELHI = 'ytp-delhi-modern';
+const TIME_WRAPPER = ':scope > .ytp-time-wrapper';
+const TIME_CONTENTS = ':scope > .ytp-time-contents';
+const TIMES = [':scope > .ytp-time-current', ':scope > .ytp-time-separator', ':scope > .ytp-time-duration'];
+
+/** Which of YouTube's two players the watch page has: the legacy one or the redesigned (Delhi) one. */
+export type PlayerVariant = 'legacy' | 'delhi';
+
+export interface TimeDisplayMount {
+  variant: PlayerVariant;
+  /**
+   * The time display's duration, "10:34", which the Player badge goes right after. In both
+   * players everything else in the wrapper starts a new line, and the Delhi player's
+   * rounded background goes round the wrapper, so only here does the badge read on the
+   * same line as YouTube's times.
+   */
+  duration: Element;
+}
+
+/**
+ * Where the Player badge goes in the player's time display. It is recognised only when
+ * the time display is laid out exactly as one of YouTube's two players lays it out, so the
+ * badge never goes anywhere that could break YouTube's display.
+ */
+export function readTimeDisplayMount(doc: Document): Reading<TimeDisplayMount> {
+  const player = doc.querySelector(PLAYER);
+  const wrapper = player?.querySelector(TIME_DISPLAY)?.querySelector(TIME_WRAPPER);
+  const contents = wrapper?.querySelector(TIME_CONTENTS);
+  const [current, separator, duration] = TIMES.map((part) => contents?.querySelector(part));
+  if (!player || !wrapper || !current || !separator || !duration) return unrecognised('badge');
+  return recognised({ variant: player.classList.contains(DELHI) ? 'delhi' : 'legacy', duration });
+}
+
 /**
  * Calls `onChange` whenever YouTube's player may have started or ended an ad break or a
  * live stream, until `signal` aborts. It watches only the parts that say so, because the
@@ -211,6 +261,68 @@ export function watchPlayerState(doc: Document, onChange: () => void, signal: Ab
   observer.observe(player, { attributes: true, attributeFilter: ['class'], childList: true });
   watchParts();
   signal.addEventListener('abort', () => observer.disconnect());
+}
+
+/** A chapter of a video, as YouTube lists it. */
+export interface Chapter {
+  title: string;
+  /** Where the chapter starts, in seconds of content time. It ends where the next one starts. */
+  start: number;
+}
+
+// YouTube lists a video's chapters in a panel it keeps beside the video, whichever player
+// it serves: one panel for chapters the creator wrote, another for chapters YouTube made.
+// Its progress bar has a segment per chapter, and one segment for a video without them.
+// All were so on the legacy and Delhi players in Oct 2026.
+const CHAPTER_LIST = [
+  'engagement-panel-macro-markers-description-chapters',
+  'engagement-panel-macro-markers-auto-chapters',
+]
+  .map((id) => `${WATCH_PAGE} #panels > ytd-engagement-panel-section-list-renderer[target-id="${id}"]`)
+  .join(', ');
+const CHAPTER_ITEM = ':scope ytd-macro-markers-list-item-renderer';
+const CHAPTER_LINK = ':scope > a#endpoint';
+const CHAPTER_TITLE = ':scope #details .macro-markers';
+const CHAPTER_SEGMENTS = ':scope .ytp-progress-bar .ytp-chapters-container';
+const CHAPTER_SEGMENT = ':scope > .ytp-chapter-hover-container';
+const YOUTUBE = 'https://www.youtube.com/';
+
+/**
+ * The chapters of `videoId`, the watch page's video, in order. An empty list for a video
+ * without chapters. The list only counts when YouTube's progress bar agrees about how many
+ * chapters there are, so a list YouTube hasn't yet replaced after navigating never does.
+ */
+export function readChapters(doc: Document, videoId: string): Reading<Chapter[]> {
+  const segments = doc.querySelector(PLAYER)?.querySelector(CHAPTER_SEGMENTS);
+  if (!segments) return unrecognised('chapters');
+  const segmentCount = segments.querySelectorAll(CHAPTER_SEGMENT).length;
+  const list = doc.querySelector(CHAPTER_LIST);
+  if (!list) return segmentCount === 1 ? recognised([]) : unrecognised('chapters');
+
+  const chapters: Chapter[] = [];
+  for (const item of list.querySelectorAll(CHAPTER_ITEM)) {
+    const chapter = readChapter(item, videoId);
+    // Each chapter starts after the one before, and the first at the very start.
+    const previous = chapters.at(-1);
+    if (!chapter || (previous ? chapter.start <= previous.start : chapter.start !== 0)) return unrecognised('chapters');
+    chapters.push(chapter);
+  }
+  return chapters.length === segmentCount ? recognised(chapters) : unrecognised('chapters');
+}
+
+/**
+ * One chapter of the list. Its link plays `videoId` from the chapter's start, given in
+ * whole seconds, e.g. `/watch?v=aircAruvnKk&t=67s`; the first chapter's has no start.
+ */
+function readChapter(item: Element, videoId: string): Chapter | undefined {
+  const link = item.querySelector(CHAPTER_LINK);
+  const title = link?.querySelector(CHAPTER_TITLE)?.textContent?.trim();
+  const href = link?.getAttribute('href');
+  if (!title || !href || !URL.canParse(href, YOUTUBE)) return undefined;
+  const params = new URL(href, YOUTUBE).searchParams;
+  if (params.get('v') !== videoId) return undefined;
+  const start = /^(\d+)s$/.exec(params.get('t') ?? '0s')?.[1];
+  return start === undefined ? undefined : { title, start: Number(start) };
 }
 
 export interface NavigationHandlers {
