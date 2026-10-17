@@ -9,7 +9,7 @@ import { createPlaylistScope } from './playlist-scope';
 import { speedText, timesText } from './scope-text';
 import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
-import { createTarget } from './target';
+import { createTarget, type TargetScope } from './target';
 import styles from './panel.css?inline';
 
 export interface PanelOptions {
@@ -53,9 +53,6 @@ export interface Panel {
   setSettings(settings: Settings): void;
 }
 
-/** The scopes the viewer can set a target on. */
-export type TargetScope = 'video' | 'chapter' | 'playlist';
-
 /** How far − and + change speed, as YouTube's Shift+< and Shift+> do. */
 const SPEED_STEP = 0.25;
 
@@ -94,7 +91,7 @@ export function createPanel({
   details.id = 'details';
   details.setAttribute('role', 'region');
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
-  const videoTarget = createTarget('video', 'videoTarget', locale, (target) => setTarget('video', target), setSpeed);
+  const videoTarget = createTarget('video', locale, (target) => setTarget('video', target), setSpeed);
   const videoTable = createSpeedTable(locale, setSpeed);
   const chapterView = createChapterScope(locale, setSpeed, (target) => setTarget('chapter', target));
   const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTargetEntry, (target) =>

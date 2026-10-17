@@ -31,7 +31,7 @@ export function createChapterScope(
   const finish = create('span', 'finish');
   const times = create('div', 'times');
   times.append(remaining, finish);
-  const target = createTarget('chapter', 'chapterTarget', locale, setTarget, setSpeed);
+  const target = createTarget('chapter', locale, setTarget, setSpeed);
   const table = createSpeedTable(locale, setSpeed, 'chapterSpeedTable');
   element.append(label, title, times, target.element, table.element);
 

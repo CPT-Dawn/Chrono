@@ -5,7 +5,7 @@ import { dayPeriodNames, formatClockHour, timeSeparator, usesTwelveHourClock } f
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
 import { MAX_SPEED, MIN_SPEED, type RequiredSpeed, type ScopeTimes, type Target, upcomingClockTime } from '@/time-model';
-import { create } from './dom';
+import { create, uniqueId } from './dom';
 import { speedText } from './scope-text';
 
 export interface TargetView {
@@ -18,26 +18,31 @@ export interface TargetView {
 
 type Kind = Target['kind'] | 'none';
 
-/**
- * A scope's target, named for screen readers by the message `label`. `id` tells it apart
- * from the other scopes' targets in the Panel.
- */
+/** The scopes the viewer can set a target on. */
+export type TargetScope = 'video' | 'chapter' | 'playlist';
+
+/** What screen readers call each scope's target. */
+const LABELS: Record<TargetScope, MessageName> = {
+  video: 'videoTarget',
+  chapter: 'chapterTarget',
+  playlist: 'playlistTarget',
+};
+
+/** The target of `scope`. */
 export function createTarget(
-  id: string,
-  label: MessageName,
+  scope: TargetScope,
   locale: string,
   setTarget: (target: Target | undefined) => void,
   setSpeed: (speed: number) => void,
 ): TargetView {
   const element = create('div', 'target-control');
   element.setAttribute('role', 'group');
-  element.setAttribute('aria-label', browser.i18n.getMessage(label));
+  element.setAttribute('aria-label', browser.i18n.getMessage(LABELS[scope]));
 
   const kind = document.createElement('select');
-  kind.id = `${id}-target-kind`;
+  kind.id = uniqueId('target-kind');
   for (const [value, message] of KINDS) kind.append(option(browser.i18n.getMessage(message), value));
-  const kindLabel = document.createElement('label');
-  kindLabel.className = 'target';
+  const kindLabel = create('label', 'target');
   kindLabel.htmlFor = kind.id;
   kindLabel.textContent = browser.i18n.getMessage('target');
 

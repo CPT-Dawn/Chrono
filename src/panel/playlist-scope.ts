@@ -4,7 +4,7 @@
 import { formatCount } from '@/format';
 import type { ClockFormat } from '@/settings';
 import type { PlaylistScope, Target } from '@/time-model';
-import { create } from './dom';
+import { create, uniqueId } from './dom';
 import { timesText } from './scope-text';
 import { createSpeedTable } from './speed-table';
 import { createTarget } from './target';
@@ -23,36 +23,34 @@ export function createPlaylistScope(
   setTargetEntry: (entry: number) => void,
   setTarget: (target: Target | undefined) => void,
 ): PlaylistScopeView {
-  const element = document.createElement('div');
-  element.className = 'scope';
+  const element = create('div', 'scope');
   element.setAttribute('role', 'group');
-  const heading = create('div', 'scope-label');
-  heading.id = 'playlist-scope-heading';
-  heading.textContent = browser.i18n.getMessage('playlistScope');
-  element.setAttribute('aria-labelledby', heading.id);
+  element.setAttribute('aria-label', browser.i18n.getMessage('playlistScope'));
+
+  const label = create('div', 'scope-label');
+  label.textContent = browser.i18n.getMessage('playlistScope');
 
   const remaining = create('span', 'remaining');
   const finish = create('span', 'finish');
   const times = create('div', 'times');
   times.append(remaining, finish);
   const notes = create('div', 'scope-notes');
-  const notice = create('div', 'scope-notes');
-  notice.textContent = browser.i18n.getMessage('playlistShuffle');
+  const shuffleNotice = create('div', 'scope-notes');
+  shuffleNotice.textContent = browser.i18n.getMessage('playlistShuffle');
 
   const input = document.createElement('input');
   input.type = 'number';
   input.step = '1';
-  input.id = 'playlist-target';
-  const label = document.createElement('label');
-  label.className = 'target';
-  label.htmlFor = input.id;
-  label.textContent = browser.i18n.getMessage('playlistTargetEntry');
+  input.id = uniqueId('target-entry');
+  const entryLabel = create('label', 'target');
+  entryLabel.htmlFor = input.id;
+  entryLabel.textContent = browser.i18n.getMessage('playlistTargetEntry');
   const entryRow = create('div', 'target-row');
-  entryRow.append(label, input);
+  entryRow.append(entryLabel, input);
 
-  const target = createTarget('playlist', 'playlistTarget', locale, setTarget, setSpeed);
+  const target = createTarget('playlist', locale, setTarget, setSpeed);
   const table = createSpeedTable(locale, setSpeed, 'playlistSpeedTable');
-  element.append(heading, times, notes, entryRow, target.element, table.element, notice);
+  element.append(label, times, notes, entryRow, target.element, table.element, shuffleNotice);
 
   /** The target entry the scope last showed, which a rejected entry goes back to. */
   let shownTarget: number | undefined;
@@ -71,7 +69,7 @@ export function createPlaylistScope(
       element.hidden = scope.kind === 'none';
       const counting = scope.kind === 'times';
       for (const part of [times, notes, entryRow, table.element]) part.hidden = !counting;
-      notice.hidden = scope.kind !== 'shuffle';
+      shuffleNotice.hidden = scope.kind !== 'shuffle';
       if (!counting) {
         target.show(undefined, now, clockFormat);
         table.show([], now, clockFormat);
