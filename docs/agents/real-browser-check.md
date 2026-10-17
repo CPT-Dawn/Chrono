@@ -32,7 +32,13 @@ Playwright can't navigate Firefox to `about:` or `moz-extension://` pages (they 
 ## Driving YouTube
 
 - Live YouTube is reachable. Headless sessions get the Delhi player.
-- To get the legacy player, intercept `youtube.com/watch` with `page.route` and switch the `delhi_*` experiment flags in the HTML from `true` to `false`.
+- To get the legacy player, intercept `youtube.com/watch` with `page.route` and switch **every** experiment flag whose name contains `delhi` from `true` to `false`: about 127 of them in Oct 2026. Each comes in two forms, `"some_delhi_flag":true` in JSON and `some_delhi_flag=true` in the flag strings, and both must be flipped. Flipping only the quoted form leaves the Delhi player. For example:
+
+  ```js
+  html.replace(/(\w*delhi\w*)(\\?"?\s*[:=]\s*)true\b/gi, '$1$2false')
+  ```
+
+  Check the result: `#movie_player` must not have the class `ytp-delhi-modern`.
 - Dark theme: add the cookie `PREF=f6=400` on `.youtube.com`.
 - The Panel is a `<section>` with an open shadow root containing `.panel`.
 - Pre-roll ads are common: wait while `#movie_player` has `ad-showing` before checking times.
