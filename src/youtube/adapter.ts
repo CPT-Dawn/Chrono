@@ -547,7 +547,9 @@ export function watchPlaylist(doc: Document, onChange: () => void, signal: Abort
 // playlists had the older one, and the rest the newer one, in two copies (one per layout).
 // A page with the newer header still carries the older one, empty and hidden, and its
 // sidebar, so every query is scoped to the one part it means.
-const PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]:not([hidden])';
+/** A playlist page, shown or kept hidden. */
+const ANY_PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]';
+const PLAYLIST_PAGE = `${ANY_PLAYLIST_PAGE}:not([hidden])`;
 /** The header's stats in each header, and the parts the stats are made of. */
 const PLAYLIST_STATS = [
   // The newer header, in the copy beside the list (wide windows) and above it (narrow).
@@ -668,9 +670,21 @@ function readEntryCount(stats: Element, parts: string): number | undefined {
  * Calls `onChange` whenever the playlist page may show something new, until `signal`
  * aborts: YouTube renders the page, loads more entries, or switches its header between
  * layouts. The switch is in YouTube's styles alone, so only the window's resizing tells.
+ * It passes on only changes in, or of, a playlist page: the rest of the document, such
+ * as the miniplayer's time display, changes many times a second.
  */
 export function watchPlaylistPage(doc: Document, onChange: () => void, signal: AbortSignal): void {
-  const observer = new MutationObserver(() => onChange());
+  const inPage = (node: Node) =>
+    (node instanceof Element ? node : node.parentElement)?.closest(ANY_PLAYLIST_PAGE) != null;
+  const isPage = (node: Node) =>
+    node instanceof Element && (node.matches(ANY_PLAYLIST_PAGE) || node.querySelector(ANY_PLAYLIST_PAGE) !== null);
+  const observer = new MutationObserver((records) => {
+    const changed = records.some(
+      ({ target, addedNodes, removedNodes }) =>
+        inPage(target) || [...addedNodes].some(isPage) || [...removedNodes].some(isPage),
+    );
+    if (changed) onChange();
+  });
   observer.observe(doc, { childList: true, subtree: true, characterData: true });
   doc.defaultView?.addEventListener('resize', () => onChange(), { signal });
   signal.addEventListener('abort', () => observer.disconnect());

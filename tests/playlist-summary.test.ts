@@ -367,6 +367,21 @@ describe('Playlist summary', () => {
       expect(await reportedFailures()).not.toContain('summary');
     });
 
+    it("reads nothing while only the miniplayer changes, as its time display ticks", async () => {
+      openSavedPage('playlist-lockups-now-playing', LOCKUPS_URL);
+      await startChrono();
+      const reads = vi.spyOn(document, 'querySelector');
+
+      for (const time of document.querySelectorAll('ytd-miniplayer .ytp-time-current')) {
+        time.firstChild!.nodeValue = '0:14';
+        time.replaceChildren('0:15');
+      }
+      await settle();
+
+      expect(reads).not.toHaveBeenCalled();
+      expect(queryPlaylistSummary()).toBe('2h 40m total · 2 unavailable · 38 of 39 counted');
+    });
+
     it("doesn't report YouTube's speed as unrecognised while the miniplayer holds YouTube's player", async () => {
       // The player's speed API is the one Chrono knows; it's only outside the watch page.
       openSavedPage('playlist-lockups-now-playing', LOCKUPS_URL);
