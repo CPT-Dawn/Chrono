@@ -68,5 +68,27 @@ _Avoid_: Inline time, time-display injection
 The one-line total that Chrono adds to a playlist page, covering the playlist's content time, its watch time at the viewer's speed, and how many entries are unavailable. It is unrelated to the playlist scope.
 _Avoid_: Playlist total, playlist duration
 
+**Counted note**:
+The part of the Playlist summary that says how many of the playlist's entries its total covers, as "38 of 39 counted", when it can't cover them all: YouTube hasn't loaded the rest ("first 100 of 412 counted"), or Chrono can't read some entries' lengths.
+_Avoid_: Partial count, loaded count
+
 **Ad break**:
 A period during which YouTube plays an ad in the player. Chrono pauses its calculations for its duration.
+
+## Support
+
+**Outward link**:
+A link the viewer follows from the Panel's ⋮ menu or the popup to Chrono's own site: Support Chrono, Get help or Report it. Like every page Chrono opens, it goes to a fixed path there (ADR-0001).
+_Avoid_: External link, URL
+
+**Environment**:
+Where the viewer's copy of Chrono runs: its version, the browser and its version, and the OS. "Get help" pre-fills it.
+_Avoid_: System info, user agent
+
+**Page report**:
+What "Something look wrong? Report it" adds to the help link about the YouTube page the viewer is on: which player and layout Chrono found, and the failure labels of the parts it couldn't recognise. Never anything from the page itself (ADR-0002).
+_Avoid_: Bug report, diagnostics
+
+**Failure label**:
+A short lower-case word naming a part of YouTube's page that Chrono couldn't recognise, such as `chapters` or `speed`. A page report carries them as `failed`.
+_Avoid_: Error code, failure reason

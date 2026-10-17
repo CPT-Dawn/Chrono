@@ -119,7 +119,7 @@
   },
   "showPlaylistScope": {
     "message": "Show Playlist scope",
-    "description": "Setting: whether the Panel shows the remaining and finish time for the rest of the playlist."
+    "description": "Setting: whether the Panel shows the remaining and finish time of the playlist, up to the target entry."
   },
   "playlistScope": {
     "message": "Playlist",

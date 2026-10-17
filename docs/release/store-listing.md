@@ -19,8 +19,8 @@ Chrono answers these right inside YouTube.
 PANEL
 A compact block at the top of YouTube's sidebar, styled like YouTube's own panels. At a glance: the video's remaining watch time at your speed, its finish time, and speed − / + buttons. Expand it for more:
 • Speed table: remaining and finish time at every common speed.
-• Chapter: remaining and finish time for the chapter you're in.
-• Playlist: remaining and finish time up to any entry you pick.
+• Chapter scope: remaining and finish time for the chapter you're in.
+• Playlist scope: remaining and finish time up to any entry you pick.
 • Targets: set a finish time or the watch time you have, and Chrono shows the required speed.
 
 PLAYER BADGE
