@@ -22,14 +22,14 @@ export function createPlaylistScope(
   const element = document.createElement('div');
   element.className = 'scope';
   element.setAttribute('role', 'group');
-  const heading = create('div', 'scope-heading');
+  const heading = create('div', 'scope-label');
   heading.id = 'playlist-scope-heading';
   heading.textContent = browser.i18n.getMessage('playlistScope');
   element.setAttribute('aria-labelledby', heading.id);
 
   const remaining = create('span', 'remaining');
   const finish = create('span', 'finish');
-  const times = create('div', 'scope-times');
+  const times = create('div', 'times');
   times.append(remaining, finish);
   const notes = create('div', 'scope-notes');
   const notice = create('div', 'scope-notes');
@@ -46,7 +46,7 @@ export function createPlaylistScope(
   const target = create('div', 'target-row');
   target.append(label, input);
 
-  const table = createSpeedTable(locale, setSpeed);
+  const table = createSpeedTable(locale, setSpeed, 'playlistSpeedTable');
   element.append(heading, times, notes, target, table.element, notice);
 
   /** The target entry the scope last showed, which a rejected entry goes back to. */

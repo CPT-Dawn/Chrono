@@ -221,27 +221,27 @@ describe('Settings', () => {
     it('lets the keyboard move through the settings with the arrow keys', async () => {
       const { panel, menu } = await openMenu();
       const focused = () => panel.element.shadowRoot!.activeElement;
-      // Every item, checkbox or choice, top to bottom.
+      // Every item, top to bottom.
       const items = [...menu.getAllByRole('menuitemcheckbox'), ...menu.getAllByRole('menuitemradio')].sort((a, b) =>
-        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+        a === b ? 0 : a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
       );
-      const last = items.length - 1;
+      const last = items.at(-1);
+      const twelveHour = menu.getByRole('menuitemradio', { name: '12-hour' });
 
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[0]);
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[1]);
       fireEvent.keyDown(focused()!, { key: 'End' });
-      expect(focused()).toBe(items[last]);
+      expect(focused()).toBe(last);
       fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       expect(focused()).toBe(items[0]);
       fireEvent.keyDown(focused()!, { key: 'ArrowUp' });
-      expect(focused()).toBe(items[last]);
+      expect(focused()).toBe(last);
       fireEvent.keyDown(focused()!, { key: 'Home' });
       expect(focused()).toBe(items[0]);
 
-      const twelveHour = menu.getByRole('menuitemradio', { name: '12-hour' });
-      while (focused() !== twelveHour) fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
+      for (let i = 0; i < items.length && focused() !== twelveHour; i++) fireEvent.keyDown(focused()!, { key: 'ArrowDown' });
       fireEvent.keyDown(focused()!, { key: 'Enter' });
       await settle();
       expect(isChecked(twelveHour)).toBe(true);

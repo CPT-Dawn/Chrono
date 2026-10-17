@@ -35,7 +35,7 @@ function playlistScope() {
 
 /** The Playlist scope's speed table rows, as a screen reader announces them. */
 function playlistRows(): (string | null)[] {
-  const table = within(playlistScope().getByRole('group', { name: 'Speed table' }));
+  const table = within(playlistScope().getByRole('group', { name: 'Playlist speed table' }));
   return table.getAllByRole('button').map((row) => row.getAttribute('aria-label'));
 }
 

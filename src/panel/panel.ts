@@ -1,6 +1,7 @@
 import type { Settings } from '@/settings';
-import type { PlaylistScope, ScopeTimes, VideoScope } from '@/time-model';
+import type { ChapterScope, PlaylistScope, ScopeTimes, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
+import { createChapterScope } from './chapter-scope';
 import { createMenu } from './menu';
 import { createPlaylistScope } from './playlist-scope';
 import { speedText as writeSpeed, timesText } from './scope-text';
@@ -28,6 +29,8 @@ export interface Panel {
   element: HTMLElement;
   /** Shows the Video scope: its times, a quiet ad-break or live state, or nothing. */
   showVideo(scope: VideoScope, now: Date): void;
+  /** Shows the Chapter scope, or nothing when the video has no chapters Chrono can read. */
+  showChapter(scope: ChapterScope | undefined, now: Date): void;
   /** Shows the Playlist scope, a notice in its place, or nothing. */
   showPlaylist(scope: PlaylistScope, now: Date): void;
   /** Switches to Chrono's colours for YouTube's theme. */
@@ -75,8 +78,9 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
   details.setAttribute('role', 'region');
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
   const videoTable = createSpeedTable(locale, setSpeed);
+  const chapterView = createChapterScope(locale, setSpeed);
   const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTarget);
-  details.append(videoTable.element, playlistView.element);
+  details.append(videoTable.element, chapterView.element, playlistView.element);
 
   const toggle = create('button', 'icon-button toggle') as HTMLButtonElement;
   toggle.type = 'button';
@@ -108,6 +112,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
 
   /** The Video scope's latest times, for the details to show when they're expanded. */
   let videoTimes: { times: ScopeTimes; now: Date } | undefined;
+  /** The Chapter scope's latest times, likewise. */
+  let chapter: { scope: ChapterScope; now: Date } | undefined;
   /** The Playlist scope's latest state, likewise. */
   let shownPlaylist: { scope: PlaylistScope; now: Date } = { scope: { kind: 'none' }, now: new Date() };
 
@@ -127,6 +133,8 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
   function renderVideoDetails() {
     const rows = settings.panelStartsExpanded && videoTimes ? videoTimes.times.speedTable : [];
     videoTable.show(rows, videoTimes?.now ?? new Date(), settings.clockFormat);
+    const shownChapter = settings.panelStartsExpanded && settings.showChapterScope ? chapter : undefined;
+    chapterView.show(shownChapter?.scope, shownChapter?.now ?? new Date(), settings.clockFormat);
   }
 
   function renderPlaylist() {
@@ -155,9 +163,14 @@ export function createPanel({ locale, settings, setSpeed, changeSetting, setPlay
       shownPlaylist = { scope, now };
       renderPlaylist();
     },
+    showChapter(scope, now) {
+      chapter = scope && { scope, now };
+      renderVideoDetails();
+    },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
       videoTable.setEnabled(speed !== undefined);
+      chapterView.setEnabled(speed !== undefined);
       playlistView.setEnabled(speed !== undefined);
       if (speed === undefined) return;
       currentSpeed = speed;
