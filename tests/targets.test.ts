@@ -270,6 +270,22 @@ describe('Targets', () => {
       expect(fieldValues('Video target')).toEqual({ Hour: '3', Minute: '13', 'AM or PM': 'PM' });
     });
 
+    it('starts from the remaining when the finish time is too far off for a clock time to say', async () => {
+      const page = openSavedPage('watch-delhi', WATCH_URL);
+      // A 30-hour stretch of content left, which ends at 9:00 PM tomorrow.
+      page.video.load({ duration: 110_000 });
+      page.video.seek(2000);
+      await startChrono();
+      fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+
+      chooseKind('Video target', 'Done by');
+
+      // "Done by 9:00 PM" would mean today, and ask for 5×.
+      expect(kindOf('Video target')).toBe('I have');
+      expect(fieldValues('Video target')).toEqual({ Hours: '30', Minutes: '0' });
+      target('Video target').getByText('Needs 1×');
+    });
+
     it('clears when the viewer chooses No target', async () => {
       await openVideo();
       setWatchTime('Video target', 0, 10);

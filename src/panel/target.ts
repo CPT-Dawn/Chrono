@@ -78,8 +78,15 @@ export function createTarget(
     // A new target starts at the scope's own times, so its required speed starts at the
     // current speed and the viewer adjusts from there.
     const { times, clockFormat } = shown;
+    const finishTime = new Date(Math.ceil(times.finishTime.getTime() / 60_000) * 60_000);
+    // A clock time means a time within the next day, so a scope that ends later starts from
+    // its remaining instead.
+    if (kind.value === 'finish-time' && !sayableAsClockTime(finishTime, new Date())) {
+      kind.value = 'watch-time';
+      showFields('watch-time');
+    }
     if (kind.value === 'finish-time') {
-      fillFinishTime(new Date(Math.ceil(times.finishTime.getTime() / 60_000) * 60_000), clockFormat);
+      fillFinishTime(finishTime, clockFormat);
     } else if (kind.value === 'watch-time') {
       fillWatchTime(Math.round(times.remaining / 60) * 60);
     }
@@ -180,6 +187,11 @@ const KINDS: [Kind, MessageName][] = [
   ['finish-time', 'targetFinishTime'],
   ['watch-time', 'targetWatchTime'],
 ];
+
+/** Whether the clock time of `time` alone, entered at `now`, means `time`. */
+function sayableAsClockTime(time: Date, now: Date): boolean {
+  return upcomingClockTime(time.getHours(), time.getMinutes(), now).getTime() === time.getTime();
+}
 
 /** What the target says about its required speed. */
 function requiredText(required: RequiredSpeed, locale: string): string {
