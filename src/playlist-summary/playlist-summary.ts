@@ -36,7 +36,8 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
       }
       if (unavailable > 0) parts.push(browser.i18n.getMessage('playlistSummaryUnavailable', count(unavailable)));
       if (partial) {
-        parts.push(browser.i18n.getMessage('playlistSummaryPartial', [count(partial.counted), count(partial.of)]));
+        const message = partial.first ? 'playlistSummaryPartial' : 'playlistSummaryCounted';
+        parts.push(browser.i18n.getMessage(message, [count(partial.counted), count(partial.of)]));
       }
       const line = parts.reduce((joined, part) => browser.i18n.getMessage('playlistSummaryJoin', [joined, part]));
       // YouTube's page watches for changes; an unchanged line changes nothing.

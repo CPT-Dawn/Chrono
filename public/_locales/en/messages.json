@@ -186,6 +186,14 @@
       "total": { "content": "$2", "example": "412" }
     }
   },
+  "playlistSummaryCounted": {
+    "message": "$COUNTED$ of $TOTAL$ counted",
+    "description": "Playlist summary: Chrono can't read the length of some entries, such as the one YouTube is playing, so the total leaves them out, e.g. \"38 of 39 counted\".",
+    "placeholders": {
+      "counted": { "content": "$1", "example": "38" },
+      "total": { "content": "$2", "example": "39" }
+    }
+  },
   "playlistSummaryJoin": {
     "message": "$FIRST$ · $NEXT$",
     "description": "Playlist summary: joins its parts, in the style of YouTube's own stats, e.g. \"4h 12m total · 3 unavailable\".",

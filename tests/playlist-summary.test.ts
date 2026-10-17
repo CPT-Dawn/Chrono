@@ -6,11 +6,10 @@ import {
   countPlaylistSummaries,
   queryPanel,
   queryPlaylistSummary,
-  reportedFailures,
   settle,
   startChrono,
 } from './harness/chrono';
-import { openPopup } from './harness/popup';
+import { followPopupReportLink, openPopup } from './harness/popup';
 import {
   finishNavigation,
   navigate,
@@ -27,6 +26,12 @@ const SHORTS_URL = 'https://www.youtube.com/shorts/A9Yn8Ad_cH8';
 const LOCKUPS_URL = 'https://www.youtube.com/playlist?list=PL398E6B0278A8F204';
 const LEGACY_LONG_URL = 'https://www.youtube.com/playlist?list=PL-jdGlB2ROPIlCx00C3A-o2K_KoAlWUmZ';
 const LOCKUPS_LONG_URL = 'https://www.youtube.com/playlist?list=PLwuVHrNMAUxr5qc1LKX7BHHC5QJc2_5lm';
+const OLD_HEADER_URL = 'https://www.youtube.com/playlist?list=PLu0W_9lII9agq5TrH9XLIKQvv0iaF2X3w';
+
+/** The parts of YouTube's page that the popup's "Report it" says Chrono couldn't recognise. */
+async function reportedFailures(): Promise<string[]> {
+  return (await followPopupReportLink()).searchParams.get('failed')?.split(',') ?? [];
+}
 
 describe('Playlist summary', () => {
   it("shows a playlist's total content time and how many entries are unavailable", async () => {
@@ -210,15 +215,16 @@ describe('Playlist summary', () => {
 
   describe('when YouTube changes its playlist page', () => {
     it.each([
-      ['stats', 'ytd-browse yt-page-header-view-model yt-content-metadata-view-model [role="group"]'],
-      ['list', 'ytd-browse ytd-playlist-video-list-renderer'],
-    ])('hides quietly without the %s it knows, and reports failed=summary', async (_, part) => {
-      openSavedPage('playlist-legacy-long', LEGACY_LONG_URL);
+      ['stats', 'playlist-legacy-long', LEGACY_LONG_URL, 'ytd-browse yt-page-header-view-model yt-content-metadata-view-model [role="group"]'],
+      ['list', 'playlist-legacy-long', LEGACY_LONG_URL, 'ytd-browse ytd-playlist-video-list-renderer'],
+      ["older header's byline", 'playlist-old-header-long', OLD_HEADER_URL, 'ytd-browse ytd-playlist-byline-renderer'],
+    ])('hides quietly without the %s it knows, and reports failed=summary', async (_, name, url, part) => {
+      openSavedPage(name, url);
       for (const element of document.querySelectorAll(part)) element.remove();
       await startChrono();
 
       expect(countPlaylistSummaries()).toBe(0);
-      expect(reportedFailures()).toEqual(['summary']);
+      expect(await reportedFailures()).toEqual(['summary']);
     });
 
     it('appears once YouTube renders what it knows, and stops reporting the failure', async () => {
@@ -234,7 +240,7 @@ describe('Playlist summary', () => {
       await settle();
 
       expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
-      expect(reportedFailures()).toEqual([]);
+      expect(await reportedFailures()).toEqual([]);
     });
 
     it("adds nothing to an empty playlist, and doesn't take it for a change", async () => {
@@ -246,7 +252,7 @@ describe('Playlist summary', () => {
       await startChrono();
 
       expect(countPlaylistSummaries()).toBe(0);
-      expect(reportedFailures()).toEqual([]);
+      expect(await reportedFailures()).toEqual([]);
     });
 
     it('leaves the failure behind when it leaves the page', async () => {
@@ -256,7 +262,7 @@ describe('Playlist summary', () => {
 
       await navigate(SHORTS_URL);
 
-      expect(reportedFailures()).toEqual([]);
+      expect(await reportedFailures()).toEqual([]);
     });
   });
 
@@ -312,6 +318,54 @@ describe('Playlist summary', () => {
 
     expect(queryPlaylistSummary()).toBe('9h 45m total · 4 unavailable');
     for (const spy of [...network, ...scrolling]) expect(spy).not.toHaveBeenCalled();
+  });
+
+  describe("on a playlist with YouTube's older header", () => {
+    // In Oct 2026 YouTube still served most playlists with its older header, whose byline
+    // says e.g. "139 videos · Last updated on Nov 9, 2024". It is one header for every
+    // window width.
+    it('counts the entries its byline says, and adds the line under the byline', async () => {
+      const page = openSavedPage('playlist-old-header-long', OLD_HEADER_URL, { playerApi: false });
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('33h 25m total · first 100 of 139 counted');
+      expect(document.querySelector('ytd-playlist-byline-renderer [role="note"]')).not.toBeNull();
+
+      page.setPlaylistLayout('narrow');
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('33h 25m total · first 100 of 139 counted');
+      expect(countPlaylistSummaries()).toBe(1);
+    });
+  });
+
+  describe('while YouTube plays one of its entries', () => {
+    // Back on a playlist page while its miniplayer played one of the playlist's videos,
+    // YouTube showed "Now playing" on that lockup in place of its length (4:07 here) in
+    // Oct 2026, and said the length only in words, for screen readers.
+    const PLAYING_URL = 'https://www.youtube.com/watch?v=dY7PmX6Oz58&list=PL398E6B0278A8F204&index=1';
+
+    it('counts the playing entry at the length YouTube showed for it before', async () => {
+      openSavedPage('playlist-lockups', LOCKUPS_URL, { playerApi: false });
+      await startChrono();
+
+      await startNavigation(PLAYING_URL);
+      document.querySelector('ytd-browse')!.setAttribute('hidden', '');
+      await finishNavigation();
+      await startNavigation(LOCKUPS_URL);
+      renderSavedPage('playlist-lockups-now-playing', { playerApi: false });
+      await finishNavigation();
+
+      expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
+    });
+
+    it("doesn't count it as unavailable when it never showed its length, and says the total leaves it out", async () => {
+      openSavedPage('playlist-lockups-now-playing', LOCKUPS_URL);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('2h 40m total · 2 unavailable · 38 of 39 counted');
+      expect(await reportedFailures()).not.toContain('summary');
+    });
   });
 
   describe("on a page that mixes YouTube's old and new elements", () => {

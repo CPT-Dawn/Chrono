@@ -249,15 +249,17 @@ function parseSavedPage(name: string): Document {
 
 const PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]';
 
-// Where YouTube's playlist page header is in each layout, measured on youtube.com in Oct
-// 2026: beside the list from about 1100px wide, above it in narrower windows.
+// Where YouTube's newer playlist page header is in each layout, measured on youtube.com in
+// Oct 2026: beside the list from about 1100px wide, above it in narrower windows. Its older
+// header, which most playlists still had, is one header for both layouts.
 const PLAYLIST_HEADERS = {
   wide: `${PLAYLIST_PAGE} > yt-page-header-renderer`,
   narrow: `${PLAYLIST_PAGE} > #header`,
 };
 
 function setPlaylistLayout(layout: 'wide' | 'narrow'): void {
-  for (const [headerLayout, selector] of Object.entries(PLAYLIST_HEADERS)) {
+  const newerHeader = document.querySelector(PLAYLIST_HEADERS.wide);
+  for (const [headerLayout, selector] of Object.entries(newerHeader ? PLAYLIST_HEADERS : {})) {
     required<HTMLElement>(selector).style.display = headerLayout === layout ? '' : 'none';
   }
   window.dispatchEvent(new Event('resize'));

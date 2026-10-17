@@ -1,13 +1,12 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { clearDiagnostics, noteReading } from '@/diagnostics';
+import { clearDiagnostics, failedParts, noteReading } from '@/diagnostics';
+import { answerPageReports } from '@/link-requests';
 import { createPlaylistSummary, type PlaylistSummaryLine } from '@/playlist-summary/playlist-summary';
 import { readSettings, watchSettings } from '@/settings';
 import { connectSpeedBridge } from '@/speed-bridge';
 import { playlistSummary } from '@/time-model';
 import {
   createPlaylistPageReader,
-  type PlaylistPage,
-  type Reading,
   readPage,
   watchNavigation,
   watchPlaylistPage,
@@ -24,8 +23,10 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
   let line: PlaylistSummaryLine | undefined;
   /** YouTube's player speed, while the Speed bridge can reach it. */
   let playerSpeed: number | undefined;
-  /** What reads the page, and what stops Chrono watching it, while on a playlist page. */
-  let visit: { read: (doc: Document) => Reading<PlaylistPage>; watching: AbortController } | undefined;
+  /** What reads playlist pages, remembering the lengths they showed while the tab is open. */
+  const readPlaylistPage = createPlaylistPageReader();
+  /** What stops Chrono watching the page, while on a playlist page. */
+  let watching: AbortController | undefined;
 
   /** Shows the summary the page calls for, or none. */
   function refresh(): void {
@@ -35,12 +36,11 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
       stop();
       return;
     }
-    if (!visit) {
-      const watching = new AbortController();
+    if (!watching) {
+      watching = new AbortController();
       watchPlaylistPage(document, refresh, watching.signal);
-      visit = { read: createPlaylistPageReader(), watching };
     }
-    const page = visit.read(document);
+    const page = readPlaylistPage(document);
     noteReading('summary', page);
     const summary = page.recognised && playlistSummary({ ...page.value, speed: playerSpeed });
     if (!page.recognised || !summary) {
@@ -64,8 +64,8 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
    * page or the viewer turns the summary back on.
    */
   function stop(): void {
-    visit?.watching.abort();
-    visit = undefined;
+    watching?.abort();
+    watching = undefined;
     removeLine();
     clearDiagnostics('playlist');
   }
@@ -83,6 +83,11 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
     refresh();
   }, ctx.signal);
   watchNavigation(document, { started() {}, finished: refresh }, ctx.signal);
+  // "Report it" in the popup says what Chrono couldn't recognise on the playlist page.
+  answerPageReports(
+    () => (ctx.isInvalid || readPage(location).kind !== 'playlist' ? undefined : { failed: failedParts() }),
+    ctx.signal,
+  );
   ctx.onInvalidated(stop);
   refresh();
 }
