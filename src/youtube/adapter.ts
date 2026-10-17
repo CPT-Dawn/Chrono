@@ -272,8 +272,9 @@ export interface PlaylistPage {
 }
 
 /**
- * A reader for the playlist page. It remembers each video's length, because YouTube takes
- * the length badge off a lockup while the pointer is over it. Use one per visit to a page.
+ * A reader for playlist pages. It remembers each video's length, because YouTube takes the
+ * length badge off a lockup while the pointer is over it. Use one while Chrono stays on
+ * playlist pages, so what it remembers goes when Chrono leaves them.
  */
 export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistPage> {
   const lengths = new Map<string, number>();
@@ -295,8 +296,11 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     const statsCopies = page ? [...page.querySelectorAll(PLAYLIST_STATS)] : [];
     // YouTube's styles show one copy of the header, depending on the window's width.
     const stats = statsCopies.find((copy) => copy.checkVisibility()) ?? statsCopies[0];
-    const entryCount = stats && readEntryCount(stats);
     const list = page && readPlaylistList(page);
+    // An empty playlist's stats say so in words ("No videos"), so the first number in them
+    // is something else. A list with nothing to load has nothing to count, whatever they say.
+    const empty = list && list.entries.length === 0 && !list.moreToLoad;
+    const entryCount = empty ? 0 : stats && readEntryCount(stats);
     if (!stats || entryCount === undefined || !list) return unrecognised('summary');
     const entryLengths = list.entries.map(readLength);
     // Stats that count fewer entries than the list has aren't the stats Chrono knows.

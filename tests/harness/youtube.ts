@@ -163,15 +163,26 @@ export function renderSavedPage(name: string, { playerApi = true }: PageOptions 
     },
     setPlaylistLayout,
     loadMoreEntries(fragment, { count, last = false } = {}) {
-      const continuation = required(
-        `${PLAYLIST_PAGE} ytd-playlist-video-list-renderer > #contents > ytd-continuation-item-renderer`,
-      );
+      // The list's continuation, in either design. A lockup list wraps it, as each entry.
+      const continuation =
+        document.querySelector(`${PLAYLIST_PAGE} ytd-playlist-video-list-renderer > #contents > ytd-continuation-item-renderer`) ??
+        required(`${PLAYLIST_PAGE} yt-item-section-renderer > #contents > * > yt-continuation-item-view-model`).parentElement!;
+      const saved = [...parseSavedPage(fragment).body.children].map((element) => document.importNode(element, true));
+      // After a lockup list's entries, the saved page has the section YouTube loads below it.
+      const sections = saved.filter((element) => element.localName === 'yt-item-section-renderer');
       const from = entriesLoaded.get(fragment) ?? 0;
       const to = count === undefined ? undefined : from + count;
-      const entries = [...parseSavedPage(fragment).body.children].slice(from, to);
+      const entries = saved.filter((element) => !sections.includes(element)).slice(from, to);
       entriesLoaded.set(fragment, from + entries.length);
-      continuation.before(...entries.map((entry) => document.importNode(entry, true)));
-      if (last) continuation.remove();
+      continuation.before(...entries);
+      if (!last) return;
+      const listSection = continuation.closest('yt-item-section-renderer');
+      continuation.remove();
+      if (listSection && sections.length > 0) {
+        listSection.after(...sections);
+        // YouTube has loaded the section its section list's continuation was for.
+        listSection.parentElement!.querySelector(':scope > yt-continuation-item-view-model')?.remove();
+      }
     },
   };
 }

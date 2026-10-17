@@ -30,7 +30,8 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
   /** Shows the summary the page calls for, or none. */
   function refresh(): void {
     if (ctx.isInvalid) return;
-    if (readPage(location).kind !== 'playlist') {
+    // With the setting off, Chrono leaves playlist pages alone, as it does every other page.
+    if (readPage(location).kind !== 'playlist' || !settings.playlistSummary) {
       stop();
       return;
     }
@@ -38,10 +39,6 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
       const watching = new AbortController();
       watchPlaylistPage(document, refresh, watching.signal);
       visit = { read: createPlaylistPageReader(), watching };
-    }
-    if (!settings.playlistSummary) {
-      removeLine();
-      return;
     }
     const page = visit.read(document);
     noteReading('summary', page);
@@ -62,7 +59,10 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
     line = undefined;
   }
 
-  /** Removes the summary and stops watching the page until YouTube navigates to a playlist page. */
+  /**
+   * Removes the summary and stops watching the page, until YouTube navigates to a playlist
+   * page or the viewer turns the summary back on.
+   */
   function stop(): void {
     visit?.watching.abort();
     visit = undefined;

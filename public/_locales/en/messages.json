@@ -128,6 +128,14 @@
       "total": { "content": "$2", "example": "412" }
     }
   },
+  "playlistSummaryJoin": {
+    "message": "$FIRST$ · $NEXT$",
+    "description": "Playlist summary: joins its parts, in the style of YouTube's own stats, e.g. \"4h 12m total · 3 unavailable\".",
+    "placeholders": {
+      "first": { "content": "$1", "example": "4h 12m total" },
+      "next": { "content": "$2", "example": "3 unavailable" }
+    }
+  },
   "hoursMinutes": {
     "message": "$HOURS$h $MINUTES$m",
     "description": "A length in hours and minutes, e.g. \"4h 12m\".",

@@ -25,6 +25,7 @@ const PLAYLIST_PAGE_PARTS: readonly FailureLabel[] = ['summary'];
  */
 export function clearDiagnostics(page: 'watch' | 'playlist'): void {
   for (const part of failed) {
-    if (PLAYLIST_PAGE_PARTS.includes(part) === (page === 'playlist')) failed.delete(part);
+    const pageOfPart = PLAYLIST_PAGE_PARTS.includes(part) ? 'playlist' : 'watch';
+    if (pageOfPart === page) failed.delete(part);
   }
 }

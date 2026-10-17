@@ -107,6 +107,22 @@ describe('Playlist summary', () => {
 
       expect(queryPlaylistSummary()).toBe('7h total · first 100 of 163 counted');
     });
+
+    it("counts more as YouTube loads them into lockups, and never YouTube's recommendations below", async () => {
+      const page = openSavedPage('playlist-lockups-long', LOCKUPS_LONG_URL);
+      await startChrono();
+
+      // 20 more entries, 1:17:47 in all.
+      page.loadMoreEntries('playlist-lockups-long-more', { count: 20 });
+      await settle();
+      expect(queryPlaylistSummary()).toBe('8h 18m total · first 120 of 163 counted');
+
+      // The last 34, some of them long mixes, then a shelf of recommended playlists. YouTube
+      // hides 9 unavailable entries, so its list ends at 154.
+      page.loadMoreEntries('playlist-lockups-long-more', { last: true });
+      await settle();
+      expect(queryPlaylistSummary()).toBe('26h 39m total · 9 unavailable');
+    });
   });
 
   describe('on Watch Later and Liked videos', () => {
@@ -220,6 +236,18 @@ describe('Playlist summary', () => {
       expect(reportedFailures()).toEqual([]);
     });
 
+    it("adds nothing to an empty playlist, and doesn't take it for a change", async () => {
+      openSavedPage('playlist-lockups', LOCKUPS_URL);
+      for (const entry of document.querySelectorAll('ytd-browse yt-item-section-renderer > #contents > *')) entry.remove();
+      for (const part of document.querySelectorAll('ytd-browse yt-content-metadata-view-model span[role="text"]')) {
+        if (part.textContent.includes('videos')) part.textContent = 'No videos';
+      }
+      await startChrono();
+
+      expect(countPlaylistSummaries()).toBe(0);
+      expect(reportedFailures()).toEqual([]);
+    });
+
     it('leaves the failure behind when it leaves the page', async () => {
       openSavedPage('playlist-legacy-long', LEGACY_LONG_URL);
       document.querySelector('ytd-browse ytd-playlist-video-list-renderer')!.remove();
@@ -254,6 +282,7 @@ describe('Playlist summary', () => {
       await startChrono();
 
       expect(countPlaylistSummaries()).toBe(0);
+      expect(countObservers()).toBe(0);
     });
   });
 

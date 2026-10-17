@@ -1,5 +1,4 @@
 import { formatSpeed } from '@/format';
-import type { MessageName } from '@/messages';
 import type { PlaylistSummary } from '@/time-model';
 import styles from './playlist-summary.css?inline';
 
@@ -24,22 +23,22 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
   const text = document.createElement('span');
   root.append(style, text);
 
-  const message = (name: MessageName, substitutions?: string | string[]) =>
-    browser.i18n.getMessage(name, substitutions);
   const count = (n: number) => new Intl.NumberFormat(locale).format(n);
   const length = (seconds: number) => formatHoursMinutes(seconds, count);
 
   return {
     element,
     show({ contentTime, atSpeed, unavailable, partial }) {
-      const parts = [message('playlistSummaryTotal', length(contentTime))];
+      const parts = [browser.i18n.getMessage('playlistSummaryTotal', length(contentTime))];
       if (atSpeed) {
-        const speed = message('speed', formatSpeed(atSpeed.speed, locale));
-        parts.push(message('playlistSummaryAtSpeed', [length(atSpeed.watchTime), speed]));
+        const speed = browser.i18n.getMessage('speed', formatSpeed(atSpeed.speed, locale));
+        parts.push(browser.i18n.getMessage('playlistSummaryAtSpeed', [length(atSpeed.watchTime), speed]));
       }
-      if (unavailable > 0) parts.push(message('playlistSummaryUnavailable', count(unavailable)));
-      if (partial) parts.push(message('playlistSummaryPartial', [count(partial.counted), count(partial.of)]));
-      const line = parts.join(' · ');
+      if (unavailable > 0) parts.push(browser.i18n.getMessage('playlistSummaryUnavailable', count(unavailable)));
+      if (partial) {
+        parts.push(browser.i18n.getMessage('playlistSummaryPartial', [count(partial.counted), count(partial.of)]));
+      }
+      const line = parts.reduce((joined, part) => browser.i18n.getMessage('playlistSummaryJoin', [joined, part]));
       // YouTube's page watches for changes; an unchanged line changes nothing.
       if (text.textContent !== line) text.textContent = line;
     },
