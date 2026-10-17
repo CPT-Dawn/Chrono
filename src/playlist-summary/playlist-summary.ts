@@ -1,3 +1,4 @@
+import { formatCount, formatHoursMinutes } from '@/format';
 import { speedText } from '@/panel/scope-text';
 import type { PlaylistSummary } from '@/time-model';
 import styles from './playlist-summary.css?inline';
@@ -23,37 +24,24 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
   const text = document.createElement('span');
   root.append(style, text);
 
-  const count = (n: number) => new Intl.NumberFormat(locale).format(n);
-  const length = (seconds: number) => formatHoursMinutes(seconds, count);
-
   return {
     element,
     show({ contentTime, atSpeed, unavailable, partial }) {
-      const parts = [browser.i18n.getMessage('playlistSummaryTotal', length(contentTime))];
+      const parts = [browser.i18n.getMessage('playlistSummaryTotal', formatHoursMinutes(contentTime, locale))];
       if (atSpeed) {
-        parts.push(browser.i18n.getMessage('playlistSummaryAtSpeed', [length(atSpeed.watchTime), speedText(atSpeed.speed, locale)]));
+        const watchTime = formatHoursMinutes(atSpeed.watchTime, locale);
+        parts.push(browser.i18n.getMessage('playlistSummaryAtSpeed', [watchTime, speedText(atSpeed.speed, locale)]));
       }
-      if (unavailable > 0) parts.push(browser.i18n.getMessage('playlistSummaryUnavailable', count(unavailable)));
+      if (unavailable > 0) {
+        parts.push(browser.i18n.getMessage('playlistSummaryUnavailable', formatCount(unavailable, locale)));
+      }
       if (partial) {
         const message = partial.first ? 'playlistSummaryPartial' : 'playlistSummaryCounted';
-        parts.push(browser.i18n.getMessage(message, [count(partial.counted), count(partial.of)]));
+        parts.push(browser.i18n.getMessage(message, [formatCount(partial.counted, locale), formatCount(partial.of, locale)]));
       }
-      const line = parts.reduce((joined, part) => browser.i18n.getMessage('playlistSummaryJoin', [joined, part]));
+      const summaryText = parts.reduce((joined, part) => browser.i18n.getMessage('playlistSummaryJoin', [joined, part]));
       // YouTube's page watches for changes; an unchanged line changes nothing.
-      if (text.textContent !== line) text.textContent = line;
+      if (text.textContent !== summaryText) text.textContent = summaryText;
     },
   };
-}
-
-/**
- * A long stretch of time to the nearest minute, as YouTube writes a playlist's length:
- * "4h 12m", "4h", "48m". Anything under a minute but not nothing is "1m".
- */
-function formatHoursMinutes(seconds: number, count: (n: number) => string): string {
-  const totalMinutes = seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 0;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return browser.i18n.getMessage('minutes', count(minutes));
-  if (minutes === 0) return browser.i18n.getMessage('hours', count(hours));
-  return browser.i18n.getMessage('hoursMinutes', [count(hours), count(minutes)]);
 }

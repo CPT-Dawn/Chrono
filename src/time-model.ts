@@ -275,7 +275,7 @@ export interface PlaylistSummary {
  * summary can only say how far it got. An available entry whose length Chrono can't read
  * is left out of the total, and the summary says so too.
  */
-export function playlistSummary({ entryCount, entryLengths, moreToLoad, speed }: PlaylistPageState): PlaylistSummary | undefined {
+export function summarisePlaylist({ entryCount, entryLengths, moreToLoad, speed }: PlaylistPageState): PlaylistSummary | undefined {
   if (entryCount === 0) return undefined;
   const lengths = entryLengths.filter((length) => typeof length === 'number');
   const contentTime = lengths.reduce((sum, length) => sum + length, 0);

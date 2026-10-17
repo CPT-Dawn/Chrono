@@ -4,7 +4,7 @@ import { answerPageReports } from '@/link-requests';
 import { createPlaylistSummary, type PlaylistSummaryLine } from '@/playlist-summary/playlist-summary';
 import { readSettings, watchSettings } from '@/settings';
 import { connectSpeedBridge } from '@/speed-bridge';
-import { playlistSummary } from '@/time-model';
+import { summarisePlaylist } from '@/time-model';
 import {
   createPlaylistPageReader,
   readPage,
@@ -20,7 +20,7 @@ import {
 export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void> {
   let settings = await readSettings();
   if (ctx.isInvalid) return;
-  let line: PlaylistSummaryLine | undefined;
+  let summaryLine: PlaylistSummaryLine | undefined;
   /** YouTube's player speed, while the Speed bridge can reach it. */
   let playerSpeed: number | undefined;
   /** What reads playlist pages, remembering the lengths they showed while the tab is open. */
@@ -42,21 +42,22 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
     }
     const page = readPlaylistPage(document);
     noteReading('summary', page);
-    const summary = page.recognised && playlistSummary({ ...page.value, speed: playerSpeed });
+    const summary = page.recognised && summarisePlaylist({ ...page.value, speed: playerSpeed });
     if (!page.recognised || !summary) {
       removeLine();
       return;
     }
-    line ??= createPlaylistSummary(navigator.language);
+    summaryLine ??= createPlaylistSummary(navigator.language);
     // One more row of the stats, after YouTube's own.
     const { stats } = page.value;
-    if (line.element.parentNode !== stats || stats.lastElementChild !== line.element) stats.append(line.element);
-    line.show(summary);
+    const { element } = summaryLine;
+    if (element.parentNode !== stats || stats.lastElementChild !== element) stats.append(element);
+    summaryLine.show(summary);
   }
 
   function removeLine(): void {
-    line?.element.remove();
-    line = undefined;
+    summaryLine?.element.remove();
+    summaryLine = undefined;
   }
 
   /**

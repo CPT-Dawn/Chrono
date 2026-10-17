@@ -1,4 +1,5 @@
-// Locale-aware formatting of times and speeds. Words around them come from messages.json.
+// Locale-aware formatting of times, speeds and counts. Words around them come from
+// messages.json.
 
 import type { ClockFormat } from '@/settings';
 
@@ -20,6 +21,19 @@ export function formatSpeed(speed: number, locale: string): string {
 /** A count, e.g. "1,204", with the locale's digit grouping. */
 export function formatCount(count: number, locale: string): string {
   return new Intl.NumberFormat(locale).format(count);
+}
+
+/**
+ * A long stretch of time to the nearest minute, as YouTube writes a playlist's length:
+ * "4h 12m", "4h", "48m". Anything under a minute but not nothing is "1m".
+ */
+export function formatHoursMinutes(seconds: number, locale: string): string {
+  const totalMinutes = seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 0;
+  const hours = formatCount(Math.floor(totalMinutes / 60), locale);
+  const minutes = formatCount(totalMinutes % 60, locale);
+  if (totalMinutes < 60) return browser.i18n.getMessage('minutes', minutes);
+  if (totalMinutes % 60 === 0) return browser.i18n.getMessage('hours', hours);
+  return browser.i18n.getMessage('hoursMinutes', [hours, minutes]);
 }
 
 /**
