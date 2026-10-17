@@ -47,7 +47,7 @@ A constraint the viewer sets on a scope: either a finish time to meet or a watch
 _Avoid_: Goal, custom target, deadline
 
 **Required speed**:
-The speed at which a scope's remaining exactly meets its target.
+The speed at which a scope's remaining meets its target, rounded up to YouTube's 0.05× steps so that it never misses it.
 _Avoid_: Suggested speed, needed speed
 
 **Speed table**:

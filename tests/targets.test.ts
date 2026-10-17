@@ -126,7 +126,20 @@ describe('Targets', () => {
       target('Video target').getByText('Needs 1.25×');
     });
 
-    it("applies the required speed, rounded to 0.05×, through YouTube's player", async () => {
+    it('rounds the required speed up, so that applying it never misses the target', async () => {
+      const page = await openVideo();
+      // 750 s of content into 13 minutes needs 0.96×, which rounds to 0.95× but up to 1×.
+      setWatchTime('Video target', 0, 13);
+
+      target('Video target').getByText('Needs 1×');
+      fireEvent.click(target('Video target').getByRole('button', { name: 'Apply 1×' }));
+
+      expect(page.player.speed).toBe(1);
+      // Within the 13 minutes the viewer has.
+      queryPanel()!.getByText('12:30 left at 1×');
+    });
+
+    it("applies the required speed, rounded up to 0.05×, through YouTube's player", async () => {
       const page = await openVideo();
       // 750 s of content into 11 minutes needs 1.136×.
       setWatchTime('Video target', 0, 11);
@@ -162,21 +175,25 @@ describe('Targets', () => {
     it("explains a required speed below YouTube's 0.25× limit, with nothing to apply", async () => {
       await openVideo();
 
-      // 750 s of content into an hour.
-      setWatchTime('Video target', 1, 0);
+      // 750 s of content into an hour and a half needs 0.14×.
+      setWatchTime('Video target', 1, 30);
 
       target('Video target').getByText("Slower than YouTube's 0.25× limit");
       expect(target('Video target').queryByRole('button', { name: /Apply/ })).toBeNull();
     });
 
-    it('applies a required speed that rounds to 2×', async () => {
+    it('applies a required speed of exactly 2×, but not one just over it', async () => {
       const page = await openVideo();
       // 750 s of content into 6 minutes needs 2.083×.
       setWatchTime('Video target', 0, 6);
       target('Video target').getByText("Needs 2.1× · beyond YouTube's 2× limit");
 
-      // 727 s of content into 6 minutes needs 2.019×.
+      // 727 s of content into 6 minutes needs 2.019×, which 2× would miss.
       page.video.seek(273);
+      target('Video target').getByText("Needs 2.05× · beyond YouTube's 2× limit");
+
+      // 720 s of content into 6 minutes needs 2×.
+      page.video.seek(280);
 
       target('Video target').getByText('Needs 2×');
       fireEvent.click(target('Video target').getByRole('button', { name: 'Apply 2×' }));

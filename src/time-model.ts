@@ -45,9 +45,9 @@ export type Target =
 
 /** The speed at which a scope's remaining exactly meets its target, or why there is none. */
 export type RequiredSpeed =
-  /** YouTube's player can play at this speed, rounded to its 0.05× steps. */
+  /** YouTube's player can play at this speed, rounded up to its 0.05× steps. */
   | { kind: 'in-range'; speed: number }
-  /** The target needs this speed, rounded to 0.05× steps, which is faster than YouTube's fastest. */
+  /** The target needs this speed, rounded up to 0.05× steps, which is faster than YouTube's fastest. */
   | { kind: 'too-fast'; speed: number }
   /** The target needs a speed slower than YouTube's slowest. */
   | { kind: 'too-slow' }
@@ -67,6 +67,15 @@ const STEPS_PER_SPEED = 20;
 /** `speed` rounded to the nearest of YouTube's 0.05× steps. */
 export function roundToSpeedStep(speed: number): number {
   return Math.round(speed * STEPS_PER_SPEED) / STEPS_PER_SPEED;
+}
+
+/**
+ * `speed` rounded up to the next of YouTube's 0.05× steps, unless it is one already but for
+ * floating-point noise, as 81 / 60 = 1.35 is.
+ */
+function roundUpToSpeedStep(speed: number): number {
+  const steps = speed * STEPS_PER_SPEED;
+  return (Math.abs(steps - Math.round(steps)) < 1e-9 ? Math.round(steps) : Math.ceil(steps)) / STEPS_PER_SPEED;
 }
 
 /** The common speeds every speed table shows. */
@@ -287,8 +296,8 @@ function requiredSpeed(contentLeft: number, target: Target, now: Date): Required
   const available = target.kind === 'finish-time' ? (target.time.getTime() - now.getTime()) / 1000 : target.seconds;
   if (available <= 0) return { kind: target.kind === 'finish-time' ? 'passed' : 'no-time' };
   if (contentLeft <= 0) return { kind: 'finished' };
-  // A speed that rounds into YouTube's range is one YouTube can play, near enough.
-  const speed = roundToSpeedStep(contentLeft / available);
+  // Rounded up, so that the speed always meets the target, never misses it by a little.
+  const speed = roundUpToSpeedStep(contentLeft / available);
   if (speed > MAX_SPEED) return { kind: 'too-fast', speed };
   if (speed < MIN_SPEED) return { kind: 'too-slow' };
   return { kind: 'in-range', speed };
