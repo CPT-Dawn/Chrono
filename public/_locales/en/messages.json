@@ -81,6 +81,10 @@
     "message": "Chapter speed table",
     "description": "Accessible name of the Chapter scope's list of common speeds, each with the chapter's remaining watch time and finish time."
   },
+  "playlistSpeedTable": {
+    "message": "Playlist speed table",
+    "description": "Accessible name of the Playlist scope's list of common speeds, each with the playlist's remaining watch time and finish time up to the target entry."
+  },
   "moreActions": {
     "message": "More actions",
     "description": "Accessible name of the Panel's ⋮ menu button and of the menu it opens."
@@ -112,6 +116,37 @@
   "showChapterScope": {
     "message": "Show Chapter scope",
     "description": "Setting: whether the Panel shows the current chapter's remaining and finish time on a video with chapters."
+  },
+  "showPlaylistScope": {
+    "message": "Show Playlist scope",
+    "description": "Setting: whether the Panel shows the remaining and finish time for the rest of the playlist."
+  },
+  "playlistScope": {
+    "message": "Playlist",
+    "description": "Heading of the Playlist scope: the current video plus the following playlist entries up to the target entry."
+  },
+  "playlistTarget": {
+    "message": "Up to video",
+    "description": "Label of the input that chooses the last playlist entry the Playlist scope counts, by its number in the playlist."
+  },
+  "playlistPartial": {
+    "message": "first $COUNTED$ of $TOTAL$ counted",
+    "description": "Note in the Playlist scope when YouTube has loaded only part of the playlist, e.g. \"first 200 of 412 counted\".",
+    "placeholders": {
+      "counted": { "content": "$1", "example": "200" },
+      "total": { "content": "$2", "example": "412" }
+    }
+  },
+  "playlistUnavailable": {
+    "message": "$COUNT$ unavailable",
+    "description": "Note in the Playlist scope: how many private, deleted or otherwise unavailable entries it skips, e.g. \"3 unavailable\".",
+    "placeholders": {
+      "count": { "content": "$1", "example": "3" }
+    }
+  },
+  "playlistShuffle": {
+    "message": "Shuffle is on, so no playlist estimate",
+    "description": "Shown in place of the Playlist scope's times while the playlist's Shuffle button is on."
   },
   "panelStartsExpanded": {
     "message": "Panel starts expanded",
@@ -184,5 +219,17 @@
   "popupNote": {
     "message": "Chrono works on YouTube watch and playlist pages.",
     "description": "Note in the toolbar popup saying where Chrono shows up."
+  },
+  "supportChrono": {
+    "message": "Support Chrono",
+    "description": "Link in the Panel's ⋮ menu and the toolbar popup to a page where the viewer can tip Chrono's developer."
+  },
+  "getHelp": {
+    "message": "Get help",
+    "description": "Link in the Panel's ⋮ menu and the toolbar popup to Chrono's help page, pre-filled with Chrono's version, the browser and the OS."
+  },
+  "reportIt": {
+    "message": "Something look wrong? Report it",
+    "description": "Link in the Panel's ⋮ menu and the toolbar popup to Chrono's help page, pre-filled with what Chrono detected on the YouTube page as well."
   }
 }

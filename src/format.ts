@@ -17,6 +17,11 @@ export function formatSpeed(speed: number, locale: string): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(speed);
 }
 
+/** A count, e.g. "1,204", with the locale's digit grouping. */
+export function formatCount(count: number, locale: string): string {
+  return new Intl.NumberFormat(locale).format(count);
+}
+
 /**
  * A clock time in the locale's style, e.g. "3:45 PM" or "15:45". `clockFormat` overrides
  * the locale's 12-hour or 24-hour convention. When the time falls on another day than

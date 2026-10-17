@@ -119,7 +119,7 @@ describe('Chapter scope', () => {
 
     expect(readChapterScope(panel.element)).toBeNull();
     panel.getByRole('group', { name: 'Speed table' });
-    expect(reportedFailures()).not.toContain('chapters');
+    expect(await reportedFailures()).not.toContain('chapters');
   });
 
   it('shows no Chapter scope while the details are collapsed', async () => {
@@ -203,7 +203,7 @@ describe('Chapter scope', () => {
       fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
 
       expect(readChapterScope(queryPanel()!.element)).toBeNull();
-      expect(reportedFailures()).toContain('chapters');
+      expect(await reportedFailures()).toContain('chapters');
       await expectPanelWorks(page);
     });
 
@@ -222,7 +222,7 @@ describe('Chapter scope', () => {
       fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
 
       expect(readChapterScope(queryPanel()!.element)).toBeNull();
-      expect(reportedFailures()).toContain('chapters');
+      expect(await reportedFailures()).toContain('chapters');
       await expectPanelWorks(page);
     });
 
@@ -235,7 +235,7 @@ describe('Chapter scope', () => {
       fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
 
       expect(readChapterScope(queryPanel()!.element)).toBeNull();
-      expect(reportedFailures()).toContain('chapters');
+      expect(await reportedFailures()).toContain('chapters');
       await expectPanelWorks(page);
     });
 
@@ -251,7 +251,7 @@ describe('Chapter scope', () => {
       page.video.seek(251);
 
       expect(readChapterScope(queryPanel()!.element)?.summary).toContain('Introducing layers');
-      expect(reportedFailures()).not.toContain('chapters');
+      expect(await reportedFailures()).not.toContain('chapters');
     });
   });
 

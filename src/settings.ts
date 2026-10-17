@@ -12,6 +12,8 @@ export type ClockFormat = 'auto' | '12h' | '24h';
 export interface Settings {
   /** Whether the Panel shows the Chapter scope on a video with chapters. */
   showChapterScope: boolean;
+  /** Whether the Panel shows the Playlist scope when the video plays in a playlist. */
+  showPlaylistScope: boolean;
   /** Whether the video's finish time shows next to the player's own time display. */
   playerBadge: boolean;
   clockFormat: ClockFormat;
@@ -26,6 +28,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
   showChapterScope: true,
+  showPlaylistScope: true,
   playerBadge: true,
   clockFormat: 'auto',
   panelStartsExpanded: false,
@@ -58,6 +61,7 @@ export type SettingControl = ChoiceSetting<'clockFormat'> | ToggleSetting<Toggle
  */
 export const SETTING_CONTROLS: readonly SettingControl[] = [
   { kind: 'toggle', key: 'showChapterScope', label: 'showChapterScope' },
+  { kind: 'toggle', key: 'showPlaylistScope', label: 'showPlaylistScope' },
   { kind: 'toggle', key: 'playerBadge', label: 'playerBadge' },
   {
     kind: 'choice',
@@ -76,6 +80,9 @@ export const SETTING_CONTROLS: readonly SettingControl[] = [
 const storageItems = {
   showChapterScope: storage.defineItem<boolean>('local:settings.showChapterScope', {
     fallback: DEFAULT_SETTINGS.showChapterScope,
+  }),
+  showPlaylistScope: storage.defineItem<boolean>('local:settings.showPlaylistScope', {
+    fallback: DEFAULT_SETTINGS.showPlaylistScope,
   }),
   playerBadge: storage.defineItem<boolean>('local:settings.playerBadge', {
     fallback: DEFAULT_SETTINGS.playerBadge,

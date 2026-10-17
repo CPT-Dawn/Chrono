@@ -87,7 +87,7 @@ describe('Player badge', () => {
 
       expect(queryPlayerBadge()).not.toBeNull();
       expect(withoutPlayerBadge(page.timeDisplay)).toBe(rendered);
-      expect(reportedFailures()).not.toContain('badge');
+      expect(await reportedFailures()).not.toContain('badge');
     });
   });
 
@@ -128,7 +128,7 @@ describe('Player badge', () => {
 
       expect(queryPlayerBadge()).toBeNull();
       expect(page.timeDisplay.outerHTML).toBe(rendered);
-      expect(reportedFailures()).toContain('badge');
+      expect(await reportedFailures()).toContain('badge');
       // The rest of Chrono keeps working.
       queryPanel()!.getByText('11:30 left at 1×');
     });
@@ -145,7 +145,7 @@ describe('Player badge', () => {
       await settle();
 
       expect(queryPlayerBadge()).toBeNull();
-      expect(reportedFailures()).toContain('badge');
+      expect(await reportedFailures()).toContain('badge');
     });
   });
 
@@ -197,7 +197,7 @@ describe('Player badge', () => {
 
       expect(queryPlayerBadge()).toBeNull();
       // Hidden because the stream is live, not because the player wasn't recognised.
-      expect(reportedFailures()).not.toContain('badge');
+      expect(await reportedFailures()).not.toContain('badge');
     });
 
     it('hides before a scheduled stream or premiere starts', async () => {
@@ -205,7 +205,7 @@ describe('Player badge', () => {
       await startChrono();
 
       expect(queryPlayerBadge()).toBeNull();
-      expect(reportedFailures()).not.toContain('badge');
+      expect(await reportedFailures()).not.toContain('badge');
     });
 
     it('comes back when YouTube turns a live stream into a video', async () => {
@@ -329,7 +329,7 @@ describe('Player badge', () => {
       page.video.load({ duration: 1000 });
       await startChrono();
 
-      expect(reportedFailures()).toContain('badge');
+      expect(await reportedFailures()).toContain('badge');
     });
   });
 

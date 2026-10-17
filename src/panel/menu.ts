@@ -4,6 +4,8 @@
 export interface Menu {
   button: HTMLButtonElement;
   popup: HTMLElement;
+  /** Closes the menu and puts focus back on its button. */
+  close(): void;
 }
 
 /** A ⋮ button whose popup opens below it. `id` must be unique in the Panel's shadow root. */
@@ -73,7 +75,7 @@ export function createMenu(id: string, label: string): Menu {
   });
 
   setOpen(false);
-  return { button, popup };
+  return { button, popup, close: () => close({ refocus: true }) };
 }
 
 const ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]';
@@ -109,6 +111,22 @@ export function createCheckItem(role: 'menuitemcheckbox' | 'menuitemradio', labe
   item.tabIndex = -1;
   item.innerHTML = CHECK;
   item.append(label);
+  item.addEventListener('click', onActivate);
+  item.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    onActivate();
+  });
+  return item;
+}
+
+/** A menu item that does something, like opening a page. Click, Enter and Space activate it. */
+export function createActionItem(label: string, onActivate: () => void): HTMLElement {
+  const item = document.createElement('div');
+  item.className = 'menu-item';
+  item.setAttribute('role', 'menuitem');
+  item.tabIndex = -1;
+  item.textContent = label;
   item.addEventListener('click', onActivate);
   item.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
