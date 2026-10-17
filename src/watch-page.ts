@@ -2,7 +2,7 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createPanel, type Panel } from '@/panel/panel';
 import { connectSpeedBridge } from '@/speed-bridge';
 import { videoScopeTimes } from '@/time-model';
-import { panelExpanded } from '@/ui-state';
+import { changeSetting, readSettings, watchSettings } from '@/settings';
 import {
   readActiveVideo,
   readMediaSource,
@@ -24,7 +24,7 @@ const VIDEO_EVENTS = ['durationchange', 'timeupdate', 'seeking', 'ratechange', '
  */
 export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   // Read while YouTube is still rendering, so the Panel appears the way the viewer left it.
-  let expanded = await panelExpanded.getValue();
+  let settings = await readSettings();
   if (ctx.isInvalid) return;
   // A tab opened in the background waits until the viewer first looks at it.
   let seen = document.visibilityState === 'visible';
@@ -76,12 +76,9 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
 
     panel ??= createPanel({
       locale: navigator.language,
-      expanded,
-      onExpandedChange: (value) => {
-        expanded = value;
-        void panelExpanded.setValue(value);
-      },
+      settings,
       setSpeed: (speed) => speedBridge.set(speed),
+      changeSetting: (key, value) => void changeSetting(key, value),
     });
     if (!themeWatch) {
       themeWatch = new AbortController();
@@ -177,6 +174,11 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     },
     ctx.signal,
   );
+  watchSettings((value) => {
+    settings = value;
+    panel?.setSettings(value);
+    render();
+  }, ctx.signal);
   watchNavigation(
     document,
     {

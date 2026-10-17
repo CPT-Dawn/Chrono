@@ -1,6 +1,6 @@
 import { fireEvent, within } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { queryPanel, startChrono } from './harness/chrono';
+import { queryPanel, settle, startChrono } from './harness/chrono';
 import { openSavedPage, type PageOptions } from './harness/youtube';
 
 const WATCH_URL = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
@@ -179,5 +179,15 @@ describe('Speed table', () => {
 
     expect(rows()).toHaveLength(5);
     table.getByRole('button', { name: /^1\.25×/, pressed: true });
+  });
+
+  it("writes finish times in the viewer's clock format", async () => {
+    const { panel, rows } = await openSpeedTable();
+
+    fireEvent.click(panel.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(panel.getByRole('menuitemradio', { name: '24-hour' }));
+    await settle();
+
+    expect(rows()[0]).toBe('1×: 12:30 left, ends 15:12');
   });
 });

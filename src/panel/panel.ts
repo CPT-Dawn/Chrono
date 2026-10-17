@@ -1,18 +1,23 @@
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
+import type { Settings } from '@/settings';
 import type { ScopeTimes } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createMenu } from './menu';
+import { createSettingsMenu } from './settings-menu';
 import { createSpeedTable } from './speed-table';
 import styles from './panel.css?inline';
 
 export interface PanelOptions {
   locale: string;
-  /** Whether the details start expanded. */
-  expanded: boolean;
-  /** Called when the viewer expands or collapses the details. */
-  onExpandedChange(expanded: boolean): void;
+  /** The viewer's settings when the Panel appears. Its details start expanded if they say so. */
+  settings: Settings;
   /** Called with the speed the viewer asks for. */
   setSpeed(speed: number): void;
+  /**
+   * Called with a setting the viewer changes in the ⋮ menu, or by expanding or collapsing
+   * the details, which turns "Panel starts expanded" on or off.
+   */
+  changeSetting<K extends keyof Settings>(key: K, value: Settings[K]): void;
 }
 
 export interface Panel {
@@ -26,6 +31,11 @@ export interface Panel {
   setPlacement(placement: SidebarMount['placement']): void;
   /** Shows YouTube's speed, or hides the speed controls while it can't be reached. */
   showSpeed(speed: number | undefined): void;
+  /**
+   * Applies the viewer's settings when they change: the details expand or collapse at once,
+   * and the next show call uses the rest.
+   */
+  setSettings(settings: Settings): void;
 }
 
 /** How far − and + change speed, as YouTube's Shift+< and Shift+> do. */
@@ -35,7 +45,7 @@ const SPEED_STEP = 0.25;
  * Chrono's Panel. It lives in a shadow root so YouTube's styles and Chrono's styles
  * can't affect each other.
  */
-export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: PanelOptions): Panel {
+export function createPanel({ locale, settings, setSpeed, changeSetting }: PanelOptions): Panel {
   const element = document.createElement('section');
   element.setAttribute('aria-label', browser.i18n.getMessage('extShortName'));
   const style = document.createElement('style');
@@ -73,14 +83,16 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
   const row = create('div', 'row');
   row.append(times, speedControls, toggle);
   row.addEventListener('click', () => {
-    expanded = !expanded;
+    settings = { ...settings, panelStartsExpanded: !settings.panelStartsExpanded };
     render();
-    onExpandedChange(expanded);
+    changeSetting('panelStartsExpanded', settings.panelStartsExpanded);
   });
 
   const title = create('span', 'title');
   title.textContent = browser.i18n.getMessage('extShortName');
   const menu = createMenu('menu', browser.i18n.getMessage('moreActions'));
+  const settingsMenu = createSettingsMenu(changeSetting);
+  menu.popup.append(...settingsMenu.elements);
   const header = create('div', 'header');
   header.append(title, menu.button, menu.popup);
 
@@ -92,14 +104,16 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
   let videoTimes: { times: ScopeTimes; now: Date } | undefined;
 
   function render() {
-    toggle.setAttribute('aria-expanded', String(expanded));
-    details.hidden = !expanded;
+    toggle.setAttribute('aria-expanded', String(settings.panelStartsExpanded));
+    details.hidden = !settings.panelStartsExpanded;
+    settingsMenu.show(settings);
     renderDetails();
   }
 
   // Collapsed details stay empty, so Chrono doesn't keep updating what nobody can see.
   function renderDetails() {
-    videoTable.show(expanded && videoTimes ? videoTimes.times.speedTable : [], videoTimes?.now ?? new Date());
+    const rows = settings.panelStartsExpanded && videoTimes ? videoTimes.times.speedTable : [];
+    videoTable.show(rows, videoTimes?.now ?? new Date(), settings.clockFormat);
   }
   render();
 
@@ -115,7 +129,7 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
       }
       const left = formatWatchTime(times.remaining);
       remaining.textContent = browser.i18n.getMessage('remaining', [left, speedText(times.speed)]);
-      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale));
+      finish.textContent = browser.i18n.getMessage('finishTime', formatClockTime(times.finishTime, now, locale, settings.clockFormat));
     },
     showSpeed(speed) {
       speedControls.hidden = speed === undefined;
@@ -123,6 +137,10 @@ export function createPanel({ locale, expanded, onExpandedChange, setSpeed }: Pa
       if (speed === undefined) return;
       currentSpeed = speed;
       speedLabel.textContent = speedText(speed);
+    },
+    setSettings(value) {
+      settings = value;
+      render();
     },
     setTheme(theme) {
       element.dataset.theme = theme;

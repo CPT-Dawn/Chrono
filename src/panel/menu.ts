@@ -1,5 +1,5 @@
 // The Panel's ⋮ menu: a button and the popup it opens, following the WAI-ARIA menu
-// button pattern. Items arrive with the settings and links.
+// button pattern: arrow keys, Home and End move between its items.
 
 export interface Menu {
   button: HTMLButtonElement;
@@ -58,7 +58,15 @@ export function createMenu(id: string, label: string): Menu {
     }
   };
   button.addEventListener('keydown', onKeyDown);
-  popup.addEventListener('keydown', onKeyDown);
+  popup.addEventListener('keydown', (event) => {
+    onKeyDown(event);
+    const items = [...popup.querySelectorAll<HTMLElement>(ITEMS)];
+    const current = items.indexOf(event.target as HTMLElement);
+    const next = nextItem(event.key, current, items.length);
+    if (next === undefined) return;
+    event.preventDefault();
+    items[next]?.focus();
+  });
   popup.addEventListener('focusout', (event) => {
     // Focus moving to nothing is a click on the page, which onPointerDown handles.
     if (event.relatedTarget && !isInside(event.relatedTarget)) close();
@@ -67,6 +75,53 @@ export function createMenu(id: string, label: string): Menu {
   setOpen(false);
   return { button, popup };
 }
+
+const ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]';
+
+/**
+ * Which of `count` items a key moves focus to from item `current` (-1 for the menu
+ * itself), wrapping around as the WAI-ARIA menu pattern does. Undefined for other keys.
+ */
+function nextItem(key: string, current: number, count: number): number | undefined {
+  if (count === 0) return undefined;
+  switch (key) {
+    case 'ArrowDown':
+      return (current + 1) % count;
+    case 'ArrowUp':
+      return current <= 0 ? count - 1 : current - 1;
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * A menu item that toggles or picks, like a checkbox or radio button. Click, Enter and
+ * Space all activate it, and the menu stays open so the viewer sees the result.
+ */
+export function createCheckItem(role: 'menuitemcheckbox' | 'menuitemradio', label: string, onActivate: () => void): HTMLElement {
+  const item = document.createElement('div');
+  item.className = 'menu-item';
+  item.setAttribute('role', role);
+  item.tabIndex = -1;
+  item.innerHTML = CHECK;
+  item.append(label);
+  item.addEventListener('click', onActivate);
+  item.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    onActivate();
+  });
+  return item;
+}
+
+const CHECK =
+  '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">' +
+  '<path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</svg>';
 
 const DOTS =
   '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="currentColor">' +

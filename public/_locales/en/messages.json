@@ -61,5 +61,33 @@
   "moreActions": {
     "message": "More actions",
     "description": "Accessible name of the Panel's ⋮ menu button and of the menu it opens."
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Heading of Chrono's settings in the toolbar popup."
+  },
+  "clockFormat": {
+    "message": "Clock format",
+    "description": "Setting: how finish times are written."
+  },
+  "clockFormatAuto": {
+    "message": "Automatic",
+    "description": "Clock format choice: follow the browser's language and region."
+  },
+  "clockFormat12h": {
+    "message": "12-hour",
+    "description": "Clock format choice: times like 3:45 PM."
+  },
+  "clockFormat24h": {
+    "message": "24-hour",
+    "description": "Clock format choice: times like 15:45."
+  },
+  "panelStartsExpanded": {
+    "message": "Panel starts expanded",
+    "description": "Setting: whether the Panel's details are open when a watch page opens."
+  },
+  "popupNote": {
+    "message": "Chrono works on YouTube watch and playlist pages.",
+    "description": "Note in the toolbar popup saying where Chrono shows up."
   }
 }

@@ -2,12 +2,13 @@
 // that speed. The current speed's row is highlighted, and clicking a row asks for its
 // speed. Any scope can show one.
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
+import type { ClockFormat } from '@/settings';
 import type { SpeedTableRow } from '@/time-model';
 
 export interface SpeedTable {
   element: HTMLElement;
   /** Shows these rows, slowest first, or hides the table when there are none. */
-  show(rows: SpeedTableRow[], now: Date): void;
+  show(rows: SpeedTableRow[], now: Date, clockFormat: ClockFormat): void;
   /** Lets rows apply their speed, or not while YouTube's speed can't be reached. */
   setEnabled(enabled: boolean): void;
 }
@@ -41,7 +42,7 @@ export function createSpeedTable(locale: string, setSpeed: (speed: number) => vo
 
   return {
     element,
-    show(tableRows, now) {
+    show(tableRows, now, clockFormat) {
       const speeds = new Set(tableRows.map((row) => row.speed));
       for (const [speed, row] of rows) {
         if (!speeds.has(speed)) {
@@ -56,7 +57,7 @@ export function createSpeedTable(locale: string, setSpeed: (speed: number) => vo
           rows.set(speed, row);
         }
         const left = formatWatchTime(remaining);
-        const clock = formatClockTime(finishTime, now, locale);
+        const clock = formatClockTime(finishTime, now, locale, clockFormat);
         row.remaining.textContent = left;
         row.finish.textContent = browser.i18n.getMessage('finishTime', clock);
         row.button.setAttribute('aria-label', browser.i18n.getMessage('speedTableRow', [row.speedText, left, clock]));
