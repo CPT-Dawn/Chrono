@@ -3,6 +3,7 @@ import type { Settings } from '@/settings';
 import type { ChapterScope, PlaylistScope, ScopeTimes, Target, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createChapterScope } from './chapter-scope';
+import { create } from './dom';
 import { createActionItem, createMenu } from './menu';
 import { createPlaylistScope } from './playlist-scope';
 import { speedText as writeSpeed, timesText } from './scope-text';
@@ -102,7 +103,7 @@ export function createPanel({
   );
   details.append(videoTarget.element, videoTable.element, chapterView.element, playlistView.element);
 
-  const toggle = create('button', 'icon-button toggle') as HTMLButtonElement;
+  const toggle = create('button', 'icon-button toggle');
   toggle.type = 'button';
   toggle.setAttribute('aria-label', browser.i18n.getMessage('details'));
   toggle.setAttribute('aria-controls', details.id);
@@ -230,12 +231,6 @@ const CHEVRON =
   '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">' +
   '<path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
   '</svg>';
-
-function create(tag: string, className: string): HTMLElement {
-  const element = document.createElement(tag);
-  element.className = className;
-  return element;
-}
 
 function speedButton(text: string, label: 'slower' | 'faster', onClick: () => void): HTMLButtonElement {
   const button = document.createElement('button');

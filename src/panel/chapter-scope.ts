@@ -3,6 +3,7 @@
 import { formatClockTime, formatSpeed, formatWatchTime } from '@/format';
 import type { ClockFormat } from '@/settings';
 import type { ChapterScope, Target } from '@/time-model';
+import { create } from './dom';
 import { createSpeedTable } from './speed-table';
 import { createTarget } from './target';
 
@@ -19,22 +20,16 @@ export function createChapterScope(
   setSpeed: (speed: number) => void,
   setTarget: (target: Target | undefined) => void,
 ): ChapterScopeView {
-  const element = document.createElement('div');
-  element.className = 'scope';
+  const element = create('div', 'scope');
   element.setAttribute('role', 'group');
   element.setAttribute('aria-label', browser.i18n.getMessage('chapterScope'));
 
-  const label = document.createElement('div');
-  label.className = 'scope-label';
+  const label = create('div', 'scope-label');
   label.textContent = browser.i18n.getMessage('chapterScope');
-  const title = document.createElement('div');
-  title.className = 'scope-title';
-  const remaining = document.createElement('span');
-  remaining.className = 'remaining';
-  const finish = document.createElement('span');
-  finish.className = 'finish';
-  const times = document.createElement('div');
-  times.className = 'times';
+  const title = create('div', 'scope-title');
+  const remaining = create('span', 'remaining');
+  const finish = create('span', 'finish');
+  const times = create('div', 'times');
   times.append(remaining, finish);
   const target = createTarget('chapter', 'chapterTarget', locale, setTarget, setSpeed);
   const table = createSpeedTable(locale, setSpeed, 'chapterSpeedTable');

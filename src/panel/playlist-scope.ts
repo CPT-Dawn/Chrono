@@ -4,6 +4,7 @@
 import { formatCount } from '@/format';
 import type { ClockFormat } from '@/settings';
 import type { PlaylistScope, Target } from '@/time-model';
+import { create } from './dom';
 import { timesText } from './scope-text';
 import { createSpeedTable } from './speed-table';
 import { createTarget } from './target';
@@ -103,10 +104,4 @@ export function createPlaylistScope(
       table.setEnabled(enabled);
     },
   };
-}
-
-function create(tag: string, className: string): HTMLElement {
-  const element = document.createElement(tag);
-  element.className = className;
-  return element;
 }

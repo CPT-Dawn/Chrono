@@ -5,6 +5,7 @@ import { dayPeriodNames, formatClockHour, timeSeparator, usesTwelveHourClock } f
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
 import { MAX_SPEED, MIN_SPEED, type RequiredSpeed, type ScopeTimes, type Target, upcomingClockTime } from '@/time-model';
+import { create } from './dom';
 import { speedText } from './scope-text';
 
 export interface TargetView {
@@ -60,7 +61,7 @@ export function createTarget(
   row.append(kindLabel, kind, finishFields, watchFields);
 
   const message = create('span', 'target-message');
-  const apply = create('button', 'target-apply') as HTMLButtonElement;
+  const apply = create('button', 'target-apply');
   apply.type = 'button';
   apply.textContent = browser.i18n.getMessage('applySpeed');
   const result = create('div', 'target-result');
@@ -242,11 +243,5 @@ function unit(message: MessageName): HTMLElement {
   const element = create('span', 'target-unit');
   element.textContent = browser.i18n.getMessage(message);
   element.setAttribute('aria-hidden', 'true');
-  return element;
-}
-
-function create(tag: string, className: string): HTMLElement {
-  const element = document.createElement(tag);
-  element.className = className;
   return element;
 }
