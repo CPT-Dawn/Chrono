@@ -1,6 +1,7 @@
 // The Panel's Playlist scope: the remaining and finish time up to the target entry, notes on
 // what it couldn't count, the target entry input and the scope's speed table. With Shuffle
 // on it shows a notice instead.
+import { formatCount } from '@/format';
 import type { ClockFormat } from '@/settings';
 import type { PlaylistScope } from '@/time-model';
 import { timesText } from './scope-text';
@@ -75,10 +76,11 @@ export function createPlaylistScope(
       const text = timesText(scope.times, now, locale, clockFormat);
       remaining.textContent = text.remaining;
       finish.textContent = text.finish;
+      const count = (n: number) => formatCount(n, locale);
       const noteTexts = [
         scope.partial &&
-          browser.i18n.getMessage('playlistPartial', [String(scope.partial.counted), String(scope.partial.total)]),
-        scope.unavailable > 0 && browser.i18n.getMessage('playlistUnavailable', String(scope.unavailable)),
+          browser.i18n.getMessage('playlistPartial', [count(scope.partial.counted), count(scope.partial.total)]),
+        scope.unavailable > 0 && browser.i18n.getMessage('playlistUnavailable', count(scope.unavailable)),
       ].filter((text): text is string => Boolean(text));
       notes.textContent = noteTexts.join(' · ');
       notes.hidden = noteTexts.length === 0;

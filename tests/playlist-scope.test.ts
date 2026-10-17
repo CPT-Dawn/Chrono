@@ -181,6 +181,18 @@ describe('Playlist scope', () => {
       expect(targetInput().max).toBe('317');
     });
 
+    it('writes the counts the way the viewer writes numbers', async () => {
+      const { page } = await openPlaylist('watch-playlist-long', LONG, {
+        duration: 6488,
+        position: 488,
+      });
+
+      for (const position of page.playlistPanel.querySelectorAll('.index-message')) position.textContent = '1 / 1,317';
+      await settle();
+
+      playlistScope().getByText('first 200 of 1,317 counted');
+    });
+
     it("doesn't say it's partial when the target entry is among those loaded", async () => {
       await openPlaylist('watch-playlist-long', LONG, {
         duration: 6488,
