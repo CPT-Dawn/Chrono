@@ -95,12 +95,16 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
    */
   let playlistTargets: { listId: string; entry?: number; target?: Target } | undefined;
   /**
-   * The targets the viewer set on the Video and Chapter scopes, for which video. They clear
-   * when the Panel moves to another video, and are never stored.
+   * The targets the viewer set on the Video and Chapter scopes, for which video, and the
+   * Chapter target for which chapter, by its start. They clear when the Panel moves to
+   * another video, the Chapter target when playback enters another chapter, and they are
+   * never stored.
    */
-  let videoTargets: { videoId: string; video?: Target; chapter?: Target } | undefined;
+  let videoTargets: { videoId: string; video?: Target; chapter?: { start: number; target: Target } } | undefined;
   /** The video the Panel last described, which a new Video or Chapter target is for. */
   let shownVideoId: string | undefined;
+  /** The start of the chapter the Panel last described, which a new Chapter target is for. */
+  let shownChapterStart: number | undefined;
 
   // YouTube renders, re-renders and swaps parts of the watch page whenever it likes, so
   // Chrono looks again after every change to the page.
@@ -166,7 +170,10 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
         }
         if (!shownVideoId) return;
         if (videoTargets?.videoId !== shownVideoId) videoTargets = { videoId: shownVideoId };
-        videoTargets[scope] = target;
+        if (scope === 'video') videoTargets.video = target;
+        if (scope === 'chapter' && shownChapterStart !== undefined) {
+          videoTargets.chapter = target && { start: shownChapterStart, target };
+        }
         render();
       },
       openLink: (link) => void openLink(link, linkWantsPage(link) ? readPageReport() : undefined),
@@ -304,7 +311,9 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     const scope: VideoScope = videoState ? videoScope(videoState, videoTargets?.video) : { kind: 'unknown' };
     panel?.showVideo(scope, now);
     // During an ad or on live content there is no chapter to speak of either.
-    panel?.showChapter(videoId && scope.kind === 'times' ? currentChapter(videoId, snapshot) : undefined, now);
+    const chapter = videoId && scope.kind === 'times' ? currentChapter(videoId, snapshot) : undefined;
+    shownChapterStart = chapter?.start;
+    panel?.showChapter(chapter, now);
     panel?.showPlaylist(currentPlaylistScope(videoState, page), now);
     panel?.showSpeed(playerSpeed);
     badge?.show(scope, now, settings.clockFormat);
@@ -318,7 +327,14 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   function currentChapter(videoId: string, snapshot: VideoSnapshot): ChapterScope | undefined {
     const chapters = readChapters(document, videoId);
     noteReading('chapters', chapters);
-    return chapters.recognised ? chapterScope(chapters.value, snapshot, videoTargets?.chapter) : undefined;
+    if (!chapters.recognised) return undefined;
+    let scope = chapterScope(chapters.value, snapshot, videoTargets?.chapter?.target);
+    // Entering another chapter clears the target set on the previous one.
+    if (scope && videoTargets?.chapter && videoTargets.chapter.start !== scope.start) {
+      videoTargets.chapter = undefined;
+      scope = chapterScope(chapters.value, snapshot);
+    }
+    return scope;
   }
 
   /** The Playlist scope for the video in `videoState`, the video the address names. */

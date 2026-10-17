@@ -199,6 +199,8 @@ export function playlistScope({ video, playlist, targetEntry, target }: Playlist
 /** What the Chapter scope shows: the chapter the playhead is in. */
 export interface ChapterScope {
   title: string;
+  /** Where the chapter starts, in seconds of content time, which tells it from the others. */
+  start: number;
   times: ScopeTimes;
 }
 
@@ -217,7 +219,8 @@ export function chapterScope(
   if (!last || last.start >= duration) return undefined;
   const index = Math.max(0, chapters.findLastIndex((chapter) => chapter.start <= position));
   const end = chapters[index + 1]?.start ?? duration;
-  return { title: chapters[index]!.title, times: scopeTimes(Math.max(0, end - position), speed, now, target) };
+  const { title, start } = chapters[index]!;
+  return { title, start, times: scopeTimes(Math.max(0, end - position), speed, now, target) };
 }
 
 /** A scope's times, given the content time it has left and the viewer's target for it. */

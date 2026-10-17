@@ -362,6 +362,22 @@ describe('Targets', () => {
       expect(page.player.speed).toBe(1.35);
     });
 
+    it('stays while playback moves through the chapter, and clears once it enters another', async () => {
+      const page = await openChapters();
+      setWatchTime('Chapter target', 0, 1);
+
+      page.video.seek(300);
+      expect(fieldValues('Chapter target')).toEqual({ Hours: '0', Minutes: '1' });
+
+      // "Introducing layers" ends at 5:31.
+      page.video.seek(340);
+      expect(kindOf('Chapter target')).toBe('No target');
+
+      // Back in "Introducing layers", the target it had is gone.
+      page.video.seek(250);
+      expect(kindOf('Chapter target')).toBe('No target');
+    });
+
     it('clears when YouTube moves to another video', async () => {
       const page = await openChapters();
       setWatchTime('Chapter target', 0, 1);
