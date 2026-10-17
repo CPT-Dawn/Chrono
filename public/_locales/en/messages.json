@@ -213,18 +213,17 @@
   },
   "requiredSpeedTooFast": {
     "message": "Needs $SPEED$ · beyond YouTube's $LIMIT$ limit",
-    "description": "The speed a target needs when it is faster than YouTube can play, e.g. \"Needs 2.6× · beyond YouTube's 2× limit\".",
+    "description": "The speed a target needs, rounded to 0.05×, when it is faster than YouTube can play, e.g. \"Needs 2.6× · beyond YouTube's 2× limit\".",
     "placeholders": {
       "speed": { "content": "$1", "example": "2.6×" },
       "limit": { "content": "$2", "example": "2×" }
     }
   },
   "requiredSpeedTooSlow": {
-    "message": "Needs $SPEED$ · below YouTube's $LIMIT$ limit",
-    "description": "The speed a target needs when it is slower than YouTube can play, e.g. \"Needs 0.1× · below YouTube's 0.25× limit\".",
+    "message": "Slower than YouTube's $LIMIT$ limit",
+    "description": "Shown in place of the required speed when a target needs a speed slower than YouTube can play, e.g. \"Slower than YouTube's 0.25× limit\".",
     "placeholders": {
-      "speed": { "content": "$1", "example": "0.1×" },
-      "limit": { "content": "$2", "example": "0.25×" }
+      "limit": { "content": "$1", "example": "0.25×" }
     }
   },
   "targetPassed": {

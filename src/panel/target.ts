@@ -1,10 +1,10 @@
 // A scope's target: the viewer chooses a finish time ("Done by 3:30 PM") or the watch time
 // they have ("I have 0 h 45 min"), and sees the required speed, with a button that applies
 // it when YouTube's player can play it. Any scope can show one.
-import { dayPeriodNames, timeSeparator, usesTwelveHourClock } from '@/format';
+import { dayPeriodNames, formatClockHour, timeSeparator, usesTwelveHourClock } from '@/format';
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
-import { clockTimeNear, MAX_SPEED, MIN_SPEED, type RequiredSpeed, type ScopeTimes, type Target } from '@/time-model';
+import { MAX_SPEED, MIN_SPEED, type RequiredSpeed, type ScopeTimes, type Target, upcomingClockTime } from '@/time-model';
 import { speedText } from './scope-text';
 
 export interface TargetView {
@@ -68,7 +68,7 @@ export function createTarget(
   element.append(row, result);
 
   /** What the target last showed, which choosing a kind starts from. */
-  let shown: { times: ScopeTimes; twelveHours: boolean } | undefined;
+  let shown: { times: ScopeTimes; clockFormat: ClockFormat; twelveHours: boolean } | undefined;
   /** The speed Apply sets. */
   let applySpeed: number | undefined;
 
@@ -77,9 +77,9 @@ export function createTarget(
     showFields(kind.value as Kind);
     // A new target starts at the scope's own times, so its required speed starts at the
     // current speed and the viewer adjusts from there.
-    const { times, twelveHours } = shown;
+    const { times, clockFormat } = shown;
     if (kind.value === 'finish-time') {
-      fillFinishTime(new Date(Math.ceil(times.finishTime.getTime() / 60_000) * 60_000), twelveHours);
+      fillFinishTime(new Date(Math.ceil(times.finishTime.getTime() / 60_000) * 60_000), clockFormat);
     } else if (kind.value === 'watch-time') {
       fillWatchTime(Math.round(times.remaining / 60) * 60);
     }
@@ -102,7 +102,7 @@ export function createTarget(
       if (values.some((value) => value === undefined)) return undefined;
       const [h, m] = values as [number, number];
       const hour24 = shown?.twelveHours ? (h % 12) + (period.value === 'pm' ? 12 : 0) : h;
-      return { kind: 'finish-time', time: clockTimeNear(hour24, m, new Date()) };
+      return { kind: 'finish-time', time: upcomingClockTime(hour24, m, new Date()) };
     }
     if (kind.value === 'watch-time') {
       const values = [hours, minutes].map(fieldValue);
@@ -113,11 +113,11 @@ export function createTarget(
     return undefined;
   }
 
-  function fillFinishTime(time: Date, twelveHours: boolean) {
-    const h = time.getHours();
-    hour.value = String(twelveHours ? h % 12 || 12 : h);
+  function fillFinishTime(time: Date, clockFormat: ClockFormat) {
+    // The hour as the Panel writes it in finish times: "7" in 7:42 PM, "07" in 07:42.
+    hour.value = formatClockHour(time, locale, clockFormat);
     minute.value = String(time.getMinutes()).padStart(2, '0');
-    period.value = h < 12 ? 'am' : 'pm';
+    period.value = time.getHours() < 12 ? 'am' : 'pm';
   }
 
   function fillWatchTime(seconds: number) {
@@ -152,7 +152,7 @@ export function createTarget(
         return;
       }
       const twelveHours = usesTwelveHourClock(locale, clockFormat);
-      shown = { times, twelveHours };
+      shown = { times, clockFormat, twelveHours };
       hour.min = twelveHours ? '1' : '0';
       hour.max = twelveHours ? '12' : '23';
       period.hidden = !twelveHours;
@@ -163,7 +163,7 @@ export function createTarget(
         const { target } = times;
         kind.value = target?.kind ?? 'none';
         showFields(target?.kind ?? 'none');
-        if (target?.kind === 'finish-time') fillFinishTime(target.time, twelveHours);
+        if (target?.kind === 'finish-time') fillFinishTime(target.time, clockFormat);
         if (target?.kind === 'watch-time') fillWatchTime(target.seconds);
       }
       showRequired(times.required);
@@ -190,7 +190,7 @@ function requiredText(required: RequiredSpeed, locale: string): string {
     case 'too-fast':
       return browser.i18n.getMessage('requiredSpeedTooFast', [speed(required.speed), speed(MAX_SPEED)]);
     case 'too-slow':
-      return browser.i18n.getMessage('requiredSpeedTooSlow', [speed(required.speed), speed(MIN_SPEED)]);
+      return browser.i18n.getMessage('requiredSpeedTooSlow', speed(MIN_SPEED));
     case 'passed':
       return browser.i18n.getMessage('targetPassed');
     case 'no-time':

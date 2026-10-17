@@ -47,10 +47,10 @@ export type Target =
 export type RequiredSpeed =
   /** YouTube's player can play at this speed, rounded to its 0.05× steps. */
   | { kind: 'in-range'; speed: number }
-  /** The target needs a speed faster than YouTube's fastest. */
+  /** The target needs this speed, rounded to 0.05× steps, which is faster than YouTube's fastest. */
   | { kind: 'too-fast'; speed: number }
   /** The target needs a speed slower than YouTube's slowest. */
-  | { kind: 'too-slow'; speed: number }
+  | { kind: 'too-slow' }
   /** The target's finish time has already passed. */
   | { kind: 'passed' }
   /** The target gives no watch time at all. */
@@ -231,28 +231,26 @@ function requiredSpeed(contentLeft: number, target: Target, now: Date): Required
   const available = target.kind === 'finish-time' ? (target.time.getTime() - now.getTime()) / 1000 : target.seconds;
   if (available <= 0) return { kind: target.kind === 'finish-time' ? 'passed' : 'no-time' };
   if (contentLeft <= 0) return { kind: 'finished' };
-  const speed = contentLeft / available;
   // A speed that rounds into YouTube's range is one YouTube can play, near enough.
-  const rounded = roundToSpeedStep(speed);
-  if (rounded > MAX_SPEED) return { kind: 'too-fast', speed };
-  if (rounded < MIN_SPEED) return { kind: 'too-slow', speed };
-  return { kind: 'in-range', speed: rounded };
+  const speed = roundToSpeedStep(contentLeft / available);
+  if (speed > MAX_SPEED) return { kind: 'too-fast', speed };
+  if (speed < MIN_SPEED) return { kind: 'too-slow' };
+  return { kind: 'in-range', speed };
 }
 
+/** How long ago a clock time can be and still mean today, a time that has just passed. */
+const RECENT_PAST_MS = 60 * 60_000;
+
 /**
- * The time a finish-time target means when the viewer enters only a clock time: the
- * moment at `hours`:`minutes` nearest to `now`, the later one when two are equally near.
- * So at 11 PM, 1:00 AM means tomorrow, and at 3 PM, 2:30 PM means a time that has passed.
+ * The time a finish-time target means when the viewer enters only a clock time: the next
+ * time the clock shows `hours`:`minutes`, unless it showed it within the last hour. So at
+ * 3 PM, 4:00 AM means tomorrow morning and 2:30 PM means a time that has just passed.
  */
-export function clockTimeNear(hours: number, minutes: number, now: Date): Date {
-  const candidates = [-1, 0, 1].map((days) => {
-    const time = new Date(now);
-    time.setDate(time.getDate() + days);
-    time.setHours(hours, minutes, 0, 0);
-    return time;
-  });
-  const distance = (time: Date) => Math.abs(time.getTime() - now.getTime());
-  return candidates.reduce((best, time) => (distance(time) <= distance(best) ? time : best));
+export function upcomingClockTime(hours: number, minutes: number, now: Date): Date {
+  const time = new Date(now);
+  time.setHours(hours, minutes, 0, 0);
+  if (time.getTime() < now.getTime() - RECENT_PAST_MS) time.setDate(time.getDate() + 1);
+  return time;
 }
 
 function timesAtSpeed(contentLeft: number, speed: number, now: Date): TimesAtSpeed {

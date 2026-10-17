@@ -37,6 +37,20 @@ export function formatClockTime(time: Date, now: Date, locale: string, clockForm
   }).format(time);
 }
 
+/**
+ * The hour of `time` as `formatClockTime` writes it, in Western digits for a number field:
+ * "7" in "7:42 PM", "07" in "07:42".
+ */
+export function formatClockHour(time: Date, locale: string, clockFormat: ClockFormat): string {
+  const parts = new Intl.DateTimeFormat(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hourCycle: HOUR_CYCLES[clockFormat],
+    numberingSystem: 'latn',
+  }).formatToParts(time);
+  return parts.find((part) => part.type === 'hour')?.value ?? String(time.getHours());
+}
+
 /** Whether clock times are written with AM and PM, as `clockFormat` or else the locale says. */
 export function usesTwelveHourClock(locale: string, clockFormat: ClockFormat): boolean {
   if (clockFormat !== 'auto') return clockFormat === '12h';

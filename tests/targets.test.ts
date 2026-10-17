@@ -165,7 +165,7 @@ describe('Targets', () => {
       // 750 s of content into an hour.
       setWatchTime('Video target', 1, 0);
 
-      target('Video target').getByText("Needs 0.21× · below YouTube's 0.25× limit");
+      target('Video target').getByText("Slower than YouTube's 0.25× limit");
       expect(target('Video target').queryByRole('button', { name: /Apply/ })).toBeNull();
     });
 
@@ -173,7 +173,7 @@ describe('Targets', () => {
       const page = await openVideo();
       // 750 s of content into 6 minutes needs 2.083×.
       setWatchTime('Video target', 0, 6);
-      target('Video target').getByText("Needs 2.08× · beyond YouTube's 2× limit");
+      target('Video target').getByText("Needs 2.1× · beyond YouTube's 2× limit");
 
       // 727 s of content into 6 minutes needs 2.019×.
       page.video.seek(273);
@@ -219,6 +219,28 @@ describe('Targets', () => {
       setFinishTime('Video target', 12, 0, 'AM');
 
       target('Video target').getByText('Needs 1.25×');
+    });
+
+    it('takes a clock time more than an hour ago as tomorrow', async () => {
+      const page = openSavedPage('watch-delhi', WATCH_URL);
+      // A 13-hour video, 200 s in: 46,800 s of content left.
+      page.video.load({ duration: 47_000 });
+      page.video.seek(200);
+      await startChrono();
+      fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+
+      // 4:00 AM tomorrow, 13 hours from now.
+      setFinishTime('Video target', 4, 0, 'AM');
+
+      target('Video target').getByText('Needs 1×');
+    });
+
+    it('takes a clock time within the last hour as one that has passed', async () => {
+      await openVideo();
+
+      setFinishTime('Video target', 2, 1, 'PM');
+
+      target('Video target').getByText('That time has already passed');
     });
 
     it('starts from the current finish time or remaining, so the required speed starts at the current speed', async () => {
@@ -447,6 +469,19 @@ describe('Targets', () => {
       enter('Video target', 'Minute', '05');
       // 750 s of content by 15:05, 5 minutes from now.
       target('Video target').getByText("Needs 2.5× · beyond YouTube's 2× limit");
+    });
+
+    it('write the hour the way the Panel writes it on a 24-hour clock', async () => {
+      vi.setSystemTime(new Date(2026, 9, 17, 7, 0, 0));
+      await openVideo();
+      chooseClockFormat('24-hour');
+      await settle();
+
+      chooseKind('Video target', 'Done by');
+
+      // The video ends at 07:12:30.
+      expect(queryPanel()!.getAllByText('ends 07:12').length).toBeGreaterThan(0);
+      expect(fieldValues('Video target')).toEqual({ Hour: '07', Minute: '13' });
     });
 
     it("follow a 24-hour locale's convention on Automatic", async () => {
