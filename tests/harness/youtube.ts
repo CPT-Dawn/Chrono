@@ -242,9 +242,19 @@ export function renderSavedPage(
   };
 }
 
+// happy-dom keeps every document its DOMParser makes until the test file ends: about
+// 180 MB for a page captured from a real browser. So each saved page is parsed once per
+// file, and tests get a copy of it.
+const parsedPages = new Map<string, Document>();
+
 function parseSavedPage(name: string): Document {
-  const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
-  return new DOMParser().parseFromString(html, 'text/html');
+  let parsed = parsedPages.get(name);
+  if (!parsed) {
+    const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
+    parsed = new DOMParser().parseFromString(html, 'text/html');
+    parsedPages.set(name, parsed);
+  }
+  return parsed;
 }
 
 const PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]';
