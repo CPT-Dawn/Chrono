@@ -1,11 +1,11 @@
 # Release checklist
 
-Run this yourself before publishing to the Chrome Web Store or Firefox Add-ons. Do every check in both **Chrome** and **Firefox**, using the builds `npm run package` makes: load `.output/chrome-mv3` unpacked in `chrome://extensions`, and `.output/firefox-mv3/manifest.json` as a temporary add-on in `about:debugging`.
+Run this yourself before publishing to the Chrome Web Store or Firefox Add-ons. Do every check in both **Chrome** and **Firefox**, using the builds `bun run package` makes: load `.output/chrome-mv3` unpacked in `chrome://extensions`, and `.output/firefox-mv3/manifest.json` as a temporary add-on in `about:debugging`.
 
 ## Before you start
 
-- [ ] `npm run typecheck` and `npm test` pass.
-- [ ] `npm run package` succeeds and `web-ext lint` reports 0 errors.
+- [ ] `bun run typecheck` and `bun run test` pass.
+- [ ] `bun run package` succeeds and `web-ext lint` reports 0 errors.
 - [ ] The version in `package.json` is the one being released.
 - [ ] These six chrono.cptdawn.dev URLs are live and go where they should:
   - [ ] https://chrono.cptdawn.dev/ (homepage)

@@ -28,22 +28,22 @@ Chrono collects no data: no analytics, no crash reports, no usage tracking ([ADR
 
 ## Development
 
-Requires Node.js 22.18 or later.
+Requires Bun and Node.js 22.18 or later (WXT and Vitest run on Node).
 
 ```sh
-npm ci
-npm run dev            # Chrome, with live reload
-npm run dev:firefox    # Firefox
-npm run typecheck
-npm test
+bun install --frozen-lockfile
+bun run dev            # Chrome, with live reload
+bun run dev:firefox    # Firefox
+bun run typecheck
+bun run test
 ```
 
-The tests run Chrono on saved YouTube pages in `tests/pages/`. When YouTube changes its page, save the new one from a real browser and trim it into a saved page with `npm run trim-page -- <saved.html> tests/pages/<name>.html`. It removes scripts, styles and anything personal, such as the signed-in masthead and comments, and writes one element per line so diffs stay readable.
+The tests run Chrono on saved YouTube pages in `tests/pages/`. When YouTube changes its page, save the new one from a real browser and trim it into a saved page with `bun run trim-page -- <saved.html> tests/pages/<name>.html`. It removes scripts, styles and anything personal, such as the signed-in masthead and comments, and writes one element per line so diffs stay readable.
 
 Build the store packages with one command:
 
 ```sh
-npm run package
+bun run package
 ```
 
 It writes three files to `.output/` and then runs `web-ext lint` on the Firefox build:
@@ -52,7 +52,7 @@ It writes three files to `.output/` and then runs `web-ext lint` on the Firefox 
 - `chrono-<version>-firefox.zip`, for Firefox Add-ons;
 - `chrono-<version>-sources.zip`, the source package Firefox Add-ons asks for.
 
-To build the Firefox extension from the sources package (for Firefox Add-ons source review), run `npm ci && npm run build:firefox`; the result is in `.output/firefox-mv3`.
+To build the Firefox extension from the sources package (for Firefox Add-ons source review), run `bun install --frozen-lockfile && bun run build:firefox`; the result is in `.output/firefox-mv3`.
 
 To try a build by hand, load `.output/chrome-mv3` as an unpacked extension in `chrome://extensions`, or `.output/firefox-mv3/manifest.json` as a temporary add-on in `about:debugging`.
 

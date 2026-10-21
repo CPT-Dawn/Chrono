@@ -11,7 +11,7 @@ import { Window } from 'happy-dom';
 
 const [input, output] = process.argv.slice(2);
 if (!input || !output) {
-  console.error('Usage: node scripts/trim-youtube-page.ts <saved.html> <out.html>');
+  console.error('Usage: bun run trim-page -- <saved.html> <out.html>');
   process.exit(1);
 }
 

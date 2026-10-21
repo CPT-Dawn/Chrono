@@ -6,7 +6,7 @@ How to load Chrono's builds into real Chromium and Firefox, headless, from this 
 
 Playwright's browsers are installed at `~/.cache/ms-playwright/` (`chromium-1248`, `firefox-1555`), but `playwright` is not a repo dependency. Install `playwright-core@1.64.1` in a scratch directory (it's the version built for those revisions; older ones can't drive `firefox-1555`) and pass `executablePath`.
 
-Build first: `npm run build` (`.output/chrome-mv3`) and `npm run build:firefox` (`.output/firefox-mv3`).
+Build first: `bun run build` (`.output/chrome-mv3`) and `bun run build:firefox` (`.output/firefox-mv3`).
 
 ## Chromium
 
