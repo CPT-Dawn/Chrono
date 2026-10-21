@@ -1,11 +1,25 @@
+import { fireEvent, within } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { queryPanel, reportedFailures, settle, startChrono } from './harness/chrono';
+import { countPanels, queryPanel, reportedFailures, settle, startChrono } from './harness/chrono';
 import { finishNavigation, openSavedPage, renderSavedPage, startNavigation } from './harness/youtube';
 
 const WATCH_URL = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
+/**
+ * The video in tests/pages/watch-ad.html, saved during a real ad break: a 20 s pre-roll
+ * before a 6:30 (390 s) video, the first of a 221-entry playlist.
+ */
+const AD_URL = 'https://www.youtube.com/watch?v=XCtYg1Hj3YI&list=PLxCzCOWd7aiEbY0sZVAi7zxvI7zBhBqZb';
+const AD_LENGTH = 20;
+const VIDEO_LENGTH = 390;
 
 const LIVE_URL = 'https://www.youtube.com/watch?v=56llPN9tS88';
 const UPCOMING_URL = 'https://www.youtube.com/watch?v=UleiRdWFG7o';
+
+/** The Playlist scope as the viewer sees it, or null when the Panel shows none. */
+function queryPlaylistScope() {
+  const scope = queryPanel()?.queryByRole('group', { name: 'Playlist' });
+  return scope ? within(scope) : null;
+}
 
 /** The Panel is up, but shows no remaining or finish time. */
 function expectNoTimes(): void {
@@ -19,8 +33,9 @@ describe('Ad breaks', () => {
 
   it('shows "Paused for ad", and no remaining or finish time for the ad itself', async () => {
     // YouTube plays the ad in the watch page's own video element.
-    const page = openSavedPage('watch-ad', WATCH_URL);
-    page.video.load({ duration: 15 });
+    const page = openSavedPage('watch-ad', AD_URL);
+    page.video.load({ duration: AD_LENGTH });
+    page.video.seek(3);
     page.video.play();
     await startChrono();
 
@@ -30,24 +45,103 @@ describe('Ad breaks', () => {
     expectNoTimes();
   });
 
-  it('resumes with the video\'s times when the ad ends', async () => {
-    const page = openSavedPage('watch-ad', WATCH_URL);
-    page.video.load({ duration: 15 });
+  it("recognises every part of YouTube's page, during the ad and after it", async () => {
+    const page = openSavedPage('watch-ad', AD_URL);
+    page.video.load({ duration: AD_LENGTH });
     page.video.play();
     await startChrono();
+    vi.advanceTimersByTime(5000);
+
+    expect(await reportedFailures()).toEqual([]);
+
     vi.advanceTimersByTime(15_000);
+    page.endAdBreak();
+    page.video.startLoading();
+    page.video.load({ duration: VIDEO_LENGTH });
+    page.video.seek(60);
+    await settle();
+
+    expect(await reportedFailures()).toEqual([]);
+  });
+
+  it("leaves YouTube's time display, with the ad's own times, exactly as it was", async () => {
+    const page = openSavedPage('watch-ad', AD_URL);
+    const before = page.timeDisplay.outerHTML;
+    page.video.load({ duration: AD_LENGTH });
+    page.video.seek(3);
+    page.video.play();
+    await startChrono();
+
+    vi.advanceTimersByTime(5000);
+    await settle();
+
+    const times = page.timeDisplay.querySelector('.ytp-time-contents')!;
+    expect(times.textContent!.replace(/\s+/g, '')).toBe('0:03/0:20');
+    expect(page.timeDisplay.outerHTML).toBe(before);
+  });
+
+  it('resumes with the video\'s times when the ad ends', async () => {
+    const page = openSavedPage('watch-ad', AD_URL);
+    page.video.load({ duration: AD_LENGTH });
+    page.video.play();
+    await startChrono();
+    vi.advanceTimersByTime(20_000);
 
     // After the ad, YouTube loads the video into the same element.
     page.endAdBreak();
     page.video.startLoading();
-    page.video.load({ duration: 1000 });
-    page.video.seek(250);
+    page.video.load({ duration: VIDEO_LENGTH });
+    page.video.seek(60);
     await settle();
 
     const panel = queryPanel()!;
     expect(panel.queryByText('Paused for ad')).toBeNull();
-    panel.getByText('12:30 left at 1×');
-    panel.getByText('ends 3:12 PM');
+    // 330 s left, from 3:00:20 PM: ends 3:05:50 PM.
+    panel.getByText('5:30 left at 1×');
+    panel.getByText('ends 3:05 PM');
+  });
+
+  it('shows no Playlist times during the ad, and shows them once the video plays', async () => {
+    const page = openSavedPage('watch-ad', AD_URL);
+    page.video.load({ duration: AD_LENGTH });
+    page.video.play();
+    await startChrono();
+    fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+    vi.advanceTimersByTime(5000);
+
+    expect(queryPlaylistScope()?.queryAllByText(/left at|ends/) ?? []).toHaveLength(0);
+
+    vi.advanceTimersByTime(15_000);
+    page.endAdBreak();
+    page.video.startLoading();
+    page.video.load({ duration: VIDEO_LENGTH });
+    page.video.seek(60);
+    await settle();
+
+    const scope = queryPlaylistScope()!;
+    scope.getByText('first 200 of 221 counted');
+    // Up to the second entry: 330 s left of the first, then 12:50.
+    const input = scope.getByRole('spinbutton', { name: 'Up to video' }) as HTMLInputElement;
+    input.value = '2';
+    fireEvent.change(input);
+    queryPlaylistScope()!.getByText('18:20 left at 1×');
+  });
+
+  it('stays at the top of the sidebar as YouTube puts its sidebar ad in and takes it out', async () => {
+    const page = openSavedPage('watch-ad', AD_URL);
+    const showSidebarAd = page.withhold(page.sidebarAd);
+    page.video.load({ duration: AD_LENGTH });
+    await startChrono();
+    const panel = queryPanel()!.element;
+
+    showSidebarAd();
+    await settle();
+    expect(page.sidebar.firstElementChild).toBe(panel);
+
+    page.withhold(page.sidebarAd);
+    await settle();
+    expect(page.sidebar.firstElementChild).toBe(panel);
+    expect(countPanels()).toBe(1);
   });
 
   it('pauses for an ad in the middle of the video, and picks up where the video left off', async () => {
@@ -92,22 +186,22 @@ describe('Ad breaks', () => {
 
   describe("when YouTube's ad markup isn't recognised", () => {
     it('keeps tracking the video, and reports failed=ads', async () => {
-      const page = openSavedPage('watch-ad', WATCH_URL);
+      const page = openSavedPage('watch-ad', AD_URL);
       page.withhold(page.ads);
-      page.video.load({ duration: 1000 });
-      page.video.seek(250);
+      page.video.load({ duration: VIDEO_LENGTH });
+      page.video.seek(60);
       await startChrono();
 
       const panel = queryPanel()!;
       expect(panel.queryByText('Paused for ad')).toBeNull();
-      panel.getByText('12:30 left at 1×');
+      panel.getByText('5:30 left at 1×');
       expect(await reportedFailures()).toContain('ads');
     });
 
     it("doesn't stay paused when the markup stops making sense in the middle of an ad", async () => {
-      const page = openSavedPage('watch-ad', WATCH_URL);
-      page.video.load({ duration: 1000 });
-      page.video.seek(250);
+      const page = openSavedPage('watch-ad', AD_URL);
+      page.video.load({ duration: VIDEO_LENGTH });
+      page.video.seek(60);
       await startChrono();
       queryPanel()!.getByText('Paused for ad');
 
@@ -116,13 +210,13 @@ describe('Ad breaks', () => {
 
       const panel = queryPanel()!;
       expect(panel.queryByText('Paused for ad')).toBeNull();
-      panel.getByText('12:30 left at 1×');
+      panel.getByText('5:30 left at 1×');
       expect(await reportedFailures()).toContain('ads');
     });
 
     it("doesn't report failed=ads on a page whose ad markup is recognised", async () => {
-      const page = openSavedPage('watch-ad', WATCH_URL);
-      page.video.load({ duration: 15 });
+      const page = openSavedPage('watch-ad', AD_URL);
+      page.video.load({ duration: AD_LENGTH });
       await startChrono();
       page.endAdBreak();
       await settle();
@@ -132,20 +226,22 @@ describe('Ad breaks', () => {
   });
 
   it("shows the video's times when YouTube moves from the ad page to the video page", async () => {
-    const adPage = openSavedPage('watch-ad', WATCH_URL);
-    adPage.video.load({ duration: 15 });
+    const adPage = openSavedPage('watch-ad', AD_URL);
+    adPage.video.load({ duration: AD_LENGTH });
     adPage.video.play();
     await startChrono();
 
-    const page = renderSavedPage('watch-delhi');
-    page.video.load({ duration: 1000 });
-    page.video.seek(250);
+    // The same page, rendered from scratch with its ad break over.
+    const page = renderSavedPage('watch-ad');
+    page.endAdBreak();
+    page.video.load({ duration: VIDEO_LENGTH });
+    page.video.seek(60);
     await settle();
 
     const panel = queryPanel()!;
     expect(panel.queryByText('Paused for ad')).toBeNull();
-    panel.getByText('12:30 left at 1×');
-    panel.getByText('ends 3:12 PM');
+    panel.getByText('5:30 left at 1×');
+    panel.getByText('ends 3:05 PM');
   });
 });
 
@@ -258,7 +354,7 @@ describe('Lengths that make no sense', () => {
 
   it.each([
     ['watch-delhi', WATCH_URL],
-    ['watch-ad', WATCH_URL],
+    ['watch-ad', AD_URL],
     ['watch-live', LIVE_URL],
     ['watch-upcoming', UPCOMING_URL],
   ])('never shows NaN, Infinity or a negative time on %s', async (name, url) => {

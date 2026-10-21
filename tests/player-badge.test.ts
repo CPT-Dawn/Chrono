@@ -16,6 +16,7 @@ const WATCH_URL = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
 const NEXT_WATCH_URL = 'https://www.youtube.com/watch?v=YE7VzlLtp-4';
 const LIVE_URL = 'https://www.youtube.com/watch?v=56llPN9tS88';
 const UPCOMING_URL = 'https://www.youtube.com/watch?v=UleiRdWFG7o';
+const AD_URL = 'https://www.youtube.com/watch?v=XCtYg1Hj3YI&list=PLxCzCOWd7aiEbY0sZVAi7zxvI7zBhBqZb';
 
 /** The two players YouTube served in Oct 2026: the legacy one and the redesigned (Delhi) one. */
 const PLAYERS = [
@@ -151,8 +152,9 @@ describe('Player badge', () => {
 
   describe('during an ad break', () => {
     it('hides while the ad plays', async () => {
-      const page = openSavedPage('watch-ad', WATCH_URL);
-      page.video.load({ duration: 15 });
+      // A 20 s pre-roll, saved during a real ad break.
+      const page = openSavedPage('watch-ad', AD_URL);
+      page.video.load({ duration: 20 });
       page.video.play();
       await startChrono();
       vi.advanceTimersByTime(5000);
