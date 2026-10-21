@@ -24,6 +24,8 @@ export interface SavedPage {
   readonly sidebar: Element;
   /** YouTube's related videos, which sit in the sidebar or below the video. */
   readonly related: Element;
+  /** The ad slot YouTube puts at the top of the related videos, on a page with an ad. */
+  readonly sidebarAd: Element;
   /**
    * Lays the watch page out as YouTube does for the window's width: the video and sidebar
    * side by side, or (in a narrow window) one column with the sidebar's contents below
@@ -155,6 +157,9 @@ export function renderSavedPage(
     get related() {
       return required('ytd-watch-flexy #related');
     },
+    get sidebarAd() {
+      return required('ytd-watch-flexy #related > #player-ads');
+    },
     setLayout,
     setTheme(theme) {
       document.documentElement.toggleAttribute('dark', theme === 'dark');
@@ -247,9 +252,19 @@ export function renderSavedPage(
   };
 }
 
+// happy-dom keeps every document its DOMParser makes until the test file ends: about
+// 180 MB for a page captured from a real browser. So each saved page is parsed once per
+// file, and tests get a copy of it.
+const parsedPages = new Map<string, Document>();
+
 function parseSavedPage(name: string): Document {
-  const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
-  return new DOMParser().parseFromString(html, 'text/html');
+  let parsed = parsedPages.get(name);
+  if (!parsed) {
+    const html = readFileSync(join(import.meta.dirname, `../pages/${name}.html`), 'utf8');
+    parsed = new DOMParser().parseFromString(html, 'text/html');
+    parsedPages.set(name, parsed);
+  }
+  return parsed;
 }
 
 const PLAYLIST_PAGE = 'ytd-browse[page-subtype="playlist"]';
@@ -284,12 +299,25 @@ function playerHolder(): Element {
   return holder.querySelector('#player-api')!;
 }
 
-/** An ad's overlay, as YouTube's player script built it in Oct 2026 (player 0229cd64). */
+/**
+ * An ad's overlay, laid out as in the real ad break in tests/pages/watch-ad.html (21 Oct
+ * 2026, Delhi player 67288f35), without the advertiser: the advertiser's card, the
+ * "Sponsored" badge and My Ad Center, and the skip button.
+ */
 const AD_OVERLAY =
   '<div class="ytp-ad-player-overlay-layout">' +
-  '<div class="ytp-ad-player-overlay-layout__player-card-container"></div>' +
-  '<div class="ytp-ad-player-overlay-layout__ad-info-container"></div>' +
-  '<div class="ytp-ad-player-overlay-layout__skip-or-preview-container"></div>' +
+  '<div class="ytp-ad-player-overlay-layout__player-card-container">' +
+  '<div class="ytp-ad-avatar-lockup-card ytp-ad-component--clickable"></div>' +
+  '</div>' +
+  '<div class="ytp-ad-player-overlay-layout__ad-info-container">' +
+  '<span class="ytp-ad-badge--clean-player"><div class="ad-simple-attributed-string">Sponsored</div></span>' +
+  '<span class="ytp-ad-hover-text-button"><button class="ytp-ad-button" aria-label="My Ad Center"></button></span>' +
+  '<div class="ytp-visit-advertiser-link ytp-ad-component--clickable" role="link" tabindex="0"></div>' +
+  '</div>' +
+  '<div class="ytp-ad-player-overlay-layout__skip-or-preview-container">' +
+  '<div class="ytp-skip-ad"><button class="ytp-skip-ad-button"></button></div>' +
+  '</div>' +
+  '<div class="ytp-ad-player-overlay-layout__ad-disclosure-banner-container"></div>' +
   '</div>';
 
 /**

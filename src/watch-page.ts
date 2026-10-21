@@ -59,6 +59,8 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   let seen = document.visibilityState === 'visible';
   let panel: Panel | undefined;
   let badge: PlayerBadge | undefined;
+  /** The time display's duration, which the Player badge goes right after while it shows. */
+  let badgeAnchor: Element | undefined;
   /** The once-a-second tick that keeps the finish time moving with the clock. */
   let clock: ReturnType<typeof setInterval> | undefined;
   /** The video the Panel describes, and what stops Chrono listening to it. */
@@ -196,9 +198,9 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   }
 
   /**
-   * Puts the Player badge right after the time display's duration, or removes it when the
+   * Readies the Player badge for the time display's duration, or removes it when the
    * viewer has turned it off or the player's layout isn't recognised. Then Chrono adds
-   * nothing to the player at all. Returns whether it moved.
+   * nothing to the player at all. Returns whether the badge is new or moved.
    */
   function placeBadge(): boolean {
     const mount = readTimeDisplayMount(document);
@@ -208,11 +210,26 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
       removeBadge();
       return false;
     }
+    const created = !badge;
     badge ??= createPlayerBadge(navigator.language);
-    const { duration } = mount.value;
-    const moved = duration.nextElementSibling !== badge.element;
-    if (moved) duration.after(badge.element);
-    return moved;
+    badgeAnchor = mount.value.duration;
+    return attachBadge() || created;
+  }
+
+  /**
+   * Puts the Player badge right after the time display's duration while it shows a finish
+   * time, and takes it out while it shows none: during an ad break, when YouTube's times
+   * are the ad's, the time display stays exactly as YouTube made it. Returns whether it
+   * moved.
+   */
+  function attachBadge(): boolean {
+    if (!badge || !badgeAnchor) return false;
+    const shown = !badge.element.hidden;
+    const attached = badgeAnchor.nextElementSibling === badge.element;
+    if (shown === attached) return false;
+    if (shown) badgeAnchor.after(badge.element);
+    else badge.element.remove();
+    return true;
   }
 
   /**
@@ -236,6 +253,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
   function removeBadge(): void {
     badge?.element.remove();
     badge = undefined;
+    badgeAnchor = undefined;
   }
 
   /** Removes the Panel and the Player badge, and stops everything they use. */
@@ -317,6 +335,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
     panel?.showPlaylist(currentPlaylistScope(videoState, page), now);
     panel?.showSpeed(playerSpeed);
     badge?.show(scope, now, settings.clockFormat);
+    attachBadge();
   }
 
   /**

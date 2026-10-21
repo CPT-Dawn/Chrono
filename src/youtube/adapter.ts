@@ -229,7 +229,10 @@ export function watchPlayerAnnounced(doc: Document, onAnnounced: () => void, sig
 }
 
 // YouTube's player marks an ad break on its own element, and renders the ad's overlay
-// into its ads module. Both were so in player 0229cd64 (Oct 2026).
+// into its ads module. Both were so in player 0229cd64 (Oct 2026), and in a real ad break
+// saved on 21 Oct 2026 (Delhi player 67288f35): a "Sponsored" pre-roll with a skip button.
+// There the player was flagged ad-created ad-showing ad-interrupting, and its time display
+// showed the ad's own times, "0:03 / 0:20".
 const AD_BREAK = 'ad-showing';
 const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
 
