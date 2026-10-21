@@ -38,7 +38,7 @@ bun run typecheck
 bun run test
 ```
 
-The tests run Chrono on saved YouTube pages in `tests/pages/`. When YouTube changes its page, save the new one from a real browser and trim it into a saved page with `bun run trim-page -- <saved.html> tests/pages/<name>.html`. It removes scripts, styles and anything personal, such as the signed-in masthead and comments, and writes one element per line so diffs stay readable.
+The tests run Chrono on saved YouTube pages in `tests/pages/`. When YouTube changes its page, capture the live page from a real browser, with Chrono off and ad blockers off: save it with [SingleFile](https://github.com/gildas-lormeau/SingleFile), or run `copy(document.documentElement.outerHTML)` in DevTools and paste it into a file. Then trim it into a saved page with `bun run trim-page -- <saved.html> tests/pages/<name>.html`. It saves the links YouTube nests inside links as `<span>`s, so the page parses as the browser showed it; removes scripts, styles, inline images and anything personal, such as the signed-in masthead and comments; notes where and when SingleFile saved the page in its leading comment; and writes one element per line so diffs stay readable.
 
 Build the store packages with one command:
 

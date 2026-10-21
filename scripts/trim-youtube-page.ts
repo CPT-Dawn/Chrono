@@ -1,13 +1,17 @@
 // Turns a YouTube page saved from a real browser into a small, readable saved page for tests.
 //
-//   node scripts/trim-youtube-page.ts <saved.html> tests/pages/<name>.html
+//   bun run trim-page -- <saved.html> tests/pages/<name>.html
 //
-// It removes what tests never need (scripts, styles, icons) and anything personal
+// The input is the live DOM, saved with SingleFile or copied from DevTools. Links YouTube
+// nested inside links are rewritten as <span>s first, so the page parses as the browser
+// showed it. Then it removes what tests never need (scripts, styles, icons, inline data:
+// images, SingleFile's own attributes) and anything personal
 // (the signed-in masthead, the subscriptions guide, comments, live chat), keeps only
 // the first few related and recommended videos, and writes one element per line so diffs
 // stay readable.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Window } from 'happy-dom';
+import { unnestLinks } from './nested-links';
 
 const [input, output] = process.argv.slice(2);
 if (!input || !output) {
@@ -68,7 +72,10 @@ const window = new Window({
     disableCSSFileLoading: true,
   },
 });
-const doc = new window.DOMParser().parseFromString(readFileSync(input, 'utf8'), 'text/html');
+const saved = readFileSync(input, 'utf8');
+const source = readSingleFileHeader(saved);
+const { html, rewritten } = unnestLinks(saved);
+const doc = new window.DOMParser().parseFromString(html, 'text/html');
 
 for (const el of doc.querySelectorAll(REMOVE.join(','))) el.remove();
 for (const list of doc.querySelectorAll(VIDEO_LISTS.join(','))) {
@@ -79,9 +86,47 @@ for (const entry of doc.querySelectorAll(PLAYLIST_ENTRIES)) {
 }
 // The video's blob: source means nothing outside the browser that saved the page.
 for (const video of doc.querySelectorAll('video')) video.removeAttribute('src');
+// Inline data: images make up most of a saved page's size, and SingleFile marks up what it
+// saved with data-sf-* attributes. SingleFile also saves each canvas as an inline
+// background image. SingleFile's sf-hidden class and the hidden attribute stay: they record what
+// YouTube's styles hid on screen.
+const INLINE_IMAGE = /url\(\s*(["']?)data:[^"')]*\1\s*\)/gi;
+for (const el of doc.querySelectorAll('*')) {
+  for (const attribute of [...el.attributes]) {
+    const { name } = attribute;
+    const value = attribute.value ?? '';
+    if (name.startsWith('data-sf-') || /^\s*data:/i.test(value)) el.removeAttribute(name);
+    else if (value.includes('data:')) el.setAttribute(name, value.replace(INLINE_IMAGE, 'none'));
+  }
+}
 
-writeFileSync(output, `<!DOCTYPE html>\n${serialize(doc.documentElement, 0)}`);
+const page = `<!DOCTYPE html>\n${leadingComment()}\n${serialize(doc.documentElement, 0)}`;
+writeFileSync(output, page);
 console.log(`Wrote ${output}`);
+console.log(`  ${rewritten} nested links saved as <span>`);
+console.log(`  ${formatSize(Buffer.byteLength(saved))} -> ${formatSize(Buffer.byteLength(page))}`);
+if (!source) console.warn('  No SingleFile header: add where and when the page was saved to its leading comment.');
+
+// SingleFile opens its page with a comment saying where and when it was saved.
+function readSingleFileHeader(text: string): { url: string; date: string } | undefined {
+  const comment = /<!--\s*Page saved with SingleFile\b([\s\S]*?)-->/.exec(text)?.[1] ?? '';
+  const url = /^\s*url:\s*(\S+)/m.exec(comment)?.[1];
+  const date = /^\s*saved date:\s*(.+?)\s*$/m.exec(comment)?.[1];
+  return url && date ? { url, date } : undefined;
+}
+
+function leadingComment(): string {
+  const lines = source ? [`Saved from ${source.url}`, `with SingleFile on ${source.date}.`] : ['Saved from youtube.com.'];
+  lines.push(
+    "HTML can't hold a link inside a link, and YouTube builds some entries that way from",
+    'script, so each link nested in another was saved as a <span> with the same attributes.',
+  );
+  return `<!--\n${lines.map((line) => `  ${line}`).join('\n')}\n-->`;
+}
+
+function formatSize(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
 
 type SavedElement = (typeof doc)['documentElement'];
 
