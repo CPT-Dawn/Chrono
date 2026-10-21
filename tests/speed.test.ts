@@ -268,4 +268,62 @@ describe('Speed', () => {
     panel.getByRole('button', { name: 'Faster' }).click();
     expect(page.player.speed).toBe(1.75);
   });
+
+  describe('when the viewer leaves a playing video and comes back', () => {
+    // A playlist page, and YouTube's home page, which Chrono leaves alone.
+    const ELSEWHERE = {
+      'a playlist page': 'https://www.youtube.com/playlist?list=PL398E6B0278A8F204',
+      "YouTube's home page": 'https://www.youtube.com/',
+    };
+
+    for (const [elsewhere, url] of Object.entries(ELSEWHERE)) {
+      it(`follows the watch page's player again after ${elsewhere} in Chrome, which moves it to the miniplayer`, async () => {
+        const page = openSavedPage('watch-delhi', WATCH_URL);
+        page.video.load({ duration: 1000 });
+        page.video.seek(250);
+        page.player.setSpeed(1.5);
+        page.video.play();
+        await startChrono();
+
+        await startNavigation(url);
+        page.movePlayer('miniplayer');
+        await finishNavigation();
+        page.video.pause();
+        page.video.play();
+
+        await startNavigation(WATCH_URL);
+        page.movePlayer('watch-page');
+        await finishNavigation();
+        const panel = queryPanel()!;
+        panel.getByText('1.5×');
+
+        panel.getByRole('button', { name: 'Faster' }).click();
+        expect(page.player.speed).toBe(1.75);
+        panel.getByText('1.75×');
+      });
+
+      it(`follows the watch page's player again after ${elsewhere} in Firefox, which empties its video`, async () => {
+        const page = openSavedPage('watch-delhi', WATCH_URL);
+        page.video.load({ duration: 1000 });
+        page.video.seek(250);
+        page.player.setSpeed(1.5);
+        page.video.play();
+        await startChrono();
+
+        await startNavigation(url);
+        page.video.startLoading();
+        await finishNavigation();
+
+        await startNavigation(WATCH_URL);
+        page.video.load({ duration: 1000 });
+        await finishNavigation();
+        const panel = queryPanel()!;
+        panel.getByText('1.5×');
+
+        panel.getByRole('button', { name: 'Faster' }).click();
+        expect(page.player.speed).toBe(1.75);
+        panel.getByText('1.75×');
+      });
+    }
+  });
 });

@@ -10,7 +10,9 @@
 // message carries a plain number or nothing.
 import { MAX_SPEED, MIN_SPEED, roundToSpeedStep } from '@/time-model';
 import {
+  type PlayerPlace,
   type Reading,
+  readPage,
   readPlayerSpeed,
   setPlayerSpeed,
   watchPlayerAnnounced,
@@ -62,15 +64,31 @@ export function servePlayerSpeed(doc: Document): () => void {
    */
   let awaitingApi: AbortController | undefined;
 
+  // On a playlist page, the speed is the player's wherever YouTube keeps it. On a watch
+  // page it is only the watch page's own player's.
+  const place = (): PlayerPlace => (readPage(doc.location).kind === 'playlist' ? 'anywhere' : 'watch-page');
+
+  /** The player's last speed outside an ad break. */
+  let contentSpeed: number | undefined;
+
   const report = () => {
-    const speed = readPlayerSpeed(doc);
-    if (speed.recognised) {
-      stopAwaitingApi();
-      send(doc, MESSAGES.speed, speed.value);
-    } else {
+    const where = place();
+    const reading = readPlayerSpeed(doc, where);
+    if (!reading.recognised) {
       send(doc, MESSAGES.unrecognised);
       awaitApi();
+      return;
     }
+    stopAwaitingApi();
+    const { speed, adBreak } = reading.value;
+    if (!adBreak) contentSpeed = speed;
+    // An ad's speed isn't the viewer's. On a playlist page, where nothing pauses for the
+    // ad, the last speed outside one stands, if there was one.
+    if (adBreak && where === 'anywhere') {
+      if (contentSpeed !== undefined) send(doc, MESSAGES.speed, contentSpeed);
+      return;
+    }
+    send(doc, MESSAGES.speed, speed);
   };
 
   // YouTube can bring the API in without any video event, so the page half looks again
@@ -78,7 +96,7 @@ export function servePlayerSpeed(doc: Document): () => void {
   const awaitApi = () => {
     if (awaitingApi) return;
     awaitingApi = new AbortController();
-    watchPlayerAnnounced(doc, () => readPlayerSpeed(doc).recognised && report(), awaitingApi.signal);
+    watchPlayerAnnounced(doc, () => readPlayerSpeed(doc, place()).recognised && report(), awaitingApi.signal);
   };
   const stopAwaitingApi = () => {
     awaitingApi?.abort();
@@ -106,7 +124,7 @@ export function servePlayerSpeed(doc: Document): () => void {
     },
     { signal },
   );
-  watchPlayerSpeed(doc, () => connected.size > 0 && report(), signal);
+  watchPlayerSpeed(doc, place, () => connected.size > 0 && report(), signal);
   doc.addEventListener(
     MESSAGES.set,
     (event) => {

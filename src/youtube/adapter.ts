@@ -139,19 +139,40 @@ export function readPlayerVariant(doc: Document): Reading<PlayerVariant> {
   return recognised(variantOf(player));
 }
 
-function readPlayerSpeedApi(doc: Document): Reading<PlayerSpeedApi> {
-  const player = doc.querySelector(PLAYER) as Partial<PlayerSpeedApi> | null;
+// When the viewer leaves a playing video, YouTube moves its player, API and all, into the
+// miniplayer. Chrome did so in Oct 2026; Firefox left the player in the hidden watch page
+// and emptied its video. The viewer's speed is the one thing read from the miniplayer, and
+// only when asked for: the watch page's other readings stay scoped to it.
+const MINIPLAYER_PLAYER = 'ytd-miniplayer #movie_player';
+
+/**
+ * Which player to read the speed of: the watch page's own, or YouTube's player wherever
+ * YouTube keeps it, in the watch page or else in the miniplayer.
+ */
+export type PlayerPlace = 'watch-page' | 'anywhere';
+
+function readPlayerSpeedApi(doc: Document, place: PlayerPlace = 'watch-page'): Reading<Element & PlayerSpeedApi> {
+  const player = (doc.querySelector(PLAYER) ??
+    (place === 'anywhere' ? doc.querySelector(MINIPLAYER_PLAYER) : null)) as (Element & Partial<PlayerSpeedApi>) | null;
   const hasApi = typeof player?.getPlaybackRate === 'function' && typeof player.setPlaybackRate === 'function';
-  return hasApi ? recognised(player as PlayerSpeedApi) : unrecognised('speed');
+  return hasApi ? recognised(player as Element & PlayerSpeedApi) : unrecognised('speed');
 }
 
-/** YouTube's player speed. Works only from the page's own context. */
-export function readPlayerSpeed(doc: Document): Reading<number> {
-  const api = readPlayerSpeedApi(doc);
+export interface PlayerSpeed {
+  speed: number;
+  /** Whether the player is in an ad break, so that `speed` is the ad's, not the viewer's. */
+  adBreak: boolean;
+}
+
+/** YouTube's player speed, from the player in `place`. Works only from the page's own context. */
+export function readPlayerSpeed(doc: Document, place: PlayerPlace = 'watch-page'): Reading<PlayerSpeed> {
+  const api = readPlayerSpeedApi(doc, place);
   if (!api.recognised) return api;
   try {
     const speed = api.value.getPlaybackRate();
-    return Number.isFinite(speed) ? recognised(speed) : unrecognised('speed');
+    // YouTube flags its player for the whole ad break, in the watch page or the miniplayer.
+    const adBreak = api.value.classList.contains(AD_BREAK);
+    return Number.isFinite(speed) ? recognised({ speed, adBreak }) : unrecognised('speed');
   } catch {
     return unrecognised('speed');
   }
@@ -173,14 +194,22 @@ export function setPlayerSpeed(doc: Document, speed: number): boolean {
 }
 
 /**
- * Calls `onChange` whenever the player's speed may have changed or its API may have
- * become available. YouTube applies every speed change to its video, whichever control
- * made it, and starts its player before the video loads or plays. Listening on the
- * document catches the video even after YouTube swaps it for another.
+ * Calls `onChange` whenever the speed of the player in `place` may have changed or its API
+ * may have become available. It asks `place` at each change, as YouTube navigates. YouTube
+ * applies every speed change to its video, whichever control made it, and starts its
+ * player before the video loads or plays. Listening on the document catches the video even
+ * after YouTube swaps it for another.
  */
-export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: AbortSignal): void {
+export function watchPlayerSpeed(
+  doc: Document,
+  place: () => PlayerPlace,
+  onChange: () => void,
+  signal: AbortSignal,
+): void {
   const listener = (event: Event) => {
-    if (event.target instanceof Element && event.target.closest(PLAYER)) onChange();
+    if (!(event.target instanceof Element)) return;
+    const inMiniplayer = place() === 'anywhere' && event.target.closest(MINIPLAYER_PLAYER);
+    if (event.target.closest(PLAYER) || inMiniplayer) onChange();
   };
   for (const type of ['ratechange', 'loadedmetadata', 'playing']) {
     doc.addEventListener(type, listener, { capture: true, signal });

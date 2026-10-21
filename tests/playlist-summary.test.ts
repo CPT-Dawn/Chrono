@@ -391,6 +391,63 @@ describe('Playlist summary', () => {
     });
   });
 
+  describe("while the miniplayer holds YouTube's player", () => {
+    // Saved in Chrome in Oct 2026: leaving a playing video, YouTube moved its player, API
+    // and all, into the miniplayer, which was playing entry 45 during an ad. 99 of the 100
+    // entries loaded show their lengths, 1,345,903 s in all (373h 51m 43s); at 1.5× that's
+    // 897,269 s (249h 14m 29s).
+    const BIG_URL = 'https://www.youtube.com/playlist?list=PL9E9945kkf2AoDFiFrz3UNO0wv5NFh_5q';
+
+    it("adds the watch time at the viewer's speed, which the miniplayer's player knows", async () => {
+      const page = openSavedPage('playlist-big-miniplayer', BIG_URL);
+      page.endAdBreak();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('373h 52m total · 249h 14m at 1.5× · 99 of 2,474 counted');
+    });
+
+    it("shows no speed from an ad the miniplayer plays, and the viewer's once the video is back", async () => {
+      // The page was saved during an ad. Whatever speed the player gives the ad isn't the viewer's.
+      const page = openSavedPage('playlist-big-miniplayer', BIG_URL);
+      page.player.setSpeed(2);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('373h 52m total · 99 of 2,474 counted');
+
+      page.endAdBreak();
+      page.player.setSpeed(1.5);
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('373h 52m total · 249h 14m at 1.5× · 99 of 2,474 counted');
+    });
+
+    it("keeps the viewer's speed through the miniplayer's next ad", async () => {
+      const page = openSavedPage('playlist-big-miniplayer', BIG_URL);
+      page.endAdBreak();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      page.startAdBreak();
+      page.player.setSpeed(1);
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('373h 52m total · 249h 14m at 1.5× · 99 of 2,474 counted');
+
+      // The browser starts the content script again, as after an extension update.
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('373h 52m total · 249h 14m at 1.5× · 99 of 2,474 counted');
+    });
+
+    it("doesn't report YouTube's speed as unrecognised", async () => {
+      openSavedPage('playlist-big-miniplayer', BIG_URL);
+      await startChrono();
+
+      expect(await reportedFailures()).not.toContain('speed');
+    });
+  });
+
   describe("on a page that mixes YouTube's old and new elements", () => {
     // Each saved page has the stats three times: in the new header's copy for each layout, and
     // in the old header YouTube keeps hidden. It also has YouTube's hidden watch page, with
