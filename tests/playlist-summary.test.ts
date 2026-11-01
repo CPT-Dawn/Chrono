@@ -131,15 +131,13 @@ describe('Playlist summary', () => {
   });
 
   describe('on Watch Later and Liked videos', () => {
-    // TODO: these are public playlist pages opened at Watch Later's and Liked videos'
-    // addresses, because a headless browser can't sign in and no signed-in pages have been
-    // saved yet (deferred in Oct 2026). Replace them with real pages saved from a signed-in
-    // browser.
     it('works on Watch Later', async () => {
-      openSavedPage('playlist-legacy-long', 'https://www.youtube.com/playlist?list=WL');
+      // Saved signed in, in the older list design: 31 entries, 15:05:45 in all; the header
+      // says 32, and YouTube hides 1 unavailable video.
+      openSavedPage('playlist-watch-later', 'https://www.youtube.com/playlist?list=WL');
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('6h 38m total · first 100 of 139 counted');
+      expect(queryPlaylistSummary()).toBe('15h 6m total · 1 unavailable');
     });
 
     describe("before YouTube draws every entry's length badge", () => {
@@ -190,10 +188,12 @@ describe('Playlist summary', () => {
     });
 
     it('works on Liked videos', async () => {
-      openSavedPage('playlist-lockups', 'https://www.youtube.com/playlist?list=LL');
+      // Saved signed in, in lockups: the first 100 entries, 50:00:40 in all, of the 138 the
+      // header counts.
+      openSavedPage('playlist-liked', 'https://www.youtube.com/playlist?list=LL');
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
+      expect(queryPlaylistSummary()).toBe('50h 1m total · first 100 of 138 counted');
     });
   });
 
