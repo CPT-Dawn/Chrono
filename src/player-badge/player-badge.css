@@ -1,10 +1,13 @@
 /*
- * The badge takes its font, size and colour from YouTube's time display, so it needs no
- * palette of its own. It never wraps, so it can't push YouTube's controls onto two lines.
+ * The badge reads as the rest of YouTube's duration, " / ends 3:45 PM": it inherits the
+ * time display's font and size, takes the duration's colour (see matchDurationColour), and
+ * keeps the duration's weight of 400 rather than the current time's 500. It never wraps, so it can't push YouTube's controls onto two lines.
  * Its spacing is on the inner text: YouTube's player styles override what the host sets
- * for itself.
+ * for itself. The leading space is padding, a space's width in Roboto, because translators
+ * and the browser's message loader may trim a message's own leading space.
  */
 :host {
+  position: relative;
   display: inline;
   white-space: nowrap;
 }
@@ -14,6 +17,19 @@
   display: none !important;
 }
 
-.text {
-  padding-inline-start: 4px;
+.text,
+:host::before {
+  padding-inline-start: 0.25em;
+  font-weight: 400;
+}
+
+/*
+ * The text the badge showed before, laid over the new text while it fades out. Left at its
+ * static position, it sits on the same line as the text it was.
+ */
+:host::before {
+  content: attr(data-previous);
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }

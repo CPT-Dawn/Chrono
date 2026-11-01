@@ -62,7 +62,7 @@ describe('Chapter scope', () => {
       // 4:10 into the video, 81 s before "Introducing layers" ends.
       const { chapter } = await openChapters(name, 250);
 
-      expect(chapter()?.summary).toEqual(['Chapter', 'Introducing layers', '1:21 left at 1×', 'ends 3:01 PM']);
+      expect(chapter()?.summary).toEqual(['Chapter', 'Introducing layers', '1:21 left', 'Ends 3:01 PM']);
     },
   );
 
@@ -72,7 +72,7 @@ describe('Chapter scope', () => {
     // 5:40: 178 s before "Why layers?" ends at 8:38.
     page.video.seek(340);
 
-    expect(chapter()?.summary).toEqual(['Chapter', 'Why layers?', '2:58 left at 1×', 'ends 3:02 PM']);
+    expect(chapter()?.summary).toEqual(['Chapter', 'Why layers?', '2:58 left', 'Ends 3:02 PM']);
   });
 
   it('switches as the playhead plays into the next chapter', async () => {
@@ -82,7 +82,7 @@ describe('Chapter scope', () => {
     vi.advanceTimersByTime(3000);
 
     // 5:32: 1 s into "Why layers?", which has 186 s left.
-    expect(chapter()?.summary).toEqual(['Chapter', 'Why layers?', '3:06 left at 1×', 'ends 3:03 PM']);
+    expect(chapter()?.summary).toEqual(['Chapter', 'Why layers?', '3:06 left', 'Ends 3:03 PM']);
   });
 
   it("shows the chapter's speed table, at the viewer's speed", async () => {
@@ -92,7 +92,7 @@ describe('Chapter scope', () => {
 
     // 81 s of "Introducing layers" left.
     expect(chapter()).toEqual({
-      summary: ['Chapter', 'Introducing layers', '0:54 left at 1.5×', 'ends 3:00 PM'],
+      summary: ['Chapter', 'Introducing layers', '0:54 left', 'Ends 3:00 PM'],
       rows: [
         '1×: 1:21 left, ends 3:01 PM',
         '1.25×: 1:05 left, ends 3:01 PM',
@@ -110,7 +110,7 @@ describe('Chapter scope', () => {
     fireEvent.click(table.getByRole('button', { name: /^2×/ }));
 
     expect(page.player.speed).toBe(2);
-    panel.getByText('7:15 left at 2×');
+    panel.getByText('7:15 left');
   });
 
   it('shows no Chapter scope on a video without chapters', async () => {
@@ -151,7 +151,7 @@ describe('Chapter scope', () => {
     back.video.load({ duration: DURATION });
     back.video.seek(340);
     await settle();
-    expect(chapter()?.summary).toEqual(['Chapter', 'Why layers?', '2:58 left at 1×', 'ends 3:02 PM']);
+    expect(chapter()?.summary).toEqual(['Chapter', 'Why layers?', '2:58 left', 'Ends 3:02 PM']);
   });
 
   it("never shows the previous video's chapters while YouTube is still replacing them", async () => {
@@ -191,7 +191,7 @@ describe('Chapter scope', () => {
     /** The rest of the Panel works as on any video. */
     async function expectPanelWorks(page: SavedPage) {
       const panel = queryPanel()!;
-      panel.getByText('14:30 left at 1×');
+      panel.getByText('14:30 left');
       panel.getByRole('group', { name: 'Speed table' });
       fireEvent.click(panel.getByRole('button', { name: 'Faster' }));
       await settle();
@@ -281,7 +281,7 @@ describe('Chapter scope', () => {
 
       fireEvent.click(setting);
       await settle();
-      expect(chapter()?.summary).toEqual(['Chapter', 'Introducing layers', '1:21 left at 1×', 'ends 3:01 PM']);
+      expect(chapter()?.summary).toEqual(['Chapter', 'Introducing layers', '1:21 left', 'Ends 3:01 PM']);
     });
 
     it('turned off in the ⋮ menu, hides the Chapter scope and stays off for the next watch page', async () => {

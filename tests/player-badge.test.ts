@@ -38,7 +38,7 @@ describe('Player badge', () => {
 
       await startChrono();
 
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
     });
 
     it('moves the finish time with the speed', async () => {
@@ -50,7 +50,7 @@ describe('Player badge', () => {
       page.player.setSpeed(1.5);
 
       // 750 s of content at 1.5× takes 500 s.
-      expect(queryPlayerBadge()).toBe('· ends 3:08 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:08 PM');
     });
 
     it('moves the finish time with the position', async () => {
@@ -61,7 +61,7 @@ describe('Player badge', () => {
 
       page.video.seek(850);
 
-      expect(queryPlayerBadge()).toBe('· ends 3:02 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:02 PM');
     });
 
     it('keeps the finish time while the video plays, and moves it on while it is paused', async () => {
@@ -72,11 +72,11 @@ describe('Player badge', () => {
 
       page.video.play();
       vi.advanceTimersByTime(60_000);
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
 
       page.video.pause();
       vi.advanceTimersByTime(5 * 60_000);
-      expect(queryPlayerBadge()).toBe('· ends 3:17 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:17 PM');
     });
 
     it("changes nothing in YouTube's time display but adding the badge", async () => {
@@ -132,7 +132,7 @@ describe('Player badge', () => {
       expect(page.timeDisplay.outerHTML).toBe(rendered);
       expect(await reportedFailures()).toContain('badge');
       // The rest of Chrono keeps working.
-      queryPanel()!.getByText('11:30 left at 1×');
+      queryPanel()!.getByText('11:30 left');
     });
 
     it("takes the badge away when YouTube changes the player's layout under it", async () => {
@@ -167,7 +167,7 @@ describe('Player badge', () => {
       page.video.load({ duration: 1000 });
       page.video.seek(250);
       await startChrono();
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
 
       page.startAdBreak();
       await settle();
@@ -184,7 +184,7 @@ describe('Player badge', () => {
       page.video.seek(250);
       await settle();
       // The ad took 30 seconds, so the video now ends 30 seconds later.
-      expect(queryPlayerBadge()).toBe('· ends 3:13 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:13 PM');
     });
   });
 
@@ -221,7 +221,7 @@ describe('Player badge', () => {
       page.timeDisplay.classList.remove('ytp-live');
       await settle();
 
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
     });
 
     it('hides for a video with no end', async () => {
@@ -244,7 +244,7 @@ describe('Player badge', () => {
       page.video.seek(250);
       await settle();
 
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
     });
   });
 
@@ -253,7 +253,7 @@ describe('Player badge', () => {
       vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-GB');
       await openWatchPage();
 
-      expect(queryPlayerBadge()).toBe('· ends 15:12');
+      expect(queryPlayerBadge()).toBe('/ ends 15:12');
     });
 
     it('changes at once when the viewer picks another clock format in the popup', async () => {
@@ -262,11 +262,11 @@ describe('Player badge', () => {
 
       fireEvent.click(popup.getByRole('radio', { name: '24-hour' }));
       await settle();
-      expect(queryPlayerBadge()).toBe('· ends 15:12');
+      expect(queryPlayerBadge()).toBe('/ ends 15:12');
 
       fireEvent.click(popup.getByRole('radio', { name: '12-hour' }));
       await settle();
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
     });
   });
 
@@ -292,7 +292,7 @@ describe('Player badge', () => {
       expect(queryPlayerBadge()).toBeNull();
       expect(page.timeDisplay.outerHTML).toBe(rendered);
       // The Panel stays.
-      queryPanel()!.getByText('12:30 left at 1×');
+      queryPanel()!.getByText('12:30 left');
     });
 
     it('turned back on in the ⋮ menu, brings the badge back at once', async () => {
@@ -307,7 +307,7 @@ describe('Player badge', () => {
       fireEvent.click(item);
       await settle();
 
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
       expect(item.getAttribute('aria-checked')).toBe('true');
     });
 
@@ -320,7 +320,7 @@ describe('Player badge', () => {
       page.page.video.load({ duration: 1000 });
       await settle();
 
-      queryPanel()!.getByText('16:40 left at 1×');
+      queryPanel()!.getByText('16:40 left');
       expect(queryPlayerBadge()).toBeNull();
     });
 
@@ -347,7 +347,7 @@ describe('Player badge', () => {
       page.video.startLoading();
       page.video.load({ duration: 2000 });
       await settle();
-      expect(queryPlayerBadge()).toBe('· ends 3:33 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:33 PM');
     });
 
     it('takes the badge out of the player when it moves to the miniplayer, and puts it back after', async () => {
@@ -362,7 +362,7 @@ describe('Player badge', () => {
       await startNavigation(WATCH_URL);
       page.movePlayer('watch-page');
       await finishNavigation();
-      expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+      expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
     });
 
     it('takes the badge away when the extension is updated or removed', async () => {
@@ -385,7 +385,7 @@ describe('Player badge', () => {
     await startChrono();
 
     expect(queryPanel()).toBeNull();
-    expect(queryPlayerBadge()).toBe('· ends 3:12 PM');
+    expect(queryPlayerBadge()).toBe('/ ends 3:12 PM');
   });
 });
 

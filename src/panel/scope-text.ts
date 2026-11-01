@@ -9,15 +9,22 @@ export function speedText(speed: number, locale: string): string {
   return browser.i18n.getMessage('speed', formatSpeed(speed, locale));
 }
 
-/** A scope's remaining and finish time, e.g. "12:30 left at 1.5×" and "ends 3:45 PM". */
+/**
+ * A scope's remaining and finish time, e.g. "12:30 left" and "Ends 3:45 PM". With
+ * `withSpeed`, the finish line also names the speed both assume: "Ends 3:45 PM · at 1.5×".
+ */
 export function timesText(
   { remaining, finishTime, speed }: TimesAtSpeed,
   now: Date,
   locale: string,
   clockFormat: ClockFormat,
+  withSpeed = false,
 ): { remaining: string; finish: string } {
+  const clock = formatClockTime(finishTime, now, locale, clockFormat);
   return {
-    remaining: browser.i18n.getMessage('remaining', [formatWatchTime(remaining), speedText(speed, locale)]),
-    finish: browser.i18n.getMessage('finishTime', formatClockTime(finishTime, now, locale, clockFormat)),
+    remaining: browser.i18n.getMessage('remaining', formatWatchTime(remaining)),
+    finish: withSpeed
+      ? browser.i18n.getMessage('finishTimeAtSpeed', [clock, speedText(speed, locale)])
+      : browser.i18n.getMessage('finishTime', clock),
   };
 }

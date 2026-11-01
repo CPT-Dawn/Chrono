@@ -2,10 +2,12 @@
 // remaining and finish time, its target and its speed table.
 import type { ClockFormat } from '@/settings';
 import type { ChapterScope, Target } from '@/time-model';
+import { CHAPTERS } from '@/icons';
 import { create, createProgress } from './dom';
-import { timesText } from './scope-text';
+import { createScopeSection } from './scope-section';
 import { createSpeedTable } from './speed-table';
 import { createTarget } from './target';
+import { createTimes } from './times';
 
 export interface ChapterScopeView {
   element: HTMLElement;
@@ -20,22 +22,13 @@ export function createChapterScope(
   setSpeed: (speed: number) => void,
   setTarget: (target: Target | undefined) => void,
 ): ChapterScopeView {
-  const element = create('div', 'scope');
-  element.dataset.scope = 'chapter';
-  element.setAttribute('role', 'group');
-  element.setAttribute('aria-label', browser.i18n.getMessage('chapterScope'));
-
-  const label = create('div', 'scope-label');
-  label.textContent = browser.i18n.getMessage('chapterScope');
+  const element = createScopeSection('chapter', CHAPTERS);
   const title = create('div', 'scope-title');
-  const remaining = create('span', 'remaining');
-  const finish = create('span', 'finish');
-  const times = create('div', 'times');
-  times.append(remaining, finish);
+  const times = createTimes(locale);
   const target = createTarget('chapter', locale, setTarget, setSpeed);
   const table = createSpeedTable(locale, setSpeed, 'chapterSpeedTable');
   const progress = createProgress();
-  element.append(label, title, times, progress.element, target.element, table.element);
+  element.append(title, times.element, progress.element, target.element, table.element);
 
   return {
     element,
@@ -48,9 +41,7 @@ export function createChapterScope(
       title.textContent = scope.title;
       // A long title is cut short; hovering shows it in full.
       title.title = scope.title;
-      const text = timesText(scope.times, now, locale, clockFormat);
-      remaining.textContent = text.remaining;
-      finish.textContent = text.finish;
+      times.show(scope.times, now, clockFormat);
       progress.show(scope.times.progress);
     },
     setEnabled(enabled) {

@@ -61,9 +61,8 @@ describe('Playlist scope', () => {
     await openPlaylist('watch-playlist', SETTLERS_2, { duration: 927, position: 427 });
 
     const scope = playlistScope();
-    scope.getByText('3:28:59 left at 1×');
-    // Once for the scope, once in its speed table's 1× row.
-    expect(scope.getAllByText('ends 6:28 PM')).toHaveLength(2);
+    scope.getByText('3:28:59 left');
+    scope.getByText('Ends 6:28 PM');
     expect(playlistRows()).toEqual([
       '1×: 3:28:59 left, ends 6:28 PM',
       '1.25×: 2:47:12 left, ends 5:47 PM',
@@ -101,7 +100,7 @@ describe('Playlist scope', () => {
       setTarget('4');
 
       // 500 s left of video 2, then 32:08 + 28:37: 4,145 s.
-      playlistScope().getByText('1:09:05 left at 1×');
+      playlistScope().getByText('1:09:05 left');
       expect(playlistRows()[0]).toBe('1×: 1:09:05 left, ends 4:09 PM');
     });
 
@@ -110,7 +109,7 @@ describe('Playlist scope', () => {
 
       setTarget('2');
 
-      playlistScope().getByText('8:20 left at 1×');
+      playlistScope().getByText('8:20 left');
     });
 
     it("won't take an entry earlier than the current one", async () => {
@@ -121,7 +120,7 @@ describe('Playlist scope', () => {
 
       expect(targetInput().value).toBe('5');
       // 500 s, then 32:08 + 28:37 + 46:16: 6,921 s.
-      playlistScope().getByText('1:55:21 left at 1×');
+      playlistScope().getByText('1:55:21 left');
     });
 
     it("won't take an entry past the end of the playlist", async () => {
@@ -130,7 +129,7 @@ describe('Playlist scope', () => {
       setTarget('9');
 
       expect(targetInput().value).toBe('8');
-      playlistScope().getByText('3:28:59 left at 1×');
+      playlistScope().getByText('3:28:59 left');
     });
 
     it('stays when YouTube plays the next video in the same playlist', async () => {
@@ -142,7 +141,7 @@ describe('Playlist scope', () => {
       expect(targetInput().value).toBe('4');
       expect(targetInput().min).toBe('3');
       // 1,000 s left of video 3, then 28:37: 2,717 s.
-      playlistScope().getByText('45:17 left at 1×');
+      playlistScope().getByText('45:17 left');
     });
 
     it('clears when the viewer leaves the playlist', async () => {
@@ -159,7 +158,7 @@ describe('Playlist scope', () => {
       await finishNavigation();
 
       expect(targetInput().value).toBe('8');
-      playlistScope().getByText('3:28:59 left at 1×');
+      playlistScope().getByText('3:28:59 left');
     });
   });
 
@@ -177,7 +176,7 @@ describe('Playlist scope', () => {
 
       const scope = playlistScope();
       scope.getByText('first 200 of 317 counted');
-      scope.getByText('250:48:56 left at 1×');
+      scope.getByText('250:48:56 left');
       expect(targetInput().max).toBe('317');
     });
 
@@ -202,7 +201,7 @@ describe('Playlist scope', () => {
       setTarget('2');
 
       // 6,000 s, then 1:32:44.
-      playlistScope().getByText('3:12:44 left at 1×');
+      playlistScope().getByText('3:12:44 left');
       expect(playlistScope().queryByText(/counted/)).toBeNull();
     });
 
@@ -216,7 +215,7 @@ describe('Playlist scope', () => {
 
       const scope = playlistScope();
       scope.getByText('8 unavailable');
-      scope.getByText('27:22 left at 1×');
+      scope.getByText('27:22 left');
       expect(scope.queryByText(/counted/)).toBeNull();
       expect(targetInput().max).toBe('16');
     });
@@ -241,7 +240,7 @@ describe('Playlist scope', () => {
 
       expect(queryPlaylistScope()).toBeNull();
       // The rest of the Panel carries on.
-      queryPanel()!.getByText('3:20 left at 1×');
+      queryPanel()!.getByText('3:20 left');
       expect(await reportedFailures()).toEqual([]);
     });
 
@@ -266,7 +265,7 @@ describe('Playlist scope', () => {
         position: 603,
       });
 
-      playlistScope().getByText('3:44:26 left at 1×');
+      playlistScope().getByText('3:44:26 left');
       expect(targetInput().max).toBe('8');
     });
   });
@@ -282,7 +281,7 @@ describe('Playlist scope', () => {
     fireEvent.click(panel.getByRole('button', { name: 'Details' }));
 
     expect(queryPlaylistScope()).toBeNull();
-    panel.getByText('8:20 left at 1×');
+    panel.getByText('8:20 left');
     expect(await reportedFailures()).toEqual(['playlist']);
   });
 
@@ -326,7 +325,7 @@ describe('Playlist scope', () => {
     restore();
     await settle();
 
-    playlistScope().getByText('3:28:59 left at 1×');
+    playlistScope().getByText('3:28:59 left');
     expect(await reportedFailures()).toEqual([]);
   });
 
@@ -359,11 +358,11 @@ describe('Playlist scope', () => {
     const last = items.lastElementChild!;
     last.remove();
     await settle();
-    playlistScope().getByText('3:15:13 left at 1×');
+    playlistScope().getByText('3:15:13 left');
     items.append(last);
     await settle();
 
-    playlistScope().getByText('3:28:59 left at 1×');
+    playlistScope().getByText('3:28:59 left');
   });
 
   describe('"Show Playlist scope" setting', () => {
@@ -388,10 +387,10 @@ describe('Playlist scope', () => {
 
       await toggleSetting();
       expect(queryPlaylistScope()).toBeNull();
-      queryPanel()!.getByText('8:20 left at 1×');
+      queryPanel()!.getByText('8:20 left');
 
       await toggleSetting();
-      playlistScope().getByText('3:28:59 left at 1×');
+      playlistScope().getByText('3:28:59 left');
     });
   });
 });

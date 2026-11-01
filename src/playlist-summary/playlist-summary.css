@@ -1,23 +1,21 @@
 /*
  * One more row of YouTube's playlist stats: their font and spacing, measured on youtube.com
- * in Oct 2026. The colour is inherited from the stats, which YouTube sets for its header;
- * only Chrono's mark brings its own dawn colours, bright enough for any header.
+ * in Oct 2026. Its colour is the stats' own, which the summary copies from the row before
+ * it (YouTube gives the rows a translucent colour that the element they sit in doesn't
+ * have). Chrono's mark is in that colour too, but for its playhead, which keeps YouTube's
+ * progress red.
  */
 :host {
-  --dawn-1: #8b7dff;
-  --dawn-2: #ff5c85;
-  --dawn-3: #ffb547;
-
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 2px;
-  color: inherit;
   font-family: Roboto, Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
-  animation: fade-in 0.4s ease-out both;
+  font-variant-numeric: tabular-nums;
+  animation: fade-in 200ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .mark-wrap {
@@ -36,8 +34,9 @@
   }
 }
 
+/* Reduced motion: the line still fades, but quickly. */
 @media (prefers-reduced-motion: reduce) {
   :host {
-    animation: none;
+    animation-duration: 100ms;
   }
 }

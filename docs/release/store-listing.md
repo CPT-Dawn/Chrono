@@ -24,7 +24,7 @@ A compact block at the top of YouTube's sidebar, styled like YouTube's own panel
 • Targets: set a finish time or the watch time you have, and Chrono shows the required speed.
 
 PLAYER BADGE
-An optional "· ends 3:45 PM" after the player's own time, visible in fullscreen too.
+An optional "/ ends 3:45 PM" after the player's own time, visible in fullscreen too.
 
 PLAYLIST SUMMARY
 One line on playlist pages: total content time, watch time at your speed, and how many entries are unavailable.

@@ -13,8 +13,8 @@ export interface PlaylistSummaryLine {
 /**
  * The Playlist summary: one line in the style of YouTube's own stats, e.g. "4h 12m total ·
  * 2h 48m at 1.5× · 3 unavailable". It lives in a shadow root so YouTube's styles and
- * Chrono's can't affect each other, and takes its colour from the stats it sits in. Chrono's
- * small mark leads it, so the viewer can tell it from YouTube's own stats.
+ * Chrono's can't affect each other, and takes its colour from the stats it sits under.
+ * Chrono's small mark leads it, so the viewer can tell it from YouTube's own stats.
  */
 export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
   const element = document.createElement('div');
@@ -48,6 +48,24 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
       const summaryText = parts.reduce((joined, part) => browser.i18n.getMessage('playlistSummaryJoin', [joined, part]));
       // YouTube's page watches for changes; an unchanged line changes nothing.
       if (text.textContent !== summaryText) text.textContent = summaryText;
+      matchStatsColour(element);
     },
   };
+}
+
+/**
+ * Gives the summary `line` the colour of the stats text before it. YouTube colours its
+ * stats on an inner row, not on the element Chrono's line joins, so inheriting alone
+ * would leave the line brighter than the stats beside it.
+ */
+function matchStatsColour(line: HTMLElement): void {
+  const before = line.previousElementSibling;
+  if (!before) return;
+  const walker = document.createTreeWalker(before, NodeFilter.SHOW_TEXT, (node) =>
+    node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP,
+  );
+  const statsText = walker.nextNode()?.parentElement;
+  if (!statsText) return;
+  const { color } = getComputedStyle(statsText);
+  if (line.style.color !== color) line.style.color = color;
 }

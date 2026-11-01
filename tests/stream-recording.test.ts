@@ -29,9 +29,9 @@ describe('Stream recording', () => {
     // 6,972 s long, 1,000 s in: 5,972 s left, ending at 4:39:32 PM.
     const panel = queryPanel()!;
     expect(panel.queryByText('Live')).toBeNull();
-    panel.getByText('1:39:32 left at 1×');
-    panel.getByText('ends 4:39 PM');
-    expect(queryPlayerBadge()).toBe('· ends 4:39 PM');
+    panel.getByText('1:39:32 left');
+    panel.getByText('Ends 4:39 PM · at 1×');
+    expect(queryPlayerBadge()).toBe('/ ends 4:39 PM');
     expect(await reportedFailures()).toEqual([]);
   });
 
@@ -57,7 +57,7 @@ describe('Stream recording', () => {
     // 2,837,521 s.
     const scope = within(panel.getByRole('group', { name: 'Playlist' }));
     scope.getByText('first 202 of 2,480 counted');
-    scope.getByText('788:12:01 left at 1×');
+    scope.getByText('788:12:01 left');
     expect((scope.getByRole('spinbutton', { name: 'Up to video' }) as HTMLInputElement).max).toBe('2480');
     expect(await reportedFailures()).toEqual([]);
   });
@@ -80,7 +80,7 @@ describe('Stream recording', () => {
     const scope = within(panel.getByRole('group', { name: 'Playlist' }));
     scope.getByText('first 202 of 2,480 counted · 1 live');
     expect(scope.queryByText(/unavailable/)).toBeNull();
-    scope.getByText('786:36:14 left at 1×');
+    scope.getByText('786:36:14 left');
     expect(await reportedFailures()).toEqual([]);
   });
 
@@ -96,7 +96,7 @@ describe('Stream recording', () => {
     expect(document.querySelector('ytd-watch-flexy #chat-container')!.contains(panel)).toBe(false);
     expect(isBefore(page.video.element, panel)).toBe(true);
     expect(isBefore(panel, page.related)).toBe(true);
-    queryPanel()!.getByText('1:39:32 left at 1×');
+    queryPanel()!.getByText('1:39:32 left');
   });
 });
 

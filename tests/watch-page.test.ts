@@ -19,8 +19,8 @@ describe('Panel on a watch page', () => {
     const panel = queryPanel();
     expect(panel).not.toBeNull();
     expect(page.sidebar.firstElementChild).toBe(panel!.element);
-    panel!.getByText('12:30 left at 1×');
-    panel!.getByText('ends 3:12 PM');
+    panel!.getByText('12:30 left');
+    panel!.getByText('Ends 3:12 PM · at 1×');
   });
 
   it('lowers remaining as the video plays', async () => {
@@ -33,8 +33,8 @@ describe('Panel on a watch page', () => {
     vi.advanceTimersByTime(60_000);
 
     const panel = queryPanel()!;
-    panel.getByText('11:30 left at 1×');
-    panel.getByText('ends 3:12 PM');
+    panel.getByText('11:30 left');
+    panel.getByText('Ends 3:12 PM · at 1×');
   });
 
   it('moves the finish time on while the video is paused', async () => {
@@ -46,8 +46,8 @@ describe('Panel on a watch page', () => {
     vi.advanceTimersByTime(5 * 60_000);
 
     const panel = queryPanel()!;
-    panel.getByText('12:30 left at 1×');
-    panel.getByText('ends 3:17 PM');
+    panel.getByText('12:30 left');
+    panel.getByText('Ends 3:17 PM · at 1×');
   });
 
   it("writes the finish time in the browser's locale", async () => {
@@ -58,7 +58,7 @@ describe('Panel on a watch page', () => {
 
     await startChrono();
 
-    queryPanel()!.getByText('ends 15:12');
+    queryPanel()!.getByText('Ends 15:12 · at 1×');
   });
 
   it('names the day when the video finishes after midnight', async () => {
@@ -68,7 +68,7 @@ describe('Panel on a watch page', () => {
 
     await startChrono();
 
-    queryPanel()!.getByText('ends Sun 12:20 AM');
+    queryPanel()!.getByText('Ends Sun 12:20 AM · at 1×');
   });
 
   it("fills in once the video's length is known", async () => {
@@ -80,8 +80,8 @@ describe('Panel on a watch page', () => {
 
     page.video.load({ duration: 1000 });
 
-    panel.getByText('16:40 left at 1×');
-    panel.getByText('ends 3:16 PM');
+    panel.getByText('16:40 left');
+    panel.getByText('Ends 3:16 PM · at 1×');
   });
 
   it('appears once YouTube has rendered the video and the sidebar', async () => {
@@ -98,7 +98,7 @@ describe('Panel on a watch page', () => {
 
     renderSidebar();
     await settle();
-    queryPanel()!.getByText('16:40 left at 1×');
+    queryPanel()!.getByText('16:40 left');
   });
 
   it('moves below the video with the sidebar in a narrow window, and back again', async () => {

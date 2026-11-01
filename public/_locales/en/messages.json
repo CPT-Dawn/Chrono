@@ -12,11 +12,10 @@
     "description": "Extension description, shown in the browser's extension list."
   },
   "remaining": {
-    "message": "$REMAINING$ left at $SPEED$",
-    "description": "Remaining watch time at the current speed, e.g. \"12:30 left at 1.5×\".",
+    "message": "$REMAINING$ left",
+    "description": "A scope's remaining watch time at the current speed, the Panel's headline, e.g. \"12:30 left\".",
     "placeholders": {
-      "remaining": { "content": "$1", "example": "12:30" },
-      "speed": { "content": "$2", "example": "1.5×" }
+      "remaining": { "content": "$1", "example": "12:30" }
     }
   },
   "speed": {
@@ -27,15 +26,23 @@
     }
   },
   "finishTime": {
-    "message": "ends $TIME$",
-    "description": "The clock time at which the video will end, e.g. \"ends 3:45 PM\".",
+    "message": "Ends $TIME$",
+    "description": "The line under a Chapter or Playlist scope's remaining: the clock time at which it will end, e.g. \"Ends 3:45 PM\".",
     "placeholders": {
       "time": { "content": "$1", "example": "3:45 PM" }
     }
   },
+  "finishTimeAtSpeed": {
+    "message": "Ends $TIME$ · at $SPEED$",
+    "description": "The line under the Panel's headline remaining: the clock time at which the video will end, and the speed both assume, e.g. \"Ends 3:45 PM · at 1.5×\".",
+    "placeholders": {
+      "time": { "content": "$1", "example": "3:45 PM" },
+      "speed": { "content": "$2", "example": "1.5×" }
+    }
+  },
   "playerBadgeFinishTime": {
-    "message": "· ends $TIME$",
-    "description": "The Player badge: the video's finish time, shown after the player's own time display (\"0:03 / 10:34 · ends 3:45 PM\"). The dot separates it from YouTube's times.",
+    "message": "/ ends $TIME$",
+    "description": "The Player badge: the video's finish time, shown after the player's own time display (\"0:03 / 10:34 / ends 3:45 PM\"). The slash is the separator YouTube's time display already uses; the space before it is added by the badge, so don't start the message with one.",
     "placeholders": {
       "time": { "content": "$1", "example": "3:45 PM" }
     }
@@ -248,6 +255,10 @@
   "applySpeed": {
     "message": "Apply",
     "description": "Button that sets YouTube's speed to the speed a target needs."
+  },
+  "targetApplied": {
+    "message": "Applied",
+    "description": "Shown for a moment in place of the required speed after the viewer applies it."
   },
   "applySpeedLabel": {
     "message": "Apply $SPEED$",

@@ -4,13 +4,15 @@ import type { Settings } from '@/settings';
 import type { ChapterScope, PlaylistScope, ScopeTimes, Target, VideoScope } from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createChapterScope } from './chapter-scope';
-import { create, createProgress, playMotion } from './dom';
+import { create, createProgress, EASE, isLaidOut, playMotion, prefersLessMotion } from './dom';
 import { createActionItem, createMenu } from './menu';
 import { createPlaylistScope } from './playlist-scope';
-import { speedText, timesText } from './scope-text';
-import { createSettingsMenu } from './settings-menu';
+import { createRollingText } from './roll';
+import { speedText } from './scope-text';
+import { createSettingsMenu, separator } from './settings-menu';
 import { createSpeedTable } from './speed-table';
 import { createTarget, type TargetScope } from './target';
+import { createTimes } from './times';
 import styles from './panel.css?inline';
 
 export interface PanelOptions {
@@ -57,6 +59,12 @@ export interface Panel {
 /** How far − and + change speed, as YouTube's Shift+< and Shift+> do. */
 const SPEED_STEP = 0.25;
 
+/** How long the details take to collapse, in milliseconds. panel.css times the same. */
+const COLLAPSE = 200;
+
+/** Whether the mark in the ⋮ menu's header has had its one sweep in this page session. */
+let markSwept = false;
+
 /**
  * Chrono's Panel. It lives in a shadow root so YouTube's styles and Chrono's styles
  * can't affect each other.
@@ -75,13 +83,13 @@ export function createPanel({
   const style = document.createElement('style');
   style.textContent = styles;
 
-  const remaining = create('span', 'remaining');
-  const finish = create('span', 'finish');
-  const times = create('div', 'times');
-  times.append(remaining, finish);
+  // The row: the answer first, then the controls, as YouTube's description box leads with
+  // its text. Its finish line runs under the controls, so narrow sidebars don't wrap it.
+  const times = createTimes(locale);
 
   let currentSpeed = 1;
   const speedLabel = create('span', 'speed');
+  const speedReadout = createRollingText(speedLabel);
   // − and + are icons, not words; their accessible names are translated.
   const slower = speedButton(MINUS, 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
   const faster = speedButton(PLUS, 'faster', () => setSpeed(currentSpeed + SPEED_STEP));
@@ -92,13 +100,18 @@ export function createPanel({
   details.id = 'details';
   details.setAttribute('role', 'region');
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
+  const detailsFrame = create('div', 'details-frame');
+  detailsFrame.append(details);
   const videoTarget = createTarget('video', locale, (target) => setTarget('video', target), setSpeed);
   const videoTable = createSpeedTable(locale, setSpeed);
+  const videoSection = create('div', 'scope');
+  videoSection.dataset.scope = 'video';
+  videoSection.append(videoTarget.element, videoTable.element);
   const chapterView = createChapterScope(locale, setSpeed, (target) => setTarget('chapter', target));
   const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTargetEntry, (target) =>
     setTarget('playlist', target),
   );
-  details.append(videoTarget.element, videoTable.element, chapterView.element, playlistView.element);
+  details.append(videoSection, chapterView.element, playlistView.element);
 
   const toggle = create('button', 'icon-button toggle');
   toggle.type = 'button';
@@ -106,24 +119,14 @@ export function createPanel({
   toggle.setAttribute('aria-controls', details.id);
   toggle.append(createIcon(CHEVRON));
 
-  // The whole row expands and collapses, like YouTube's description box. The toggle
-  // button is what keyboards and screen readers use.
-  const progress = createProgress();
-  const row = create('div', 'row');
-  row.append(times, speedControls, toggle, progress.element);
-  row.addEventListener('click', () => {
-    settings = { ...settings, panelStartsExpanded: !settings.panelStartsExpanded };
-    render();
-    changeSetting('panelStartsExpanded', settings.panelStartsExpanded);
-  });
-
-  const title = create('span', 'title');
-  title.append(createIcon(MARK));
-  title.append(browser.i18n.getMessage('extShortName'));
   const menu = createMenu('menu', browser.i18n.getMessage('moreActions'));
+  menu.button.classList.add('menu-button');
+  const header = create('div', 'menu-header');
+  // The brand appears here once; the menu itself is named for what it holds.
+  header.setAttribute('aria-hidden', 'true');
+  const mark = createIcon(MARK);
+  header.append(mark, browser.i18n.getMessage('extShortName'));
   const settingsMenu = createSettingsMenu(changeSetting);
-  const separator = create('div', 'menu-separator');
-  separator.setAttribute('role', 'separator');
   const links = OUTWARD_LINKS.map(({ link, label }) =>
     createActionItem(
       browser.i18n.getMessage(label),
@@ -134,12 +137,25 @@ export function createPanel({
       LINK_ICONS[link],
     ),
   );
-  menu.popup.append(...settingsMenu.elements, separator, ...links);
-  const header = create('div', 'header');
-  header.append(title, menu.button, menu.popup);
+  menu.popup.append(header, separator(), ...settingsMenu.elements, separator(), ...links);
+  menu.onOpen(() => {
+    if (markSwept) return;
+    markSwept = sweepMark(mark);
+  });
+
+  // The whole row expands and collapses, like YouTube's description box. The toggle
+  // button is what keyboards and screen readers use.
+  const progress = createProgress();
+  const row = create('div', 'row');
+  row.append(times.element, speedControls, toggle, menu.button, progress.element);
+  row.addEventListener('click', () => {
+    settings = { ...settings, panelStartsExpanded: !settings.panelStartsExpanded };
+    render({ animate: true });
+    changeSetting('panelStartsExpanded', settings.panelStartsExpanded);
+  });
 
   const panel = create('div', 'panel');
-  panel.append(header, row, details);
+  panel.append(row, detailsFrame, menu.popup);
   element.attachShadow({ mode: 'open' }).append(style, panel);
 
   /** The Video scope's latest times, for the details to show when they're expanded. */
@@ -148,30 +164,79 @@ export function createPanel({
   let chapter: { scope: ChapterScope; now: Date } | undefined;
   /** The Playlist scope's latest state, likewise. */
   let shownPlaylist: { scope: PlaylistScope; now: Date } = { scope: { kind: 'none' }, now: new Date() };
+  /**
+   * Whether the details show their scopes. They keep showing them while they collapse, and
+   * are emptied once they have, so Chrono doesn't keep updating what nobody can see.
+   */
+  let detailsShown = false;
+  let collapsing: ReturnType<typeof setTimeout> | undefined;
 
-  function render() {
-    toggle.setAttribute('aria-expanded', String(settings.panelStartsExpanded));
-    details.hidden = !settings.panelStartsExpanded;
+  function render({ animate = false } = {}) {
+    const expanded = settings.panelStartsExpanded;
+    toggle.setAttribute('aria-expanded', String(expanded));
     settingsMenu.show(settings);
+    clearTimeout(collapsing);
+    collapsing = undefined;
+    const motion = animate && !prefersLessMotion();
+    if (expanded) {
+      const opening = motion && (detailsFrame.hidden || detailsFrame.dataset.open !== 'true');
+      detailsFrame.hidden = false;
+      detailsFrame.inert = false;
+      details.removeAttribute('aria-hidden');
+      detailsShown = true;
+      renderDetails();
+      if (opening) {
+        // The frame grows from nothing to the details' height, and each scope fades and
+        // rises in a moment after the one above it.
+        detailsFrame.dataset.open = 'false';
+        void detailsFrame.offsetHeight;
+        const sections = [...details.children].filter((section) => !(section as HTMLElement).hidden);
+        sections.forEach((section, i) => {
+          playMotion(section, [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], {
+            duration: 150,
+            delay: 60 + i * 30,
+            easing: EASE.decelerate,
+          });
+        });
+      }
+      detailsFrame.dataset.open = 'true';
+    } else if (motion && !detailsFrame.hidden && isLaidOut(detailsFrame)) {
+      // It shrinks away, out of reach while it does.
+      detailsFrame.dataset.open = 'false';
+      detailsFrame.inert = true;
+      details.setAttribute('aria-hidden', 'true');
+      collapsing = setTimeout(finishCollapsing, COLLAPSE);
+    } else {
+      finishCollapsing();
+    }
+  }
+
+  function finishCollapsing() {
+    collapsing = undefined;
+    detailsFrame.dataset.open = 'false';
+    detailsFrame.hidden = true;
+    detailsFrame.inert = false;
+    details.removeAttribute('aria-hidden');
+    detailsShown = false;
     renderDetails();
   }
 
-  // Collapsed details stay empty, so Chrono doesn't keep updating what nobody can see.
   function renderDetails() {
     renderVideoDetails();
     renderPlaylist();
   }
 
   function renderVideoDetails() {
-    const shownVideo = settings.panelStartsExpanded ? videoTimes : undefined;
+    const shownVideo = detailsShown ? videoTimes : undefined;
     videoTarget.show(shownVideo?.times, shownVideo?.now ?? new Date(), settings.clockFormat);
     videoTable.show(shownVideo?.times.speedTable ?? [], shownVideo?.now ?? new Date(), settings.clockFormat);
-    const shownChapter = settings.panelStartsExpanded && settings.showChapterScope ? chapter : undefined;
+    videoSection.hidden = !shownVideo;
+    const shownChapter = detailsShown && settings.showChapterScope ? chapter : undefined;
     chapterView.show(shownChapter?.scope, shownChapter?.now ?? new Date(), settings.clockFormat);
   }
 
   function renderPlaylist() {
-    const showPlaylist = settings.panelStartsExpanded && settings.showPlaylistScope;
+    const showPlaylist = detailsShown && settings.showPlaylistScope;
     playlistView.show(showPlaylist ? shownPlaylist.scope : { kind: 'none' }, shownPlaylist.now, settings.clockFormat);
   }
   render();
@@ -182,18 +247,11 @@ export function createPanel({
       // During an ad or on live content the speed table has nothing to show either.
       videoTimes = scope.kind === 'times' ? { times: scope.times, now } : undefined;
       renderVideoDetails();
-      // Live and ad breaks get their own dot; with no times the progress bar has nothing to show.
+      // Live and ad breaks get their own look; with no times the progress bar has nothing to show.
       panel.dataset.state = scope.kind;
       progress.show(scope.kind === 'times' ? scope.times.progress : undefined);
-      if (scope.kind !== 'times') {
-        remaining.textContent = STATE_TEXT[scope.kind]();
-        finish.textContent = '';
-        return;
-      }
-      const { times } = scope;
-      const text = timesText(times, now, locale, settings.clockFormat);
-      remaining.textContent = text.remaining;
-      finish.textContent = text.finish;
+      if (scope.kind === 'times') times.show(scope.times, now, settings.clockFormat, true);
+      else times.showState(STATE_TEXT[scope.kind]());
     },
     showPlaylist(scope, now) {
       shownPlaylist = { scope, now };
@@ -210,26 +268,13 @@ export function createPanel({
       chapterView.setEnabled(speed !== undefined);
       playlistView.setEnabled(speed !== undefined);
       if (speed === undefined) return;
-      const text = speedText(speed, locale);
-      // A new speed rolls in, and the times it changes settle after it.
-      if (speedLabel.textContent && speedLabel.textContent !== text) {
-        const up = speed > currentSpeed;
-        playMotion(speedLabel, [
-          { transform: `translateY(${up ? 60 : -60}%)`, opacity: 0 },
-          { transform: 'none', opacity: 1 },
-        ]);
-        playMotion(times, [{ opacity: 0.35, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], 320);
-        playMotion(title.querySelector('.mark-hand'), [
-          { transform: `rotate(${up ? 90 : -90}deg)` },
-          { transform: 'none' },
-        ], 500);
-      }
+      // A new speed rolls in: up when it's faster, down when it's slower.
+      speedReadout.set(speedText(speed, locale), speed > currentSpeed ? 1 : -1);
       currentSpeed = speed;
-      speedLabel.textContent = text;
     },
     setSettings(value) {
       settings = value;
-      render();
+      render({ animate: true });
     },
     setTheme(theme) {
       element.dataset.theme = theme;
@@ -259,4 +304,22 @@ function speedButton(icon: string, label: 'slower' | 'faster', onClick: () => vo
     onClick();
   });
   return button;
+}
+
+/**
+ * Chrono's one brand moment: the playhead travels once round the mark's ring, drawing it,
+ * to where it rests. Returns whether it played.
+ */
+function sweepMark(mark: SVGSVGElement): boolean {
+  const ring = mark.querySelector<SVGPathElement>('.mark-ring');
+  const playhead = mark.querySelector<SVGCircleElement>('.mark-playhead');
+  if (!ring || !playhead) return false;
+  // The ring runs 300° clockwise from twelve; the playhead sits at its end.
+  ring.setAttribute('pathLength', '1');
+  ring.style.strokeDasharray = '1 1';
+  playhead.style.transformOrigin = '12px 12px';
+  const options = { duration: 900, easing: EASE.decelerate, delay: 100 };
+  const drawn = playMotion(ring, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], options);
+  const moved = playMotion(playhead, [{ transform: 'rotate(-300deg)' }, { transform: 'none' }], options);
+  return drawn !== undefined || moved !== undefined;
 }

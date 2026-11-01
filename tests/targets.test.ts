@@ -136,7 +136,7 @@ describe('Targets', () => {
 
       expect(page.player.speed).toBe(1);
       // Within the 13 minutes the viewer has.
-      queryPanel()!.getByText('12:30 left at 1×');
+      queryPanel()!.getByText('12:30 left');
     });
 
     it("applies the required speed, rounded up to 0.05×, through YouTube's player", async () => {
@@ -148,7 +148,7 @@ describe('Targets', () => {
 
       expect(page.player.speed).toBe(1.15);
       // Close to the 11 minutes the viewer has.
-      queryPanel()!.getByText('10:53 left at 1.15×');
+      queryPanel()!.getByText('10:53 left');
     });
 
     it('meets a finish time once applied', async () => {
@@ -159,7 +159,7 @@ describe('Targets', () => {
 
       expect(page.player.speed).toBe(1.25);
       // 600 s from 3:00 PM.
-      queryPanel()!.getByText('10:00 left at 1.25×');
+      queryPanel()!.getByText('10:00 left');
     });
 
     it("explains a required speed beyond YouTube's 2× limit, with nothing to apply", async () => {
@@ -530,7 +530,7 @@ describe('Targets', () => {
       chooseKind('Video target', 'Done by');
 
       // The video ends at 07:12:30.
-      expect(queryPanel()!.getAllByText('ends 07:12').length).toBeGreaterThan(0);
+      queryPanel()!.getByText('Ends 07:12 · at 1×');
       expect(fieldValues('Video target')).toEqual({ Hour: '07', Minute: '13' });
     });
 

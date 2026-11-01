@@ -1,35 +1,37 @@
 /*
- * Never use YouTube's CSS variables: they are obfuscated and change without notice.
- * The neutrals are Chrono's own copies of YouTube's light and dark palettes, measured from
- * youtube.com in Oct 2026, so the Panel sits in the sidebar like YouTube's own panels.
- * The rest is Chrono's dawn palette: night indigo, rose and sunrise amber. The gradient is
- * kept for things that run from start to finish, like progress, and the rose accent for
- * what the viewer can act on. The watch page sets data-theme from YouTube's theme flag.
+ * The Panel in YouTube's own design language (docs/design/ui-spec.md): monochrome, with
+ * YouTube's progress red as the only colour. The tokens are Chrono's copies of YouTube's
+ * measured values. Never read YouTube's CSS variables: they're obfuscated and change with
+ * every build. The watch page sets data-theme from YouTube's theme flag.
  */
 :host {
   --text: rgb(15, 15, 15);
   --text-secondary: rgb(96, 96, 96);
-  --surface: rgba(0, 0, 0, 0.05);
-  --hover: rgba(0, 0, 0, 0.08);
-  --line: rgba(0, 0, 0, 0.08);
+  --text-disabled: rgb(144, 144, 144);
   --menu: rgb(255, 255, 255);
-  --menu-shadow: 0 16px 40px -12px rgba(30, 20, 70, 0.28), 0 2px 6px rgba(30, 20, 70, 0.08);
-  --error: rgb(204, 0, 0);
-  --live: rgb(255, 0, 51);
-  --accent: #c8325a;
-  --on-accent: #fff;
-  --accent-soft: rgba(200, 50, 90, 0.1);
-  --caution: #b45309;
-  --dawn-1: #4f3cc9;
-  --dawn-2: #e2446c;
-  --dawn-3: #ff9f1c;
-  --dawn: linear-gradient(90deg, var(--dawn-1), var(--dawn-2) 62%, var(--dawn-3));
-  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23606060' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --tonal: rgba(0, 0, 0, 0.05);
+  --tonal-hover: rgba(0, 0, 0, 0.1);
+  --outline: rgba(0, 0, 0, 0.1);
+  --panel-outline: rgba(0, 0, 0, 0.2);
+  --inverse: rgb(15, 15, 15);
+  --on-inverse: rgb(255, 255, 255);
+  --inverse-hover: rgb(39, 39, 39);
+  --press: rgba(0, 0, 0, 0.1);
+  --press-inverse: rgba(255, 255, 255, 0.2);
+  --link: rgb(6, 95, 212);
+  --progress: linear-gradient(90deg, rgb(255, 0, 51) 80%, rgb(255, 39, 145));
+  --playhead: rgb(255, 0, 51);
+  --live: rgb(255, 78, 69);
+  --menu-shadow: 0 4px 32px rgba(0, 0, 0, 0.1);
+  --chrono-playhead: var(--playhead);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --spring: linear(0, 0.004 1%, 0.019 2.2%, 0.079 5%, 0.161 7.8%, 0.464 17%, 0.557 20.2%, 0.637 23.5%, 0.706 26.8%, 0.767 30.2%, 0.817 33.8%, 0.860 37.5%, 0.899 42%, 0.929 46.8%, 0.953 52.2%, 0.971 58.5%, 0.991 73.8%, 1);
 
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   color: var(--text);
   font-family: Roboto, Arial, sans-serif;
   font-size: 14px;
@@ -39,20 +41,19 @@
 :host([data-theme='dark']) {
   --text: rgb(241, 241, 241);
   --text-secondary: rgb(170, 170, 170);
-  --surface: rgba(255, 255, 255, 0.08);
-  --hover: rgba(255, 255, 255, 0.12);
-  --line: rgba(255, 255, 255, 0.1);
+  --text-disabled: rgb(113, 113, 113);
   --menu: rgb(40, 40, 40);
-  --menu-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.7);
-  --error: rgb(255, 78, 69);
-  --accent: #ff7e95;
-  --on-accent: #23060f;
-  --accent-soft: rgba(255, 126, 149, 0.14);
-  --caution: #ffb547;
-  --dawn-1: #7c6cff;
-  --dawn-2: #ff5c85;
-  --dawn-3: #ffb547;
-  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aaaaaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
+  --tonal: rgba(255, 255, 255, 0.1);
+  --tonal-hover: rgba(255, 255, 255, 0.2);
+  --outline: rgba(255, 255, 255, 0.2);
+  --panel-outline: rgba(255, 255, 255, 0.2);
+  --inverse: rgb(241, 241, 241);
+  --on-inverse: rgb(15, 15, 15);
+  --inverse-hover: rgb(217, 217, 217);
+  --press: rgba(255, 255, 255, 0.1);
+  --press-inverse: rgba(0, 0, 0, 0.2);
+  --link: rgb(62, 166, 255);
+  --menu-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
 }
 
 /* YouTube leaves no gap between the video and what it moves below it. */
@@ -60,345 +61,209 @@
   margin-top: 12px;
 }
 
-/* The Panel's one entrance: it rises in while the dial's hand sweeps round to now. */
-.panel {
-  position: relative;
-  border-radius: 12px;
-  background: var(--surface);
-  animation: rise-in 0.5s var(--ease-out) both;
+[hidden] {
+  display: none !important;
 }
 
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    translate: 0 6px;
-  }
-}
-
-.mark-hand {
-  transform-box: view-box;
-  transform-origin: 50% 50%;
-}
-
-.title .mark-hand {
-  animation: sweep 1.1s var(--ease-out) 0.15s both;
-}
-
-@keyframes sweep {
-  from {
-    rotate: -300deg;
-  }
-}
-
-/* Header */
-
-.header {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 4px 0 12px;
-}
-
-.title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 18px;
-}
-
-.title .mark {
-  width: 16px;
-  height: 16px;
-  color: var(--text);
-}
-
-.header .icon-button {
-  width: 32px;
-  height: 32px;
-}
-
-/* The ⋮ menu */
-
-.menu {
+.visually-hidden {
   position: absolute;
-  top: calc(100% + 4px);
-  right: 4px;
-  z-index: 2202;
-  min-width: 220px;
-  min-height: 16px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--menu);
-  box-shadow: var(--menu-shadow);
-  transform-origin: top right;
-  transition:
-    opacity 0.16s,
-    scale 0.22s var(--ease-out);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-@starting-style {
-  .menu {
-    opacity: 0;
-    scale: 0.94;
-  }
-}
-
-.menu-heading {
-  padding: 6px 12px 2px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 12px 0 6px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.12s;
-}
-
-.menu-item:hover,
-.menu-item:focus {
-  background: var(--hover);
-  outline: none;
-}
-
-.menu-item[role='menuitem'] {
-  padding-left: 10px;
-}
-
-.menu-item svg {
+svg {
   flex: none;
   width: 20px;
   height: 20px;
 }
 
-.menu-item[role='menuitem'] svg {
-  color: var(--text-secondary);
+:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
 }
 
-.menu-item[role='menuitemradio'] svg,
-.menu-item[role='menuitemcheckbox'] svg {
-  color: var(--accent);
-  visibility: hidden;
+/*
+ * The Panel: an outlined block on the page, like YouTube's engagement panels, whose border
+ * it matches where it sits on top of one. It only fades in.
+ */
+
+.panel {
+  position: relative;
+  container-type: inline-size;
+  border: 1px solid var(--panel-outline);
+  border-radius: 12px;
+  animation: fade-in 200ms var(--ease-standard);
 }
 
-.menu-item[aria-checked='true'] svg {
-  visibility: visible;
-  animation: pop 0.25s var(--ease-spring);
-}
-
-@keyframes pop {
+@keyframes fade-in {
   from {
-    scale: 0.4;
+    opacity: 0;
   }
 }
 
-.menu-separator {
-  margin: 6px 4px;
-  border-top: 1px solid var(--line);
-}
-
-/* The Video scope's row: what's left, when it ends, and the speed */
+/* The row: the remaining, the controls, then the finish line and progress across the width. */
 
 .row {
-  position: relative;
-  display: flex;
+  display: grid;
+  grid-template-areas:
+    'remaining speed toggle menu'
+    'finish finish finish finish'
+    'progress progress progress progress';
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
-  gap: 8px;
-  padding: 0 4px 16px 12px;
-  border-radius: 12px;
+  padding: 8px 8px 12px 16px;
+  border-radius: 11px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 150ms var(--ease-standard);
 }
 
 .row:hover {
-  background: var(--hover);
+  background: var(--tonal);
+  transition-duration: 100ms;
 }
 
-.panel:not([data-state='times']) .row {
-  padding-bottom: 6px;
-}
-
-.times {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 12px;
-  min-width: 0;
+.panel:has(> .details-frame:not([hidden])) .row {
+  border-radius: 11px 11px 0 0;
 }
 
 .row .times {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
+  display: contents;
 }
 
 .remaining {
-  font-weight: 500;
+  position: relative;
   font-variant-numeric: tabular-nums;
 }
 
 .row .remaining {
-  font-family: 'YouTube Sans', Roboto, Arial, sans-serif;
+  grid-area: remaining;
+  min-width: 0;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 28px;
-  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* YouTube's narrowest sidebar leaves a long video's remaining little room beside the controls. */
+@container (max-width: 359px) {
+  .row .remaining {
+    font-size: 18px;
+  }
 }
 
 .finish {
   color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
   font-variant-numeric: tabular-nums;
 }
 
-.row .finish {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.row .finish::before {
-  content: '';
-  width: 14px;
-  height: 14px;
-  background: linear-gradient(135deg, var(--dawn-2), var(--dawn-3));
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E")
-    center / contain no-repeat;
-}
-
-.row .finish:empty::before {
+.finish:empty {
   display: none;
 }
 
-/* Live and ad breaks: a quieter line with a dot, red as YouTube's own Live badge. */
-.panel[data-state='live'] .row .remaining,
-.panel[data-state='ad-break'] .row .remaining {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
+.row .finish {
+  grid-area: finish;
+  margin-top: -4px;
 }
 
-.panel[data-state='live'] .row .remaining::before,
-.panel[data-state='ad-break'] .row .remaining::before {
+/* Live and ad breaks say so quietly. Live keeps YouTube's static red dot; nothing pulses. */
+.panel:not([data-state='times']) .row {
+  padding-bottom: 8px;
+}
+
+.panel[data-state='live'] .row .remaining {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel[data-state='live'] .row .remaining::before {
   content: '';
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--live);
-  animation: pulse 1.8s ease-in-out infinite;
 }
 
-.panel[data-state='ad-break'] .row .remaining::before {
-  background: var(--caution);
+.panel[data-state='ad-break'] .row .remaining {
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
-    scale: 0.75;
-  }
-}
-
-/* Progress: night at the start, the sun at the playhead. */
+/* Progress: YouTube's red, 3px, growing to 5px under the pointer as YouTube's bar does. */
 
 .progress {
-  position: relative;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
+  height: 5px;
+  overflow: hidden;
+  border-radius: 2.5px;
+  background: var(--tonal-hover);
+  transform: scaleY(0.6);
+  transition: transform 150ms var(--ease-standard);
 }
 
 .row .progress {
-  position: absolute;
-  right: 12px;
-  bottom: 7px;
-  left: 12px;
+  grid-area: progress;
+  margin: 10px 8px 0 0;
 }
 
-.progress::before {
+.row:hover .progress {
+  transform: none;
+  transition-duration: 100ms;
+}
+
+.progress-played {
+  width: calc(var(--played, 0) * 100%);
+  height: 100%;
+  background: var(--progress);
+}
+
+/* Buttons. Hover is a tonal wash; press is YouTube's touch feedback, a tint that never scales. */
+
+.icon-button,
+.speed-row,
+.target-apply,
+.menu-item {
+  position: relative;
+}
+
+.icon-button::after,
+.speed-row::after,
+.target-apply::after,
+.menu-item::after {
   content: '';
   position: absolute;
-  inset-block: 0;
-  left: 0;
-  width: calc(var(--progress, 0) * 100%);
+  inset: 0;
   border-radius: inherit;
-  background: var(--dawn);
-  transition: width 0.5s linear;
+  background: var(--press);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease-standard);
 }
 
-.progress::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: calc(var(--progress, 0) * 100%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--dawn-3);
-  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--dawn-3) 70%, transparent);
-  translate: -50% -50%;
-  transition:
-    left 0.5s linear,
-    scale 0.2s var(--ease-spring);
+.target-apply::after {
+  background: var(--press-inverse);
 }
 
-.row:hover .progress::after {
-  scale: 1.35;
-}
-
-/* Speed controls */
-
-.speed-controls {
-  display: flex;
-  align-items: center;
-  padding: 2px;
-  border-radius: 20px;
-  background: var(--surface);
-}
-
-.speed-controls[hidden] {
-  display: none;
-}
-
-.speed-controls .icon-button {
-  width: 32px;
-  height: 32px;
-}
-
-.speed-controls .icon-button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.speed {
-  display: inline-block;
-  min-width: 44px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
+.icon-button:active::after,
+.speed-row:active:not(:disabled)::after,
+.target-apply:active:not(:disabled)::after,
+.menu-item:active::after {
+  opacity: 1;
+  transition-duration: 50ms;
 }
 
 .icon-button {
   display: inline-flex;
-  flex: none;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -406,307 +271,204 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
-  transition:
-    background-color 0.15s,
-    scale 0.15s var(--ease-spring);
+  transition: background-color 150ms var(--ease-standard);
+}
+
+.icon-button svg {
+  width: 24px;
+  height: 24px;
 }
 
 .icon-button:hover {
-  background: var(--hover);
+  background: var(--tonal);
+  transition-duration: 100ms;
 }
 
-.icon-button:active {
-  scale: 0.88;
-}
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.toggle {
+  grid-area: toggle;
 }
 
 .toggle svg {
-  transition: rotate 0.35s var(--ease-spring);
+  transition: transform 200ms var(--ease-standard);
 }
 
 .toggle[aria-expanded='true'] svg {
-  rotate: 180deg;
+  transform: rotate(180deg);
 }
 
-/* Details: they unfold, where the browser can animate to their natural height. */
-
-.details {
-  padding: 0 12px;
-  overflow: clip;
-  overflow-clip-margin: 6px;
-  interpolate-size: allow-keywords;
-  transition:
-    height 0.38s var(--ease-out),
-    opacity 0.3s;
+.menu-button {
+  grid-area: menu;
 }
 
-@starting-style {
-  .details {
-    height: 0;
-    opacity: 0;
-  }
-}
+/* The speed pill: − | readout | +, as YouTube's like and dislike share one pill. */
 
-.details:not(:empty) {
-  padding-bottom: 12px;
-}
-
-/* Speed tables: rows share their columns, so speeds, remainings, bars and finish times line up. */
-
-.speed-table {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  column-gap: 12px;
-  margin: 4px -8px 0;
-}
-
-.speed-row {
-  position: relative;
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
+.speed-controls {
+  display: flex;
+  grid-area: speed;
   align-items: center;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-  transition: background-color 0.15s;
+  height: 36px;
+  margin-right: 4px;
+  border-radius: 18px;
+  background: var(--tonal);
 }
 
-.speed-row > *,
-.speed-row::after {
-  grid-row: 1;
+.speed-controls .icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px 0 0 18px;
 }
 
-/* Each row's bar: its remaining against the slowest row's, so faster speeds read as shorter. */
-.speed-row::after {
-  content: '';
-  grid-column: 3;
-  justify-self: start;
-  width: calc(var(--share, 0) * 100%);
-  height: 6px;
-  border-radius: 3px;
-  background: var(--hover);
-  transition:
-    width 0.45s var(--ease-out),
-    background-color 0.2s;
+.speed-controls .icon-button:last-child {
+  border-radius: 0 18px 18px 0;
 }
 
-@starting-style {
-  .speed-row::after {
-    width: 0;
-  }
+.speed-controls .icon-button svg {
+  width: 20px;
+  height: 20px;
 }
 
-.speed-row:nth-child(2)::after {
-  transition-delay: 40ms;
-}
-
-.speed-row:nth-child(3)::after {
-  transition-delay: 80ms;
-}
-
-.speed-row:nth-child(4)::after {
-  transition-delay: 120ms;
-}
-
-.speed-row:nth-child(5)::after {
-  transition-delay: 160ms;
-}
-
-.speed-row:nth-child(n + 6)::after {
-  transition-delay: 200ms;
-}
-
-.speed-row:hover:not(:disabled) {
-  background: var(--hover);
-}
-
-.speed-row:hover:not(:disabled)::after {
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
-}
-
-.speed-row:disabled {
+/* Hairlines divide the readout from − and +. */
+.speed {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 44px;
+  padding: 0 6px;
+  background:
+    linear-gradient(var(--outline), var(--outline)) left center / 1px 20px no-repeat,
+    linear-gradient(var(--outline), var(--outline)) right center / 1px 20px no-repeat;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
   cursor: default;
 }
 
-.speed-row[aria-pressed='true'] {
-  background: var(--accent-soft);
+/*
+ * Rolling text: while the speed changes, the real text turns transparent under a copy
+ * whose changed characters roll. Only the roll's own lines clip, so wide text isn't cut.
+ */
+.rolling {
+  -webkit-text-fill-color: transparent;
 }
 
-.speed-row[aria-pressed='true']::after {
-  background: var(--dawn);
+.roll {
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  -webkit-text-fill-color: currentColor;
+  white-space: pre;
+  pointer-events: none;
 }
 
-.speed-row-speed {
-  grid-column: 1;
-  min-width: 40px;
-  font-variant-numeric: tabular-nums;
+.roll-slot {
+  position: relative;
+  display: inline-block;
+  clip-path: inset(0 -100vw);
 }
 
-.speed-row[aria-pressed='true'] .speed-row-speed {
-  color: var(--accent);
-  font-weight: 600;
+.roll-slot > span {
+  display: inline-block;
+  white-space: pre;
 }
 
-.speed-row-remaining {
-  grid-column: 2;
-  font-variant-numeric: tabular-nums;
+.roll-old {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
-.speed-row-finish {
-  grid-column: 4;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  text-align: end;
+/* Details: the frame grows from nothing to their height, and shrinks back faster. */
+
+.details-frame {
+  display: grid;
+  grid-template-rows: 0fr;
+  border-top: 1px solid var(--outline);
+  transition: grid-template-rows 200ms var(--ease-accelerate);
 }
 
-/* A scope other than the Video scope, below the Video scope's speed table. */
+.details-frame[data-open='true'] {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 300ms var(--ease-decelerate);
+}
+
+.details {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Scopes: the Video scope's target and table first, then Chapter and Playlist, each divided off. */
 
 .scope {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  padding: 16px 16px 12px;
 }
 
-.scope-label {
+.scope:not([hidden]) ~ .scope {
+  border-top: 1px solid var(--outline);
+}
+
+.scope-heading {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: var(--text-secondary);
-  font-size: 12px;
+  gap: 8px;
+  font-size: 16px;
   font-weight: 500;
-  line-height: 18px;
-}
-
-.scope-label::before {
-  content: '';
-  width: 14px;
-  height: 14px;
-  background: currentColor;
-  mask: var(--scope-icon) center / contain no-repeat;
-}
-
-.scope[data-scope='chapter'] {
-  --scope-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M4 6h9M4 12h16M4 18h12'/%3E%3C/svg%3E");
-}
-
-.scope[data-scope='playlist'] {
-  --scope-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h12M4 12h12M4 18h7'/%3E%3Cpath d='M16 15v6l5-3z' fill='black'/%3E%3C/svg%3E");
+  line-height: 22px;
 }
 
 .scope-title {
   overflow: hidden;
-  margin-top: 2px;
-  font-weight: 500;
+  margin-top: 4px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.scope .times {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
 .scope .remaining {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
 .scope .progress {
-  height: 3px;
-  margin: 8px 0 10px;
-}
-
-.scope .progress::after {
-  width: 6px;
-  height: 6px;
+  margin: 8px 0 4px;
 }
 
 .scope-notes {
-  margin-bottom: 4px;
+  margin-top: 8px;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-/* Targets */
+/* Targets: YouTube's "Sort by" chip for the kind, then tonal fields. */
+
+.target-control,
+.scope .target-row {
+  margin-top: 12px;
+}
+
+.scope[data-scope='video'] .target-control {
+  margin-top: 0;
+}
 
 .target-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 6px 0;
-}
-
-.target {
-  color: var(--text-secondary);
-}
-
-.target-row input,
-.target-row select {
-  width: 64px;
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: inherit;
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
-}
-
-.target-row input {
-  appearance: textfield;
-  text-align: center;
-}
-
-.target-row input::-webkit-inner-spin-button,
-.target-row input::-webkit-outer-spin-button {
-  margin: 0;
-  appearance: none;
-}
-
-.target-row select {
-  width: auto;
-  padding: 0 28px 0 10px;
-  appearance: none;
-  background: var(--surface) var(--select-chevron) right 6px center / 18px no-repeat;
-  cursor: pointer;
-}
-
-.target-row input:hover,
-.target-row select:hover {
-  border-color: var(--hover);
-}
-
-.target-row input:focus,
-.target-row select:focus-visible {
-  border-color: var(--accent);
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-/* The browser's own list of options follows the Panel's theme. */
-.target-row select option {
-  background: var(--menu);
-  color: var(--text);
-}
-
-/* A scope's target sits between its times and its speed table. */
-.target-control {
-  margin: 6px 0;
 }
 
 .target-control .target-row {
-  flex-wrap: wrap;
-  margin: 0;
+  margin-top: 0;
+}
+
+.field-label,
+.target-unit {
+  color: var(--text-secondary);
 }
 
 .target-fields {
@@ -715,66 +477,109 @@
   gap: 4px;
 }
 
-.target-fields input {
+.chip-select,
+.field-select {
+  position: relative;
+  display: inline-flex;
+}
+
+.chip-select svg,
+.field-select svg {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  pointer-events: none;
+}
+
+select,
+input {
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: var(--tonal);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 150ms var(--ease-standard),
+    box-shadow 150ms var(--ease-standard);
+}
+
+select {
+  padding: 0 30px 0 12px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.chip-select select {
+  font-weight: 500;
+}
+
+.field-select select {
+  padding-left: 8px;
+}
+
+select:hover,
+input:hover {
+  background: var(--tonal-hover);
+  transition-duration: 100ms;
+}
+
+/* The browser's own list of options follows the Panel's theme. */
+option {
+  background: var(--menu);
+  color: var(--text);
+}
+
+input {
   width: 48px;
+  padding: 0 4px;
+  appearance: textfield;
+  text-align: center;
+}
+
+input::-webkit-inner-spin-button,
+input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+input:focus,
+select:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--link);
 }
 
 /* A value outside the field's range doesn't change the target, so the field says so. */
-.target-fields input:invalid {
-  border-color: var(--error);
+input:invalid {
+  box-shadow: inset 0 0 0 2px var(--live);
 }
 
-.target-unit {
-  color: var(--text-secondary);
-}
+/* The required speed, with Apply when YouTube can play it, or a worded caution when it can't. */
 
-/* The required speed: rose when YouTube can play it, amber when it can't. */
 .target-result {
-  --tone: var(--accent);
-
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 32px;
   margin-top: 8px;
-  padding: 4px 4px 4px 10px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--tone) 11%, transparent);
-  transition:
-    opacity 0.25s,
-    translate 0.3s var(--ease-out),
-    background-color 0.2s;
+  color: var(--text-secondary);
 }
 
-@starting-style {
-  .target-result {
-    opacity: 0;
-    translate: 0 -4px;
-  }
+.target-result[data-kind='in-range'],
+.target-result[data-kind='applied'] {
+  color: var(--text);
+  font-weight: 500;
 }
 
-.target-result:not([data-kind='in-range']) {
-  --tone: var(--caution);
-}
-
-.target-result::before {
-  content: '';
-  flex: none;
-  width: 18px;
-  height: 18px;
-  background: var(--tone);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M3.5 17a8.5 8.5 0 1 1 17 0'/%3E%3Cpath d='M12 17l4.5-5.5'/%3E%3C/svg%3E")
-    center / contain no-repeat;
+.target-result[data-kind='in-range'] > svg,
+.target-result[data-kind='applied'] > svg {
+  display: none;
 }
 
 .target-message {
   flex: 1;
-  min-height: 32px;
-  align-content: center;
-}
-
-.target-result[data-kind='in-range'] .target-message {
-  font-weight: 500;
+  min-width: 0;
 }
 
 .target-apply {
@@ -782,39 +587,231 @@
   padding: 0 16px;
   border: none;
   border-radius: 16px;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--inverse);
+  color: var(--on-inverse);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition:
-    filter 0.15s,
-    scale 0.15s var(--ease-spring);
+  transition: background-color 150ms var(--ease-standard);
 }
 
 .target-apply:hover:not(:disabled) {
-  filter: brightness(1.08) saturate(1.1);
-}
-
-.target-apply:active:not(:disabled) {
-  scale: 0.95;
+  background: var(--inverse-hover);
+  transition-duration: 100ms;
 }
 
 .target-apply:disabled {
   cursor: default;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
-[hidden] {
-  display: none !important;
+/* Speed tables: 40px rows on shared columns, under one highlight that slides to the current row. */
+
+.speed-table {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  margin: 8px -12px 0;
 }
 
+.speed-highlight {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--tonal);
+  transform: translateY(calc(var(--current, 0) * 40px));
+  transition: transform 300ms var(--spring);
+}
+
+.speed-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  column-gap: 16px;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-standard);
+}
+
+.speed-row:focus-visible {
+  outline-offset: -2px;
+}
+
+.speed-row:hover:not(:disabled, [aria-pressed='true']) {
+  background: var(--tonal);
+  transition-duration: 100ms;
+}
+
+.speed-row:disabled {
+  cursor: default;
+}
+
+.speed-row > span {
+  font-variant-numeric: tabular-nums;
+}
+
+.speed-row-speed {
+  min-width: 40px;
+  font-weight: 500;
+}
+
+.speed-row[aria-pressed='true'] .speed-row-remaining {
+  font-weight: 500;
+}
+
+.speed-row-finish {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: end;
+}
+
+/*
+ * The ⋮ menu, in the top layer. Its place is set from its button; these undo the browser's
+ * centring of popovers. Without popovers it hangs under the button in the Panel.
+ */
+
+.menu {
+  position: fixed;
+  inset: auto;
+  min-width: 240px;
+  max-width: 400px;
+  margin: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+  border: none;
+  border-radius: 12px;
+  background: var(--menu);
+  box-shadow: var(--menu-shadow);
+  color: var(--text);
+  font: inherit;
+  overscroll-behavior: contain;
+}
+
+.menu:not([popover]) {
+  position: absolute;
+  top: 56px;
+  right: 8px;
+  z-index: 2202;
+}
+
+.menu:focus {
+  outline: none;
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 40px;
+  padding: 0 16px;
+  font-weight: 500;
+}
+
+.menu-heading {
+  padding: 8px 16px 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 8px 0;
+  background: var(--outline);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-standard);
+}
+
+.menu-item:hover {
+  background: var(--tonal);
+  transition-duration: 100ms;
+}
+
+.menu-item:focus-visible {
+  outline-offset: -2px;
+}
+
+.menu-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* A choice's check, shown when chosen. */
+.menu-item[role='menuitemradio'] svg {
+  opacity: 0;
+  transition: opacity 150ms var(--ease-standard);
+}
+
+.menu-item[aria-checked='true'] svg {
+  opacity: 1;
+}
+
+/* YouTube's switch: on is the inverse track with its knob across. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--tonal-hover);
+  transition: background-color 150ms var(--ease-standard);
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition:
+    transform 150ms var(--ease-standard),
+    background-color 150ms var(--ease-standard);
+}
+
+.menu-item[aria-checked='true'] .switch {
+  background: var(--inverse);
+}
+
+.menu-item[aria-checked='true'] .switch::before {
+  background: var(--on-inverse);
+  transform: translateX(16px);
+}
+
+/* Less motion: nothing moves or resizes; fades stay short. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
+  .details-frame,
+  .details-frame[data-open='true'],
+  .toggle svg,
+  .progress,
+  .speed-highlight,
+  .switch::before {
     transition-duration: 0s !important;
-    transition-delay: 0s !important;
+  }
+
+  .panel {
+    animation-duration: 100ms;
   }
 }

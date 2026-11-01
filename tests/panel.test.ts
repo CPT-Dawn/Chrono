@@ -23,7 +23,7 @@ describe('Panel shell', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(panel.queryByRole('region', { name: 'Details' })).toBeNull();
 
-    fireEvent.click(panel.getByText('16:40 left at 1×'));
+    fireEvent.click(panel.getByText('16:40 left'));
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     panel.getByRole('region', { name: 'Details' });
@@ -58,10 +58,10 @@ describe('Panel shell', () => {
     const { panel } = await openWatchPage();
 
     const named = [
-      panel.getByRole('button', { name: 'More actions' }),
       panel.getByRole('button', { name: 'Slower' }),
       panel.getByRole('button', { name: 'Faster' }),
       panel.getByRole('button', { name: 'Details' }),
+      panel.getByRole('button', { name: 'More actions' }),
     ];
     expect(panel.getAllByRole('button')).toEqual(named);
     for (const control of named) expect(control.tabIndex).toBe(0);
@@ -75,13 +75,13 @@ describe('Panel shell', () => {
   it("uses YouTube's light colours on a light-theme page", async () => {
     const { panel } = await openWatchPage('watch-delhi');
 
-    expect(textColour(panel.getByText('16:40 left at 1×'))).toBe(LIGHT_TEXT);
+    expect(textColour(panel.getByText('16:40 left'))).toBe(LIGHT_TEXT);
   });
 
   it("uses YouTube's dark colours on a dark-theme page", async () => {
     const { panel } = await openWatchPage('watch-delhi-dark');
 
-    expect(textColour(panel.getByText('16:40 left at 1×'))).toBe(DARK_TEXT);
+    expect(textColour(panel.getByText('16:40 left'))).toBe(DARK_TEXT);
   });
 
   it('follows YouTube when the viewer switches theme', async () => {
@@ -89,11 +89,11 @@ describe('Panel shell', () => {
 
     page.setTheme('dark');
     await settle();
-    expect(textColour(panel.getByText('16:40 left at 1×'))).toBe(DARK_TEXT);
+    expect(textColour(panel.getByText('16:40 left'))).toBe(DARK_TEXT);
 
     page.setTheme('light');
     await settle();
-    expect(textColour(panel.getByText('16:40 left at 1×'))).toBe(LIGHT_TEXT);
+    expect(textColour(panel.getByText('16:40 left'))).toBe(LIGHT_TEXT);
   });
 
   describe('⋮ menu', () => {

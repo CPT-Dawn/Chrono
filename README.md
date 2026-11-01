@@ -6,11 +6,11 @@ Website: [chrono.cptdawn.dev](https://chrono.cptdawn.dev/)
 
 ## What it does
 
-- **Panel**: a collapsible block at the top of YouTube's sidebar, styled like YouTube's own panels. Its compact row shows the video's **remaining** (watch time at your speed, e.g. "12:30 left at 1.5×"), its **finish time**, and speed − / +. Expanded, it shows:
+- **Panel**: a collapsible block at the top of YouTube's sidebar, styled like YouTube's own panels. Its compact row shows the video's **remaining** (watch time at your speed, e.g. "12:30 left"), its **finish time** ("Ends 3:45 PM · at 1.5×"), and speed − / +. Expanded, it shows:
   - the **speed table**: the remaining and finish time at each common speed;
   - the **Chapter scope** and the **Playlist scope**;
   - **targets**: set a finish time to meet or the watch time you have, and Chrono shows the **required speed**.
-- **Player badge** (optional): "· ends 3:45 PM" after the player's own time display, visible in fullscreen too.
+- **Player badge** (optional): "/ ends 3:45 PM" after the player's own time display, visible in fullscreen too.
 - **Playlist summary**: one line on playlist pages, e.g. "4h 12m total · 2h 48m at 1.5× · 3 unavailable".
 - **Speed sync**: Chrono's speed and YouTube's speed are always the same.
 - Chrono follows YouTube's light or dark theme, and pauses its calculations during an **ad break**.

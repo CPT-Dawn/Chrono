@@ -23,13 +23,13 @@ describe('Settings', () => {
   describe('Clock format', () => {
     it('changed in the popup, changes the finish time in an open Panel without a reload', async () => {
       const { panel } = await openWatchPage();
-      panel.getByText('ends 3:12 PM');
+      panel.getByText('Ends 3:12 PM · at 1×');
       const popup = await openPopup();
 
       fireEvent.click(popup.getByRole('radio', { name: '24-hour' }));
       await settle();
 
-      panel.getByText('ends 15:12');
+      panel.getByText('Ends 15:12 · at 1×');
     });
 
     it("starts on Automatic, which follows a 12-hour locale's convention", async () => {
@@ -38,7 +38,7 @@ describe('Settings', () => {
 
       const { panel } = await openWatchPage();
 
-      panel.getByText('ends 3:12 PM');
+      panel.getByText('Ends 3:12 PM · at 1×');
     });
 
     it("follows a 24-hour locale's convention on Automatic", async () => {
@@ -46,7 +46,7 @@ describe('Settings', () => {
 
       const { panel } = await openWatchPage();
 
-      panel.getByText('ends 15:12');
+      panel.getByText('Ends 15:12 · at 1×');
     });
 
     it('writes 12-hour times when chosen, even in a 24-hour locale', async () => {
@@ -57,7 +57,7 @@ describe('Settings', () => {
       fireEvent.click(popup.getByRole('radio', { name: '12-hour' }));
       await settle();
 
-      panel.getByText(/^ends 3:12\s?pm$/i);
+      panel.getByText(/^Ends 3:12\s?pm · at 1×$/i);
     });
 
     it('is remembered for the next watch page', async () => {
@@ -67,7 +67,7 @@ describe('Settings', () => {
 
       const { panel } = await openWatchPage();
 
-      panel.getByText('ends 15:12');
+      panel.getByText('Ends 15:12 · at 1×');
     });
 
     it("ignores Chrono 2's 24-hour setting", async () => {
@@ -75,7 +75,7 @@ describe('Settings', () => {
 
       const { panel } = await openWatchPage();
 
-      panel.getByText('ends 3:12 PM');
+      panel.getByText('Ends 3:12 PM · at 1×');
       const popup = await openPopup();
       expect(popup.getByRole<HTMLInputElement>('radio', { name: 'Automatic' }).checked).toBe(true);
     });
@@ -186,7 +186,7 @@ describe('Settings', () => {
       fireEvent.click(menu.getByRole('menuitemradio', { name: '24-hour' }));
       await settle();
 
-      panel.getByText('ends 15:12');
+      panel.getByText('Ends 15:12 · at 1×');
       expect(isChecked(menu.getByRole('menuitemradio', { name: '24-hour' }))).toBe(true);
       expect(isChecked(menu.getByRole('menuitemradio', { name: 'Automatic' }))).toBe(false);
       expect(popup.getByRole<HTMLInputElement>('radio', { name: '24-hour' }).checked).toBe(true);

@@ -51,7 +51,7 @@ describe('Watch-page lifecycle', () => {
 
     setTabVisibility('visible');
     await settle();
-    queryPanel()!.getByText('16:40 left at 1×');
+    queryPanel()!.getByText('16:40 left');
   });
 
   // YouTube serves live streams and their recordings at /live/<id>, and in Oct 2026 it
@@ -62,7 +62,7 @@ describe('Watch-page lifecycle', () => {
 
     await startChrono();
 
-    queryPanel()!.getByText('16:40 left at 1×');
+    queryPanel()!.getByText('16:40 left');
   });
 
   // The Shorts page also has YouTube's hidden watch page in it, player and sidebar and all.
@@ -90,11 +90,11 @@ describe('Watch-page lifecycle', () => {
     page.video.load({ duration: 1000 });
     page.video.seek(400);
     await settle();
-    queryPanel()!.getByText('10:00 left at 1×');
+    queryPanel()!.getByText('10:00 left');
 
     page.video.play();
     vi.advanceTimersByTime(60_000);
-    queryPanel()!.getByText('9:00 left at 1×');
+    queryPanel()!.getByText('9:00 left');
     expect(replaced.listenerCount).toBe(0);
   });
 
@@ -110,7 +110,7 @@ describe('Watch-page lifecycle', () => {
 
     putBack();
     await settle();
-    queryPanel()!.getByText('16:40 left at 1×');
+    queryPanel()!.getByText('16:40 left');
   });
 
   describe('the clock that moves the finish time on', () => {
@@ -143,7 +143,7 @@ describe('Watch-page lifecycle', () => {
       vi.advanceTimersByTime(5 * 60_000);
 
       setTabVisibility('visible');
-      queryPanel()!.getByText('ends 3:17 PM');
+      queryPanel()!.getByText('Ends 3:17 PM · at 1×');
     });
   });
 
@@ -160,7 +160,7 @@ describe('Watch-page lifecycle', () => {
       expectNoTimes();
 
       next.video.load({ duration: 2000 });
-      queryPanel()!.getByText('33:20 left at 1×');
+      queryPanel()!.getByText('33:20 left');
     });
 
     // What YouTube did in Chrome and Firefox in Oct 2026: it changed the address first,
@@ -180,7 +180,7 @@ describe('Watch-page lifecycle', () => {
       page.video.startLoading();
       page.video.load({ duration: 2000 });
       await finishNavigation();
-      queryPanel()!.getByText('33:20 left at 1×');
+      queryPanel()!.getByText('33:20 left');
     });
 
     // Firefox showed this in Oct 2026: with no event when the address changes, a paused
@@ -207,7 +207,7 @@ describe('Watch-page lifecycle', () => {
 
       page.video.startLoading();
       page.video.load({ duration: 2000 });
-      queryPanel()!.getByText('33:20 left at 1×');
+      queryPanel()!.getByText('33:20 left');
     });
 
     it('keeps showing the times when the address changes but the video stays', async () => {
@@ -218,7 +218,7 @@ describe('Watch-page lifecycle', () => {
 
       await navigate(`${WATCH_URL}&list=PL0123456789`);
 
-      queryPanel()!.getByText('12:30 left at 1×');
+      queryPanel()!.getByText('12:30 left');
     });
   });
 
@@ -243,7 +243,7 @@ describe('Watch-page lifecycle', () => {
       await startChrono();
 
       expect(countPanels()).toBe(1);
-      queryPanel()!.getByText('16:40 left at 1×');
+      queryPanel()!.getByText('16:40 left');
     });
 
     it('and takes it away when the extension is updated or removed', async () => {
@@ -293,7 +293,7 @@ describe('Watch-page lifecycle', () => {
       await startNavigation(WATCH_URL);
       page.movePlayer('watch-page');
       await finishNavigation();
-      queryPanel()!.getByText('11:30 left at 1×');
+      queryPanel()!.getByText('11:30 left');
     });
 
     it("doesn't show the previous video's times on the next watch page the viewer opens", async () => {
@@ -308,7 +308,7 @@ describe('Watch-page lifecycle', () => {
 
       page.video.startLoading();
       page.video.load({ duration: 2000 });
-      queryPanel()!.getByText('33:20 left at 1×');
+      queryPanel()!.getByText('33:20 left');
     });
   });
 });

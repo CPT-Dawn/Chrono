@@ -37,8 +37,8 @@ describe('Speed', () => {
 
     panel.getByText('1.5×');
     // 750 s of content at 1.5× takes 500 s.
-    panel.getByText('8:20 left at 1.5×');
-    panel.getByText('ends 3:08 PM');
+    panel.getByText('8:20 left');
+    panel.getByText('Ends 3:08 PM · at 1.5×');
   });
 
   it("speeds up by 0.25× through YouTube's player, so YouTube's menu shows the same speed", async () => {
@@ -53,8 +53,8 @@ describe('Speed', () => {
     expect(page.player.speed).toBe(1.25);
     panel.getByText('1.25×');
     // 750 s of content at 1.25× takes 600 s.
-    panel.getByText('10:00 left at 1.25×');
-    panel.getByText('ends 3:10 PM');
+    panel.getByText('10:00 left');
+    panel.getByText('Ends 3:10 PM · at 1.25×');
   });
 
   it("slows down by 0.25× and stops at YouTube's slowest speed, 0.25×", async () => {
@@ -115,11 +115,11 @@ describe('Speed', () => {
     const panel = queryPanel()!;
     expect(panel.queryByRole('button', { name: 'Faster' })).toBeNull();
     expect(panel.queryByRole('button', { name: 'Slower' })).toBeNull();
-    panel.getByText('12:30 left at 1×');
+    panel.getByText('12:30 left');
 
     // The video still plays at whatever speed it has.
     page.video.setSpeed(1.5);
-    panel.getByText('8:20 left at 1.5×');
+    panel.getByText('8:20 left');
   });
 
   it("shows the speed controls once YouTube's player has started", async () => {

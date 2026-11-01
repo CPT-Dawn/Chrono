@@ -67,8 +67,8 @@ describe('Ad breaks', () => {
     const panel = queryPanel()!;
     expect(panel.queryByText('Paused for ad')).toBeNull();
     // 834 s left from 3:00:15 PM.
-    panel.getByText('13:54 left at 1×');
-    panel.getByText('ends 3:14 PM');
+    panel.getByText('13:54 left');
+    panel.getByText('Ends 3:14 PM · at 1×');
     expect(await reportedFailures()).toEqual([]);
   });
 
@@ -134,11 +134,11 @@ describe('Ad breaks', () => {
 
     // 834 s left of entry 1, then entries 2–140: 89,848 s as their badges say.
     const playlist = within(queryPanel()!.getByRole('group', { name: 'Playlist' }));
-    playlist.getByText('25:11:22 left at 1×');
+    playlist.getByText('25:11:22 left');
     // 250 s is in the third chapter, which ends at 360 s.
     const chapter = within(queryPanel()!.getByRole('group', { name: 'Chapter' }));
     chapter.getByText('Part 3');
-    chapter.getByText('1:50 left at 1×');
+    chapter.getByText('1:50 left');
     expect(await reportedFailures()).toEqual([]);
   });
 
@@ -183,9 +183,9 @@ describe('Ad breaks', () => {
 
     const panel = queryPanel()!;
     expect(panel.queryByText('Paused for ad')).toBeNull();
-    panel.getByText('12:30 left at 1×');
+    panel.getByText('12:30 left');
     // The ad took 30 seconds, so the video now ends 30 seconds later.
-    panel.getByText('ends 3:13 PM');
+    panel.getByText('Ends 3:13 PM · at 1×');
   });
 
   it('pauses as soon as YouTube starts the ad break, before the ad loads', async () => {
@@ -210,7 +210,7 @@ describe('Ad breaks', () => {
 
       const panel = queryPanel()!;
       expect(panel.queryByText('Paused for ad')).toBeNull();
-      panel.getByText('13:54 left at 1×');
+      panel.getByText('13:54 left');
       expect(await reportedFailures()).toContain('ads');
     });
 
@@ -226,7 +226,7 @@ describe('Ad breaks', () => {
 
       const panel = queryPanel()!;
       expect(panel.queryByText('Paused for ad')).toBeNull();
-      panel.getByText('13:54 left at 1×');
+      panel.getByText('13:54 left');
       expect(await reportedFailures()).toContain('ads');
     });
 
@@ -254,8 +254,8 @@ describe('Ad breaks', () => {
 
     const panel = queryPanel()!;
     expect(panel.queryByText('Paused for ad')).toBeNull();
-    panel.getByText('12:30 left at 1×');
-    panel.getByText('ends 3:12 PM');
+    panel.getByText('12:30 left');
+    panel.getByText('Ends 3:12 PM · at 1×');
   });
 });
 
@@ -343,7 +343,7 @@ describe('Live content', () => {
     await settle();
     let panel = queryPanel()!;
     expect(panel.queryByText('Live')).toBeNull();
-    panel.getByText('12:30 left at 1×');
+    panel.getByText('12:30 left');
 
     await startNavigation(LIVE_URL);
     const next = renderSavedPage('watch-live');

@@ -5,7 +5,8 @@ import { dayPeriodNames, formatClockHour, timeSeparator, usesTwelveHourClock } f
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
 import { MAX_SPEED, MIN_SPEED, type RequiredSpeed, type ScopeTimes, type Target, upcomingClockTime } from '@/time-model';
-import { create, uniqueId } from './dom';
+import { CAUTION, CHEVRON, createIcon } from '@/icons';
+import { create, EASE, playMotion, uniqueId } from './dom';
 import { speedText } from './scope-text';
 
 export interface TargetView {
@@ -42,7 +43,8 @@ export function createTarget(
   const kind = document.createElement('select');
   kind.id = uniqueId('target-kind');
   for (const [value, message] of KINDS) kind.append(option(browser.i18n.getMessage(message), value));
-  const kindLabel = create('label', 'target');
+  // The chip's choice ("Done by") says what it is, so its label is for screen readers.
+  const kindLabel = create('label', 'visually-hidden');
   kindLabel.htmlFor = kind.id;
   kindLabel.textContent = browser.i18n.getMessage('target');
 
@@ -55,7 +57,8 @@ export function createTarget(
   const colon = create('span', 'target-unit');
   colon.textContent = timeSeparator(locale);
   const finishFields = create('span', 'target-fields');
-  finishFields.append(hour, colon, minute, period);
+  const periodField = selectField(period, 'field-select');
+  finishFields.append(hour, colon, minute, periodField);
 
   const hours = numberInput('targetHours', 0, 99);
   const minutes = numberInput('targetMinutes', 0, 59);
@@ -63,20 +66,24 @@ export function createTarget(
   watchFields.append(hours, unit('targetHoursUnit'), minutes, unit('targetMinutesUnit'));
 
   const row = create('div', 'target-row');
-  row.append(kindLabel, kind, finishFields, watchFields);
+  row.append(kindLabel, selectField(kind, 'chip-select'), finishFields, watchFields);
 
   const message = create('span', 'target-message');
   const apply = create('button', 'target-apply');
   apply.type = 'button';
   apply.textContent = browser.i18n.getMessage('applySpeed');
   const result = create('div', 'target-result');
-  result.append(message, apply);
+  result.append(createIcon(CAUTION), message, apply);
   element.append(row, result);
 
   /** What the target last showed, which choosing a kind starts from. */
   let shown: { times: ScopeTimes; clockFormat: ClockFormat; twelveHours: boolean } | undefined;
   /** The speed Apply sets. */
   let applySpeed: number | undefined;
+  /** The required speed last shown, which the result goes back to after saying "Applied". */
+  let shownRequired: RequiredSpeed | undefined;
+  /** Ends the moment the result says "Applied", while it does. */
+  let appliedTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** What each kind of target shows, and how it reads and fills its fields. */
   const fieldsOf: { [K in Target['kind']]: KindFields<Extract<Target, { kind: K }>> } = {
@@ -125,7 +132,15 @@ export function createTarget(
     });
   }
   apply.addEventListener('click', () => {
-    if (applySpeed !== undefined) setSpeed(applySpeed);
+    if (applySpeed === undefined) return;
+    setSpeed(applySpeed);
+    // The result says "Applied" for a moment, so the viewer sees their click land.
+    clearTimeout(appliedTimer);
+    appliedTimer = setTimeout(() => {
+      appliedTimer = undefined;
+      showRequired(shownRequired);
+    }, APPLIED_FOR);
+    showRequired(shownRequired);
   });
 
   /** The target the fields describe, or undefined when they don't describe one. */
@@ -146,14 +161,29 @@ export function createTarget(
   }
 
   function showRequired(required: RequiredSpeed | undefined) {
-    applySpeed = required?.kind === 'in-range' ? required.speed : undefined;
-    apply.hidden = applySpeed === undefined;
+    shownRequired = required;
+    const applied = appliedTimer !== undefined && required !== undefined;
+    applySpeed = required?.kind === 'in-range' && !applied ? required.speed : undefined;
+    const showsApply = applySpeed !== undefined;
+    if (showsApply && apply.hidden) {
+      apply.hidden = false;
+      playMotion(apply, [{ opacity: 0, transform: 'scale(0.9)' }, { opacity: 1, transform: 'none' }], {
+        duration: 200,
+        easing: EASE.decelerate,
+      });
+    }
+    apply.hidden = !showsApply;
     if (applySpeed !== undefined) {
       apply.setAttribute('aria-label', browser.i18n.getMessage('applySpeedLabel', speedText(applySpeed, locale)));
     }
-    message.textContent = required ? requiredText(required, locale) : '';
-    // A speed YouTube can play reads as good news; the rest as a caution.
-    result.dataset.kind = required?.kind ?? '';
+    const text = applied ? browser.i18n.getMessage('targetApplied') : required ? requiredText(required, locale) : '';
+    // A new required speed crossfades in; the same one, shown again, stays still.
+    if (message.textContent && text !== message.textContent) {
+      playMotion(message, [{ opacity: 0 }, { opacity: 1 }], { duration: 150, fadeOnly: true });
+    }
+    message.textContent = text;
+    // A speed YouTube can play reads as an answer; the rest as a caution, with its icon.
+    result.dataset.kind = applied ? 'applied' : (required?.kind ?? '');
     result.hidden = !required;
   }
 
@@ -172,7 +202,7 @@ export function createTarget(
       shown = { times, clockFormat, twelveHours };
       hour.min = twelveHours ? '1' : '0';
       hour.max = twelveHours ? '12' : '23';
-      period.hidden = !twelveHours;
+      periodField.hidden = !twelveHours;
       // The target updates several times a second: leave its fields alone while the viewer
       // is using them.
       const root = element.getRootNode() as Document | ShadowRoot;
@@ -184,6 +214,9 @@ export function createTarget(
     },
   };
 }
+
+/** How long the result says "Applied" after the viewer applies its speed, in milliseconds. */
+const APPLIED_FOR = 1200;
 
 /** The kinds of target, in the order the viewer chooses from, with their labels. */
 const KINDS: [Kind, MessageName][] = [
@@ -268,6 +301,13 @@ function option(text: string, value: string): HTMLOptionElement {
   element.value = value;
   element.textContent = text;
   return element;
+}
+
+/** `select` in a wrapper that draws its chevron, styled by `className`. It stays a native list. */
+function selectField(select: HTMLSelectElement, className: string): HTMLElement {
+  const wrapper = create('span', className);
+  wrapper.append(select, createIcon(CHEVRON));
+  return wrapper;
 }
 
 function unit(message: MessageName): HTMLElement {

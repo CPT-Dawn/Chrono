@@ -1,8 +1,9 @@
 // The settings section of the Panel's ⋮ menu. It shows the same settings as the toolbar
-// popup, in the same order, as menu items: a group of choices or an on/off item each.
+// popup, in the same order, as menu items: a group of choices, each with a check when
+// chosen, or an on/off item with a switch.
 // Separators set a group of choices apart from the on/off items around it.
 import { SETTING_CONTROLS, type Settings } from '@/settings';
-import { createCheckItem } from './menu';
+import { createRadioItem, createSwitchItem } from './menu';
 
 export interface SettingsMenu {
   /** The menu's settings items, to add to the menu. */
@@ -30,9 +31,7 @@ export function createSettingsMenu(
       heading.textContent = browser.i18n.getMessage(control.label);
       group.setAttribute('aria-labelledby', heading.id);
       const items = control.choices.map(({ value, label }) => {
-        const item = createCheckItem('menuitemradio', browser.i18n.getMessage(label), () =>
-          changeSetting(control.key, value),
-        );
+        const item = createRadioItem(browser.i18n.getMessage(label), () => changeSetting(control.key, value));
         return { item, value };
       });
       group.append(heading, ...items.map(({ item }) => item));
@@ -42,9 +41,7 @@ export function createSettingsMenu(
       });
     } else {
       let checked = false;
-      const item = createCheckItem('menuitemcheckbox', browser.i18n.getMessage(control.label), () =>
-        changeSetting(control.key, !checked),
-      );
+      const item = createSwitchItem(browser.i18n.getMessage(control.label), () => changeSetting(control.key, !checked));
       elements.push(item);
       showControls.push((settings) => {
         checked = settings[control.key];
@@ -61,7 +58,8 @@ export function createSettingsMenu(
   };
 }
 
-function separator(): HTMLElement {
+/** A divider between groups of menu items. */
+export function separator(): HTMLElement {
   const element = document.createElement('div');
   element.className = 'menu-separator';
   element.setAttribute('role', 'separator');

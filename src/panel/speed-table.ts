@@ -1,7 +1,6 @@
 // A scope's speed table: one row per speed with the scope's remaining and finish time at
 // that speed. The current speed's row is highlighted, and clicking a row asks for its
-// speed. Each row's bar shows how its remaining compares with the slowest row's. Any scope
-// can show one.
+// speed. Any scope can show one.
 import { formatClockTime, formatWatchTime } from '@/format';
 import type { MessageName } from '@/messages';
 import type { ClockFormat } from '@/settings';
@@ -26,6 +25,12 @@ export function createSpeedTable(
   element.className = 'speed-table';
   element.setAttribute('role', 'group');
   element.setAttribute('aria-label', browser.i18n.getMessage(label));
+  // One highlight for the current row, which slides to the next current row rather than
+  // jumping. Rows are all the same height, so its place is the current row's index.
+  const highlight = document.createElement('div');
+  highlight.className = 'speed-highlight';
+  highlight.setAttribute('aria-hidden', 'true');
+  element.append(highlight);
 
   // Rows are kept for as long as their speed is in the table, so one the keyboard is on
   // keeps focus while its times change.
@@ -59,7 +64,6 @@ export function createSpeedTable(
           rows.delete(speed);
         }
       }
-      const longest = Math.max(...tableRows.map((row) => row.remaining));
       const buttons = tableRows.map(({ speed, remaining, finishTime, current }) => {
         let row = rows.get(speed);
         if (!row) {
@@ -69,19 +73,21 @@ export function createSpeedTable(
         const left = formatWatchTime(remaining);
         const clock = formatClockTime(finishTime, now, locale, clockFormat);
         row.remaining.textContent = left;
-        row.finish.textContent = browser.i18n.getMessage('finishTime', clock);
+        // The column needs no "ends": the time alone says it, and the row's name says it in full.
+        row.finish.textContent = clock;
         row.button.setAttribute('aria-label', browser.i18n.getMessage('speedTableRow', [row.speedText, left, clock]));
         row.button.setAttribute('aria-pressed', String(current));
-        // The row's bar compares its remaining with the slowest row's.
-        row.button.style.setProperty('--share', (longest > 0 ? remaining / longest : 0).toFixed(4));
         return row.button;
       });
       // Moving a row would take focus away from it, so only rows new to the table are
-      // inserted; the others keep their place.
+      // inserted; the others keep their place. The highlight comes first, under them all.
       buttons.forEach((button, i) => {
-        const at = element.children[i] ?? null;
+        const at = element.children[i + 1] ?? null;
         if (button !== at) element.insertBefore(button, at);
       });
+      const current = tableRows.findIndex((row) => row.current);
+      highlight.hidden = current < 0;
+      if (current >= 0) highlight.style.setProperty('--current', String(current));
       element.hidden = buttons.length === 0;
     },
     setEnabled(value) {

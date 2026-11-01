@@ -120,7 +120,7 @@ describe('Speed table', () => {
     fireEvent.click(table.getByRole('button', { name: /^1\.5×/ }));
 
     expect(page.player.speed).toBe(1.5);
-    panel.getByText('8:20 left at 1.5×');
+    panel.getByText('8:20 left');
     table.getByRole('button', { name: /^1\.5×/, pressed: true });
   });
 
