@@ -13,6 +13,8 @@ import { openPopup } from './harness/popup';
 import { finishNavigation, navigate, openSavedPage, renderSavedPage, startNavigation } from './harness/youtube';
 
 const WATCH_URL = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
+/** The real ad break in watch-ad.html, before the first video of a playlist. */
+const AD_URL = 'https://www.youtube.com/watch?v=kBdlM6hNDAE&list=PLxCzCOWd7aiFAN6I8CuViBuCdJgiOkT2Y';
 const NEXT_WATCH_URL = 'https://www.youtube.com/watch?v=YE7VzlLtp-4';
 const LIVE_URL = 'https://www.youtube.com/watch?v=56llPN9tS88';
 const UPCOMING_URL = 'https://www.youtube.com/watch?v=UleiRdWFG7o';
@@ -151,7 +153,7 @@ describe('Player badge', () => {
 
   describe('during an ad break', () => {
     it('hides while the ad plays', async () => {
-      const page = openSavedPage('watch-ad', WATCH_URL);
+      const page = openSavedPage('watch-ad', AD_URL);
       page.video.load({ duration: 15 });
       page.video.play();
       await startChrono();
