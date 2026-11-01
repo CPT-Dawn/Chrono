@@ -14,9 +14,12 @@ export default defineConfig({
       browser_specific_settings: {
         gecko: {
           id: 'chrono@cptdawn.dev',
-          strict_min_version: '128.0',
+          // 140 is the first Firefox that knows data_collection_permissions.
+          strict_min_version: '140.0',
           data_collection_permissions: { required: ['none'] },
         },
+        // Firefox for Android learnt data_collection_permissions in 142.
+        gecko_android: { strict_min_version: '142.0' },
       },
     }),
   }),
