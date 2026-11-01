@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- The app icon redrawn for 16px, where the master's thin lines blur. The ring is a 2px
+       stroke centred on whole pixels, and the hands are 2px bars on the pixel grid. -->
+  <rect width="16" height="16" rx="3.5" fill="#0f0f0f"/>
+  <path d="M8 3A5 5 0 1 1 4 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+  <rect x="7" y="5" width="2" height="5" rx="1" fill="#fff"/>
+  <rect x="7" y="8" width="4" height="2" rx="1" fill="#fff"/>
+  <circle cx="4" cy="5" r="2" fill="#f03"/>
+</svg>

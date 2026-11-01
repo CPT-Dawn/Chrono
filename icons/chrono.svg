@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Chrono's app icon: the mark (src/icons.ts MARK) in white on a near-black rounded square,
+       its playhead in YouTube's progress red. The 16px icon is drawn separately: chrono-16.svg. -->
+  <rect width="24" height="24" rx="5.5" fill="#0f0f0f"/>
+  <g transform="translate(2.4 2.4) scale(0.8)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+    <path d="M12 3.5A8.5 8.5 0 1 1 4.64 7.75"/>
+    <path d="M12 12V7.6M12 12l3.2 2"/>
+    <circle cx="4.64" cy="7.75" r="2.6" fill="#f03" stroke="none"/>
+  </g>
+</svg>

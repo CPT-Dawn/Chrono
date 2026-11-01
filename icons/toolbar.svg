@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Firefox's toolbar glyph: the mark alone, in one colour, drawn on a 16px grid like the
+       browser's own toolbar icons. `bun run icons` makes a dark and a light copy. -->
+  <g fill="#5b5b66">
+    <path d="M8 2A6 6 0 1 1 2.8 5" fill="none" stroke="#5b5b66" stroke-width="2" stroke-linecap="round"/>
+    <rect x="7" y="4" width="2" height="6" rx="1"/>
+    <rect x="7" y="8" width="5" height="2" rx="1"/>
+    <circle cx="2.8" cy="5" r="2"/>
+  </g>
+</svg>

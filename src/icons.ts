@@ -1,4 +1,6 @@
-// Chrono's icons, as SVG markup for createIcon. They are decoration: every control that
+// Chrono's icons, as SVG markup for createIcon. They follow YouTube's own icon style: a
+// 24-unit grid, a 2-unit line with round ends, and currentColor, so they sit beside
+// YouTube's icons as if they were part of the set. They are decoration: every control that
 // shows one has a text label or an aria-label of its own.
 import type { OutwardLink } from '@/links';
 
@@ -18,27 +20,28 @@ const line = (d: string) =>
   `<path d="${d}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
 
 /**
- * Chrono's mark: a dial whose arc runs from night to dawn, and a hand reaching into the gap
- * where it ends. The surface it sits on defines --dawn-1, --dawn-2 and --dawn-3.
+ * Chrono's mark: a progress bar wrapped into a clock face. The ring runs clockwise from
+ * twelve to the playhead, a dot in YouTube's progress red, and the hands read the time.
+ * The ring and hands take currentColor; the playhead takes --chrono-playhead, which falls
+ * back to YouTube's red. Its parts have classes so the Panel can animate them.
  */
 export const MARK = svg(
-  '<defs><linearGradient id="chrono-dawn" x1="3" y1="18" x2="21" y2="9" gradientUnits="userSpaceOnUse">' +
-    '<stop offset="0" style="stop-color: var(--dawn-1)"/>' +
-    '<stop offset="0.55" style="stop-color: var(--dawn-2)"/>' +
-    '<stop offset="1" style="stop-color: var(--dawn-3)"/>' +
-    '</linearGradient></defs>' +
-    '<path d="M12 3a9 9 0 1 0 9 9" fill="none" stroke="url(#chrono-dawn)" stroke-width="2.6" stroke-linecap="round"/>' +
-    '<g class="mark-hand"><path d="M12 12l5-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>' +
-    '<circle cx="12" cy="12" r="1.9" fill="currentColor"/></g>',
+  '<path class="mark-ring" d="M12 3.5A8.5 8.5 0 1 1 4.64 7.75" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>' +
+    '<g class="mark-hands" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">' +
+    '<path d="M12 12V7.6"/><path d="M12 12l3.2 2"/></g>' +
+    '<circle class="mark-playhead" cx="4.64" cy="7.75" r="2.6" style="fill: var(--chrono-playhead, #f03)"/>',
   'class="mark"',
 );
 
-export const CHEVRON = svg(line('M7 10l5 5 5-5'));
+/** Expand more, as on YouTube's description box. The Panel rotates it when expanded. */
+export const CHEVRON = svg(line('M6 9l6 6 6-6'));
 
-export const CHECK = svg(line('M5 12.5l4.5 4.5L19 7.5'));
+/** A selected choice. */
+export const CHECK = svg(line('M4.5 12.5l5 5L19.5 7'));
 
+/** More actions: YouTube's vertical ellipsis. */
 export const DOTS = svg(
-  '<circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>',
+  '<circle cx="12" cy="5" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="12" cy="19" r="1.75"/>',
   'fill="currentColor"',
 );
 
@@ -46,9 +49,36 @@ export const MINUS = svg(line('M6 12h12'));
 
 export const PLUS = svg(line('M12 6v12M6 12h12'));
 
+/** A finish time: a clock face. */
+export const CLOCK = svg(line('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z') + line('M12 7v5l3 2'));
+
+/** The Chapter scope: chapter markers, as in YouTube's chapter list. */
+export const CHAPTERS = svg(line('M4 6h10M4 12h16M4 18h12'));
+
+/** The Playlist scope: YouTube's playlist glyph, lines and a play triangle. */
+export const PLAYLIST = svg(
+  line('M4 6h13M4 12h9M4 18h7') + '<path d="M16 14.2v5.6a.6.6 0 0 0 .9.5l4.4-2.8a.6.6 0 0 0 0-1l-4.4-2.8a.6.6 0 0 0-.9.5z" fill="currentColor"/>',
+);
+
+/** A target: a flag on its pole, where the viewer wants to be done. */
+export const TARGET = svg(line('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z') + line('M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z') + '<circle cx="12" cy="12" r="1.25" fill="currentColor"/>');
+
+/** Speed: a gauge, as on YouTube's playback speed setting. */
+export const SPEED = svg(line('M4.5 17a8.5 8.5 0 1 1 15 0') + line('M12 14.5l4-5'));
+
+/** A caution: a required speed YouTube can't play, or a target that can't be met. */
+export const CAUTION = svg(line('M12 3.5L2.8 19.5h18.4z') + line('M12 10v4') + '<circle cx="12" cy="17" r="1.1" fill="currentColor"/>');
+
+/** Live, as YouTube marks it: a broadcast dot with waves. */
+export const LIVE = svg(
+  '<circle cx="12" cy="12" r="2.5" fill="currentColor"/>' + line('M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4'),
+);
+
 /** Each outward link's icon: a heart for support, a question for help, a flag for a report. */
 export const LINK_ICONS: Record<OutwardLink, string> = {
-  tip: svg(line('M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z')),
-  help: svg(line('M9.2 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 18h.01') + line('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z')),
-  report: svg(line('M5 21V4M5 4h11l-2 4 2 4H5')),
+  tip: svg(line('M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z')),
+  help: svg(
+    line('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z') + line('M9.4 9.4a2.7 2.7 0 0 1 5.2 1c0 1.8-2.6 2.3-2.6 4') + '<circle cx="12" cy="17.2" r="1.1" fill="currentColor"/>',
+  ),
+  report: svg(line('M5.5 21V4.5M5.5 4.5h11.5l-2.2 4 2.2 4H5.5')),
 };
