@@ -121,6 +121,18 @@ interface PlayerSpeedApi {
 
 const PLAYER = `${WATCH_PAGE} #movie_player`;
 
+// In Chrome, when the viewer left a playing video, YouTube moved its player, API, video
+// and all, into its miniplayer, and moved it back when the viewer expanded it (Oct 2026).
+// Firefox kept the player in the hidden watch page and emptied its video instead. Only
+// the speed, and on a playlist page the playing entry's length, are read from here; every
+// other read stays with the watch page's player.
+const MINIPLAYER_PLAYER = 'ytd-miniplayer #movie_player';
+
+/** YouTube's player while its miniplayer holds it. */
+function miniplayerPlayer(doc: Document): Element | null {
+  return doc.querySelector(MINIPLAYER_PLAYER);
+}
+
 /** Which of YouTube's two players the watch page has: the legacy one or the redesigned (Delhi) one. */
 export type PlayerVariant = 'legacy' | 'delhi';
 
@@ -139,16 +151,24 @@ export function readPlayerVariant(doc: Document): Reading<PlayerVariant> {
   return recognised(variantOf(player));
 }
 
-function readPlayerSpeedApi(doc: Document): Reading<PlayerSpeedApi> {
-  const player = doc.querySelector(PLAYER) as Partial<PlayerSpeedApi> | null;
-  const hasApi = typeof player?.getPlaybackRate === 'function' && typeof player.setPlaybackRate === 'function';
-  return hasApi ? recognised(player as PlayerSpeedApi) : unrecognised('speed');
+function readPlayerSpeedApi(player: Element | null): Reading<PlayerSpeedApi> {
+  const api = player as Partial<PlayerSpeedApi> | null;
+  const hasApi = typeof api?.getPlaybackRate === 'function' && typeof api.setPlaybackRate === 'function';
+  return hasApi ? recognised(api as PlayerSpeedApi) : unrecognised('speed');
 }
 
-/** YouTube's player speed. Works only from the page's own context. */
-export function readPlayerSpeed(doc: Document): Reading<number> {
-  const api = readPlayerSpeedApi(doc);
+/**
+ * YouTube's player speed, from its player in the watch page, or else in its miniplayer.
+ * While the miniplayer's player is in an ad break, its speed is the ad's, not the viewer's,
+ * so there is no speed to read: the value is `undefined`. Works only from the page's own
+ * context.
+ */
+export function readPlayerSpeed(doc: Document): Reading<number | undefined> {
+  const watchPagePlayer = doc.querySelector(PLAYER);
+  const player = watchPagePlayer ?? miniplayerPlayer(doc);
+  const api = readPlayerSpeedApi(player);
   if (!api.recognised) return api;
+  if (!watchPagePlayer && player && isFlaggedAdBreak(player)) return recognised(undefined);
   try {
     const speed = api.value.getPlaybackRate();
     return Number.isFinite(speed) ? recognised(speed) : unrecognised('speed');
@@ -162,7 +182,7 @@ export function readPlayerSpeed(doc: Document): Reading<number> {
  * took it. Works only from the page's own context.
  */
 export function setPlayerSpeed(doc: Document, speed: number): boolean {
-  const api = readPlayerSpeedApi(doc);
+  const api = readPlayerSpeedApi(doc.querySelector(PLAYER));
   if (!api.recognised) return false;
   try {
     api.value.setPlaybackRate(speed);
@@ -174,13 +194,14 @@ export function setPlayerSpeed(doc: Document, speed: number): boolean {
 
 /**
  * Calls `onChange` whenever the player's speed may have changed or its API may have
- * become available. YouTube applies every speed change to its video, whichever control
- * made it, and starts its player before the video loads or plays. Listening on the
- * document catches the video even after YouTube swaps it for another.
+ * become available, in the watch page or the miniplayer. YouTube applies every speed
+ * change to its video, whichever control made it, and starts its player before the video
+ * loads or plays. Listening on the document catches the video even after YouTube swaps it
+ * for another.
  */
 export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: AbortSignal): void {
   const listener = (event: Event) => {
-    if (event.target instanceof Element && event.target.closest(PLAYER)) onChange();
+    if (event.target instanceof Element && event.target.closest(`${PLAYER}, ${MINIPLAYER_PLAYER}`)) onChange();
   };
   for (const type of ['ratechange', 'loadedmetadata', 'playing']) {
     doc.addEventListener(type, listener, { capture: true, signal });
@@ -208,6 +229,14 @@ const AD_BREAK = 'ad-showing';
 const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
 
 /**
+ * Whether a player flags itself as in an ad break, so its video, speed and length are the
+ * ad's. YouTube flags its player so in the miniplayer too.
+ */
+function isFlaggedAdBreak(player: Element): boolean {
+  return player.classList.contains(AD_BREAK);
+}
+
+/**
  * Whether YouTube's player is playing an ad, in the watch page's own video element. An ad
  * break counts only when the player's ads module has rendered the ad: a player flagged as
  * in an ad break without one is markup Chrono doesn't know, and isn't trusted to pause.
@@ -215,7 +244,7 @@ const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
 export function readAdBreak(doc: Document): Reading<boolean> {
   const player = doc.querySelector(PLAYER);
   if (!player) return unrecognised('ads');
-  if (!player.classList.contains(AD_BREAK)) return recognised(false);
+  if (!isFlaggedAdBreak(player)) return recognised(false);
   const ads = player.querySelector(ADS_MODULE);
   return ads && ads.childElementCount > 0 ? recognised(true) : unrecognised('ads');
 }
@@ -596,6 +625,14 @@ const ENTRY_NOW_PLAYING = ':scope yt-thumbnail-view-model badge-shape lottie-com
  */
 const ENTRY_LENGTH_OVERLAY = ':scope ytd-thumbnail ytd-thumbnail-overlay-time-status-renderer';
 const PAGE_ENTRY_LINK = ':scope a[href*="/watch?"]';
+/**
+ * The miniplayer's playlist position, e.g. "38 / 2480", in its info bar, and its player's
+ * Next and Previous buttons, whose links name the playlist. In Nov 2026 the miniplayer
+ * named its own video nowhere in its markup.
+ */
+const MINIPLAYER_POSITION = 'ytd-miniplayer .ytdMiniplayerInfoBarPlaylistIndex';
+const MINIPLAYER_PLAYLIST_LINK = ':scope :is(a.ytp-next-button, a.ytp-prev-button)[href*="list="]';
+const MINIPLAYER_VIDEO = ':scope video.html5-main-video';
 
 export interface PlaylistPage {
   /** YouTube's stats under the playlist's title, e.g. "Playlist • 412 videos • 3,021 views". */
@@ -622,9 +659,10 @@ export interface PlaylistPage {
 export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistPage> {
   const lengths = new Map<string, number>();
 
-  const readLength = (entry: Element): number | 'unknown' | undefined => {
+  const readLength = (entry: Element, playing: MiniplayerEntry | undefined): number | 'unknown' | undefined => {
     const href = entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href') ?? '';
-    const videoId = new URLSearchParams(href.split('?')[1]).get('v');
+    const params = new URLSearchParams(href.split('?')[1]);
+    const videoId = params.get('v');
     for (const badge of entry.querySelectorAll(ENTRY_BADGES)) {
       const length = parseDuration(badge.textContent?.trim() ?? '');
       if (length === undefined) continue;
@@ -633,7 +671,12 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     }
     const remembered = videoId ? lengths.get(videoId) : undefined;
     if (remembered !== undefined) return remembered;
-    if (entry.querySelector(ENTRY_NOW_PLAYING) || lengthNotDrawn(entry)) return 'unknown';
+    if (entry.querySelector(ENTRY_NOW_PLAYING)) {
+      const isPlaying =
+        playing && params.get('list') === playing.listId && params.get('index') === String(playing.position);
+      return isPlaying ? playing.length : 'unknown';
+    }
+    if (lengthNotDrawn(entry)) return 'unknown';
     return undefined;
   };
 
@@ -651,11 +694,39 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     const empty = list && list.entries.length === 0 && !list.moreToLoad;
     const entryCount = empty ? 0 : shown && readEntryCount(shown.element, shown.parts);
     if (!stats || entryCount === undefined || !list) return unrecognised('summary');
-    const entryLengths = list.entries.map(readLength);
+    const playing = readMiniplayerEntry(doc);
+    const entryLengths = list.entries.map((entry) => readLength(entry, playing));
     // Stats that count fewer entries than the list has aren't the stats Chrono knows.
     if (entryCount < entryLengths.length) return unrecognised('summary');
     return recognised({ stats, entryCount, entryLengths, moreToLoad: list.moreToLoad });
   };
+}
+
+interface MiniplayerEntry {
+  /** The playlist the miniplayer is playing. */
+  listId: string;
+  /** Which of the playlist's entries it is playing, counting from 1. */
+  position: number;
+  /** The length of the miniplayer's video, in seconds. */
+  length: number;
+}
+
+/**
+ * The playlist entry the miniplayer is playing, with its length, or undefined when the
+ * miniplayer isn't open, plays no playlist or doesn't know the length yet. Never during an
+ * ad break, when the video's length is the ad's.
+ */
+function readMiniplayerEntry(doc: Document): MiniplayerEntry | undefined {
+  const player = miniplayerPlayer(doc);
+  if (!player || isFlaggedAdBreak(player)) return undefined;
+  const href = player.querySelector(MINIPLAYER_PLAYLIST_LINK)?.getAttribute('href') ?? '';
+  const listId = new URLSearchParams(href.split('?')[1]).get('list');
+  const position = /(\d+)\s*\//.exec(doc.querySelector(MINIPLAYER_POSITION)?.textContent ?? '')?.[1];
+  const length = player.querySelector<HTMLVideoElement>(MINIPLAYER_VIDEO)?.duration;
+  if (!listId || position === undefined || length === undefined || !Number.isFinite(length) || length <= 0) {
+    return undefined;
+  }
+  return { listId, position: Number(position), length };
 }
 
 /** Whether the entry has a length overlay that YouTube hasn't drawn a badge in yet. */

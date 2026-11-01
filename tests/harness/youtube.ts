@@ -122,9 +122,11 @@ export function renderSavedPage(
   document.appendChild(document.importNode(saved.documentElement, true));
   if (document.querySelector(PLAYLIST_PAGE)) setPlaylistLayout('wide');
 
-  // Pages other than watch pages have no watch page, or only a hidden one.
-  const player = document.querySelector('ytd-watch-flexy #movie_player');
-  const playerHome = player?.parentElement;
+  // Pages other than watch pages have no watch page, or only a hidden one. A page saved
+  // with the miniplayer open in Chrome has YouTube's player there instead.
+  const watchPagePlayer = document.querySelector('ytd-watch-flexy #movie_player');
+  const player = watchPagePlayer ?? document.querySelector('ytd-miniplayer #movie_player');
+  const playerHome = watchPagePlayer?.parentElement;
   const sidebar = document.querySelector('ytd-watch-flexy #secondary-inner');
   const videoElement = player?.querySelector('video');
   let video = videoElement && new FakeVideo(videoElement);
