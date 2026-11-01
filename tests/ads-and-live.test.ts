@@ -21,14 +21,14 @@ function expectNoTimes(): void {
 }
 
 /**
- * The parts Chrono reports as failed once watch-ad.html's ad has ended, leaving out the
- * chapters. The page holds YouTube's chapter panel only as the empty shell it had during
- * the ad, and the progress bar has the ad's one segment. On youtube.com YouTube fills both
- * in with the video's 8 chapters as the video loads, which a saved page can't show.
+ * The 8 chapters YouTube fills watch-ad.html's video in with once the ad has ended. The page
+ * was saved during the ad, so it holds the chapter list only as an empty shell, and the
+ * progress bar has the ad's one segment. Titles are placeholders.
  */
-async function failuresAfterTheAd(): Promise<string[]> {
-  return (await reportedFailures()).filter((part) => part !== 'chapters');
-}
+const AD_VIDEO_CHAPTERS = [0, 95, 210, 360, 500, 640, 800, 950].map((start, i) => ({
+  title: `Part ${i + 1}`,
+  start,
+}));
 
 describe('Ad breaks', () => {
   beforeEach(() => {
@@ -58,6 +58,7 @@ describe('Ad breaks', () => {
 
     // After the ad, YouTube loads the video into the same element.
     page.endAdBreak();
+    page.loadChapters(AD_VIDEO_CHAPTERS);
     page.video.startLoading();
     page.video.load({ duration: VIDEO_LENGTH });
     page.video.seek(250);
@@ -68,7 +69,31 @@ describe('Ad breaks', () => {
     // 834 s left from 3:00:15 PM.
     panel.getByText('13:54 left at 1×');
     panel.getByText('ends 3:14 PM');
-    expect(await failuresAfterTheAd()).toEqual([]);
+    expect(await reportedFailures()).toEqual([]);
+  });
+
+  it('reports nothing as failed while YouTube has yet to fill in the chapters after the ad', async () => {
+    const page = openSavedPage('watch-ad', AD_URL);
+    page.video.load({ duration: AD_LENGTH });
+    page.video.play();
+    await startChrono();
+    fireEvent.click(queryPanel()!.getByRole('button', { name: 'Details' }));
+    vi.advanceTimersByTime(AD_LENGTH * 1000);
+
+    // The video loads first, with the chapter list still the ad's empty shell.
+    page.endAdBreak();
+    page.video.startLoading();
+    page.video.load({ duration: VIDEO_LENGTH });
+    page.video.seek(250);
+    await settle();
+    expect(queryPanel()!.queryByRole('group', { name: 'Chapter' })).toBeNull();
+    expect(await reportedFailures()).toEqual([]);
+
+    page.loadChapters(AD_VIDEO_CHAPTERS);
+    page.video.seek(251);
+    await settle();
+    within(queryPanel()!.getByRole('group', { name: 'Chapter' })).getByText('Part 3');
+    expect(await reportedFailures()).toEqual([]);
   });
 
   it("leaves YouTube's time display, which shows the ad's own times, as it was", async () => {
@@ -101,6 +126,7 @@ describe('Ad breaks', () => {
 
     vi.advanceTimersByTime((AD_LENGTH - 5) * 1000);
     page.endAdBreak();
+    page.loadChapters(AD_VIDEO_CHAPTERS);
     page.video.startLoading();
     page.video.load({ duration: VIDEO_LENGTH });
     page.video.seek(250);
@@ -109,7 +135,11 @@ describe('Ad breaks', () => {
     // 834 s left of entry 1, then entries 2–140: 89,848 s as their badges say.
     const playlist = within(queryPanel()!.getByRole('group', { name: 'Playlist' }));
     playlist.getByText('25:11:22 left at 1×');
-    expect(await failuresAfterTheAd()).toEqual([]);
+    // 250 s is in the third chapter, which ends at 360 s.
+    const chapter = within(queryPanel()!.getByRole('group', { name: 'Chapter' }));
+    chapter.getByText('Part 3');
+    chapter.getByText('1:50 left at 1×');
+    expect(await reportedFailures()).toEqual([]);
   });
 
   it("stays at the top of the sidebar, above YouTube's own ad slot", async () => {

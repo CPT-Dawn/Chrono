@@ -329,7 +329,10 @@ export interface Chapter {
 // YouTube lists a video's chapters in a panel it keeps beside the video, whichever player
 // it serves: one panel for chapters the creator wrote, another for chapters YouTube made.
 // Its progress bar has a segment per chapter, and one segment for a video without them.
-// All were so on the legacy and Delhi players in Oct 2026.
+// All were so on the legacy and Delhi players in Oct 2026. During an ad break YouTube keeps
+// the panel only as an empty shell, and its progress bar has the ad's one segment, as in a
+// real ad break saved on 1 Nov 2026 (tests/pages/watch-ad.html). It fills both in once the
+// video loads after the ad, so until then the video reads as having no chapters.
 const CHAPTER_LIST = [
   'engagement-panel-macro-markers-description-chapters',
   'engagement-panel-macro-markers-auto-chapters',
@@ -347,16 +350,18 @@ const YOUTUBE = 'https://www.youtube.com/';
  * The chapters of `videoId`, the watch page's video, in order. An empty list for a video
  * without chapters. The list only counts when YouTube's progress bar agrees about how many
  * chapters there are, so a list YouTube hasn't yet replaced after navigating never does.
+ * No list, or a list with nothing in it, is a video without chapters when the progress
+ * bar has one segment.
  */
 export function readChapters(doc: Document, videoId: string): Reading<Chapter[]> {
   const segments = doc.querySelector(PLAYER)?.querySelector(CHAPTER_SEGMENTS);
   if (!segments) return unrecognised('chapters');
   const segmentCount = segments.querySelectorAll(CHAPTER_SEGMENT).length;
-  const list = doc.querySelector(CHAPTER_LIST);
-  if (!list) return segmentCount === 1 ? recognised([]) : unrecognised('chapters');
+  const items = doc.querySelector(CHAPTER_LIST)?.querySelectorAll(CHAPTER_ITEM) ?? [];
+  if (items.length === 0) return segmentCount === 1 ? recognised([]) : unrecognised('chapters');
 
   const chapters: Chapter[] = [];
-  for (const item of list.querySelectorAll(CHAPTER_ITEM)) {
+  for (const item of items) {
     const chapter = readChapter(item, videoId);
     // Each chapter starts after the one before, and the first at the very start.
     const previous = chapters.at(-1);
