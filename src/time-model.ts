@@ -1,6 +1,6 @@
 // Pure time maths. Vocabulary follows GLOSSARY.md: remaining is always watch time.
 
-import type { Chapter, Playlist } from '@/youtube/adapter';
+import type { Chapter, EntryLength, Playlist } from '@/youtube/adapter';
 
 export interface VideoSnapshot {
   /** Playhead position, in seconds of content time. */
@@ -185,11 +185,13 @@ export function playlistScope({ video, playlist, targetEntry, target }: Playlist
   // YouTube doesn't number the entries it hides, so they don't count towards the last number.
   const last = loaded >= total ? lastLoaded : Math.max(lastLoaded, total - hiddenUnavailable);
   const until = Math.min(Math.max(targetEntry ?? last, current), last);
-  const following = entries.slice(playing + 1).filter((entry) => entry.number <= until);
-  const followingLength = following.reduce(
-    (sum, entry) => sum + (typeof entry.duration === 'number' ? entry.duration : 0),
-    0,
+  const following = tallyLengths(
+    entries
+      .slice(playing + 1)
+      .filter((entry) => entry.number <= until)
+      .map((entry) => entry.length),
   );
+  const followingLength = following.contentTime;
   const contentLeft = Math.max(0, video.duration - video.position) + followingLength;
   return {
     kind: 'times',
@@ -200,10 +202,21 @@ export function playlistScope({ video, playlist, targetEntry, target }: Playlist
     partial: until > lastLoaded ? { counted: lastLoaded, total } : undefined,
     // YouTube says only how many entries it hid, not where they are, so the scope counts
     // them when it runs to the end of the playlist.
-    unavailable:
-      following.filter((entry) => entry.duration === undefined).length + (until === last ? hiddenUnavailable : 0),
-    live: following.filter((entry) => entry.duration === 'live').length,
+    unavailable: following.unavailable + (until === last ? hiddenUnavailable : 0),
+    live: following.live,
   };
+}
+
+/** Entry lengths added up: the content time of those that have one, and how many of the others there are of each kind. */
+type LengthTally = { contentTime: number } & Record<Exclude<EntryLength, number>, number>;
+
+function tallyLengths(lengths: EntryLength[]): LengthTally {
+  const tally: LengthTally = { contentTime: 0, live: 0, unavailable: 0, unknown: 0 };
+  for (const length of lengths) {
+    if (typeof length === 'number') tally.contentTime += length;
+    else tally[length] += 1;
+  }
+  return tally;
 }
 
 /** What the Chapter scope shows: the chapter the playhead is in. */
@@ -262,12 +275,8 @@ function scopeTimes(
 export interface PlaylistPageState {
   /** How many entries YouTube says the playlist has, counting any it hides. */
   entryCount: number;
-  /**
-   * The content time of each entry YouTube has loaded: undefined for an unavailable entry,
-   * live for one that is live now, and unknown for an available one whose length Chrono
-   * can't read.
-   */
-  entryLengths: (number | 'live' | 'unknown' | undefined)[];
+  /** The length of each entry YouTube has loaded. */
+  entryLengths: EntryLength[];
   /** Whether YouTube has more entries to load. */
   moreToLoad: boolean;
   /** The viewer's YouTube speed, when Chrono can read it. */
@@ -301,10 +310,7 @@ export interface PlaylistSummary {
  */
 export function summarisePlaylist({ entryCount, entryLengths, moreToLoad, speed }: PlaylistPageState): PlaylistSummary | undefined {
   if (entryCount === 0) return undefined;
-  const lengths = entryLengths.filter((length) => typeof length === 'number');
-  const contentTime = lengths.reduce((sum, length) => sum + length, 0);
-  const unknown = entryLengths.filter((length) => length === 'unknown').length;
-  const live = entryLengths.filter((length) => length === 'live').length;
+  const { contentTime, live, unavailable, unknown } = tallyLengths(entryLengths);
   const loaded = entryLengths.length;
   const loading = moreToLoad && loaded < entryCount;
   const hidden = loading ? 0 : Math.max(0, entryCount - loaded);
@@ -314,7 +320,7 @@ export function summarisePlaylist({ entryCount, entryLengths, moreToLoad, speed 
   return {
     contentTime,
     atSpeed: knownSpeed ? { watchTime: contentTime / speed, speed } : undefined,
-    unavailable: loaded - lengths.length - unknown - live + hidden,
+    unavailable: unavailable + hidden,
     live,
     partial: counted < entryCount ? { counted, of: entryCount, first: unknown === 0 } : undefined,
   };

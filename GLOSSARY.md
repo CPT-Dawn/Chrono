@@ -72,6 +72,10 @@ _Avoid_: Playlist total, playlist duration
 The part of the Playlist summary that says how many of the playlist's entries its total covers, as "38 of 39 counted", when it can't cover them all: YouTube hasn't loaded the rest ("first 100 of 412 counted"), or Chrono can't read some entries' lengths.
 _Avoid_: Partial count, loaded count
 
+**Entry length**:
+What Chrono knows of how long a playlist entry is: its content time; live (a Live entry); unavailable, when YouTube can't play it, as a deleted or private video; or unknown, when YouTube can play it but Chrono can't read its length yet. Only content time adds to a total. Unknown entries are left out of the Counted note's count; live and unavailable ones are named.
+_Avoid_: Duration, entry duration
+
 **Live entry**:
 A playlist entry that is a live stream airing now, so it has no length yet. The Playlist summary and the Playlist scope count it but add nothing to their time for it, and name it as "1 live". It is not unavailable.
 _Avoid_: Live video (when meaning a playlist entry), unavailable

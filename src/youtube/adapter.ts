@@ -416,15 +416,24 @@ export function readMediaSource(video: HTMLVideoElement): string {
 // Every query is scoped to that panel: YouTube keeps other lists of the same videos in the
 // page, such as the playlist page the viewer came from, hidden but complete.
 
+/**
+ * What Chrono knows of a playlist entry's length: its content time in seconds; live when it
+ * is live now and has no length yet; unavailable when YouTube can't play it, as a deleted or
+ * private video; or unknown when YouTube can play it but Chrono can't read how long it is.
+ */
+export type EntryLength = number | 'live' | 'unavailable' | 'unknown';
+
+/** The parameters of a link to a video, e.g. `/watch?v=aircAruvnKk&list=PL1&index=2`. */
+function linkParams(href: string | null | undefined): URLSearchParams {
+  return new URLSearchParams(href?.split('?')[1] ?? '');
+}
+
 /** An entry in a playlist, as YouTube's playlist panel lists it. */
 export interface PlaylistEntry {
   /** The number YouTube shows beside the entry. YouTube doesn't number entries it hides. */
   number: number;
-  /**
-   * The entry's length in seconds of content time, live when it is live now and has no
-   * length yet, or undefined when YouTube can't play it.
-   */
-  duration: number | 'live' | undefined;
+  /** The entry's length. Never unknown: Chrono doesn't recognise a panel whose lengths it can't read. */
+  length: Exclude<EntryLength, 'unknown'>;
   /** Whether this is the entry YouTube is playing. */
   selected: boolean;
   /** The video the entry plays. */
@@ -511,21 +520,21 @@ function readShuffle(panel: Element): boolean | undefined {
  */
 function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
   const read = [...panel.querySelectorAll(PLAYLIST_ENTRIES)].map((entry) => {
-    const href = entry.querySelector(ENTRY_LINK)?.getAttribute('href') ?? '';
     // The thumbnail says how long the entry is, or has a word such as LIVE or UPCOMING
     // when the entry has no fixed length yet, or is marked live and says nothing.
     const timeStatus = [...entry.querySelectorAll(ENTRY_TIME_STATUS)].map((element) => element.textContent?.trim() ?? '');
     const playable = !entry.querySelector(ENTRY_UNPLAYABLE);
     const live = Boolean(entry.querySelector(ENTRY_LIVE));
-    const length = timeStatus.map(parseDuration).find((seconds) => seconds !== undefined);
+    const seconds = timeStatus.map(parseDuration).find((time) => time !== undefined);
+    const length: PlaylistEntry['length'] = !playable ? 'unavailable' : (seconds ?? (live ? 'live' : 'unavailable'));
     return {
       // The playing entry shows ▶ in place of its number.
       number: Number(entry.querySelector(ENTRY_NUMBER)?.textContent?.trim()) || undefined,
-      duration: !playable ? undefined : (length ?? (live ? ('live' as const) : undefined)),
+      length,
       playable,
       hasTimeStatus: timeStatus.some(Boolean) || live,
       selected: entry.hasAttribute('selected'),
-      videoId: new URLSearchParams(href.split('?')[1] ?? '').get('v') ?? undefined,
+      videoId: linkParams(entry.querySelector(ENTRY_LINK)?.getAttribute('href')).get('v') ?? undefined,
     };
   });
   const playable = read.filter((entry) => entry.playable);
@@ -533,17 +542,17 @@ function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
   // means YouTube changed how it shows lengths.
   const lengthsKnown =
     playable.every((entry) => entry.hasTimeStatus) &&
-    (playable.length === 0 || playable.some((entry) => typeof entry.duration === 'number'));
+    (playable.length === 0 || playable.some((entry) => typeof entry.length === 'number'));
   if (!read.some((entry) => entry.selected) || !lengthsKnown) return undefined;
 
   // Entries are numbered one after another, so a missing number follows from its neighbours.
-  return read.map(({ number, duration, selected, videoId }, i) => {
+  return read.map(({ number, length, selected, videoId }, i) => {
     const before = read.slice(0, i).findLastIndex((e) => e.number !== undefined);
     const after = read.findIndex((e, j) => j > i && e.number !== undefined);
     const filled =
       number ??
       (before !== -1 ? read[before]!.number! + (i - before) : after !== -1 ? read[after]!.number! - (after - i) : i + 1);
-    return { number: filled, duration, selected, videoId };
+    return { number: filled, length, selected, videoId };
   });
 }
 
@@ -642,10 +651,7 @@ const ENTRY_LENGTH_OVERLAY = ':scope ytd-thumbnail ytd-thumbnail-overlay-time-st
  * the older list design; its thumbnail is the one the watch page's playlist panel marks
  * is-live-video.
  */
-const PAGE_ENTRY_LIVE = [
-  ':scope ytd-thumbnail[is-live-video]',
-  ':scope yt-thumbnail-view-model badge-shape.ytBadgeShapeThumbnailLive',
-].join(', ');
+const PAGE_ENTRY_LIVE = [ENTRY_LIVE, ':scope yt-thumbnail-view-model badge-shape.ytBadgeShapeThumbnailLive'].join(', ');
 const PAGE_ENTRY_LINK = ':scope a[href*="/watch?"]';
 /**
  * The miniplayer's playlist position, e.g. "38 / 2480", in its info bar, and its player's
@@ -662,12 +668,12 @@ export interface PlaylistPage {
   /** How many entries the stats say the playlist has, counting any YouTube hides. */
   entryCount: number;
   /**
-   * The content time of each entry YouTube has loaded into the list, in seconds, in order.
-   * Undefined for an entry that shows no length, as YouTube shows a deleted or private video,
-   * live for an entry that is live now, and unknown for the entry YouTube is playing, when
-   * Chrono hasn't seen its length, or for an entry whose length badge YouTube hasn't drawn yet.
+   * The length of each entry YouTube has loaded into the list, in order. Unavailable for an
+   * entry that shows no length, as YouTube shows a deleted or private video, and unknown for
+   * the entry YouTube is playing, when Chrono hasn't seen its length, or for an entry whose
+   * length badge YouTube hasn't drawn yet.
    */
-  entryLengths: (number | 'live' | 'unknown' | undefined)[];
+  entryLengths: EntryLength[];
   /** Whether YouTube loads more entries when the viewer scrolls to the end of the list. */
   moreToLoad: boolean;
 }
@@ -681,9 +687,8 @@ export interface PlaylistPage {
 export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistPage> {
   const lengths = new Map<string, number>();
 
-  const readLength = (entry: Element, playing: MiniplayerEntry | undefined): number | 'live' | 'unknown' | undefined => {
-    const href = entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href') ?? '';
-    const params = new URLSearchParams(href.split('?')[1]);
+  const readLength = (entry: Element, playing: MiniplayerEntry | undefined): EntryLength => {
+    const params = linkParams(entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href'));
     const videoId = params.get('v');
     for (const badge of entry.querySelectorAll(ENTRY_BADGES)) {
       const length = parseDuration(badge.textContent?.trim() ?? '');
@@ -694,13 +699,9 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     const remembered = videoId ? lengths.get(videoId) : undefined;
     if (remembered !== undefined) return remembered;
     if (entry.querySelector(PAGE_ENTRY_LIVE)) return 'live';
-    if (entry.querySelector(ENTRY_NOW_PLAYING)) {
-      const isPlaying =
-        playing && params.get('list') === playing.listId && params.get('index') === String(playing.position);
-      return isPlaying ? playing.length : 'unknown';
-    }
+    if (entry.querySelector(ENTRY_NOW_PLAYING)) return playing && linksToEntry(params, playing) ? playing.length : 'unknown';
     if (lengthNotDrawn(entry)) return 'unknown';
-    return undefined;
+    return 'unavailable';
   };
 
   return (doc) => {
@@ -742,14 +743,18 @@ interface MiniplayerEntry {
 function readMiniplayerEntry(doc: Document): MiniplayerEntry | undefined {
   const player = miniplayerPlayer(doc);
   if (!player || isFlaggedAdBreak(player)) return undefined;
-  const href = player.querySelector(MINIPLAYER_PLAYLIST_LINK)?.getAttribute('href') ?? '';
-  const listId = new URLSearchParams(href.split('?')[1]).get('list');
+  const listId = linkParams(player.querySelector(MINIPLAYER_PLAYLIST_LINK)?.getAttribute('href')).get('list');
   const position = /(\d+)\s*\//.exec(doc.querySelector(MINIPLAYER_POSITION)?.textContent ?? '')?.[1];
   const length = player.querySelector<HTMLVideoElement>(MINIPLAYER_VIDEO)?.duration;
   if (!listId || position === undefined || length === undefined || !Number.isFinite(length) || length <= 0) {
     return undefined;
   }
   return { listId, position: Number(position), length };
+}
+
+/** Whether a link with these parameters is to the playlist entry the miniplayer is playing. */
+function linksToEntry(params: URLSearchParams, playing: MiniplayerEntry): boolean {
+  return params.get('list') === playing.listId && params.get('index') === String(playing.position);
 }
 
 /** Whether the entry has a length overlay that YouTube hasn't drawn a badge in yet. */
