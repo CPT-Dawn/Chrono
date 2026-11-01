@@ -41,7 +41,9 @@ export function readPage(location: Location): Page {
 }
 
 // Queries are scoped to the watch page's own element, because YouTube keeps other
-// players (hover previews, the miniplayer) and duplicate ids elsewhere in the page.
+// players (hover previews, the miniplayer) and duplicate ids elsewhere in the page. The one
+// exception is the miniplayer itself (MINIPLAYER_PLAYER, MINIPLAYER_POSITION): away from the
+// watch page, the speed and the playing playlist entry's length are read from it.
 const WATCH_PAGE = 'ytd-watch-flexy';
 
 /** The watch page's main video element. */
@@ -231,8 +233,11 @@ const AD_BREAK = 'ad-showing';
 const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
 
 /**
- * Whether a player flags itself as in an ad break, so its video, speed and length are the
- * ad's. YouTube flags its player so in the miniplayer too.
+ * Whether a player flags itself as in an ad break, so its video, speed and length may be the
+ * ad's. YouTube flags its player so in the miniplayer too. Away from the watch page, the
+ * speed and the miniplayer entry's length trust this flag alone, unlike `readAdBreak`:
+ * skipping a read for nothing costs only a moment of the last speed or an uncounted entry,
+ * while taking an ad's speed or length would show a wrong time.
  */
 function isFlaggedAdBreak(player: Element): boolean {
   return player.classList.contains(AD_BREAK);
@@ -241,7 +246,9 @@ function isFlaggedAdBreak(player: Element): boolean {
 /**
  * Whether YouTube's player is playing an ad, in the watch page's own video element. An ad
  * break counts only when the player's ads module has rendered the ad: a player flagged as
- * in an ad break without one is markup Chrono doesn't know, and isn't trusted to pause.
+ * in an ad break without one is markup Chrono doesn't know, and isn't trusted to pause
+ * Chrono's times, which a flag YouTube stopped clearing would pause for good. The reads
+ * that only need to keep an ad's values out are more cautious (`isFlaggedAdBreak`).
  */
 export function readAdBreak(doc: Document): Reading<boolean> {
   const player = doc.querySelector(PLAYER);
