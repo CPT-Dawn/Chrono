@@ -121,6 +121,17 @@ interface PlayerSpeedApi {
 
 const PLAYER = `${WATCH_PAGE} #movie_player`;
 
+// In Chrome, when the viewer left a playing video, YouTube moved its player, API, video
+// and all, into its miniplayer, and moved it back when the viewer expanded it (Oct 2026).
+// Firefox kept the player in the hidden watch page and emptied its video instead. Only
+// the speed is read from here; every other read stays with the watch page's player.
+const MINIPLAYER_PLAYER = 'ytd-miniplayer #movie_player';
+
+/** YouTube's player while its miniplayer holds it. */
+function miniplayerPlayer(doc: Document): Element | null {
+  return doc.querySelector(MINIPLAYER_PLAYER);
+}
+
 /** Which of YouTube's two players the watch page has: the legacy one or the redesigned (Delhi) one. */
 export type PlayerVariant = 'legacy' | 'delhi';
 
@@ -139,16 +150,24 @@ export function readPlayerVariant(doc: Document): Reading<PlayerVariant> {
   return recognised(variantOf(player));
 }
 
-function readPlayerSpeedApi(doc: Document): Reading<PlayerSpeedApi> {
-  const player = doc.querySelector(PLAYER) as Partial<PlayerSpeedApi> | null;
-  const hasApi = typeof player?.getPlaybackRate === 'function' && typeof player.setPlaybackRate === 'function';
-  return hasApi ? recognised(player as PlayerSpeedApi) : unrecognised('speed');
+function readPlayerSpeedApi(player: Element | null): Reading<PlayerSpeedApi> {
+  const api = player as Partial<PlayerSpeedApi> | null;
+  const hasApi = typeof api?.getPlaybackRate === 'function' && typeof api.setPlaybackRate === 'function';
+  return hasApi ? recognised(api as PlayerSpeedApi) : unrecognised('speed');
 }
 
-/** YouTube's player speed. Works only from the page's own context. */
-export function readPlayerSpeed(doc: Document): Reading<number> {
-  const api = readPlayerSpeedApi(doc);
+/**
+ * YouTube's player speed, from its player in the watch page, or else in its miniplayer.
+ * While the miniplayer's player is in an ad break, its speed is the ad's, not the viewer's,
+ * so there is no speed to read: the value is `undefined`. Works only from the page's own
+ * context.
+ */
+export function readPlayerSpeed(doc: Document): Reading<number | undefined> {
+  const watchPagePlayer = doc.querySelector(PLAYER);
+  const player = watchPagePlayer ?? miniplayerPlayer(doc);
+  const api = readPlayerSpeedApi(player);
   if (!api.recognised) return api;
+  if (!watchPagePlayer && player && isFlaggedAdBreak(player)) return recognised(undefined);
   try {
     const speed = api.value.getPlaybackRate();
     return Number.isFinite(speed) ? recognised(speed) : unrecognised('speed');
@@ -162,7 +181,7 @@ export function readPlayerSpeed(doc: Document): Reading<number> {
  * took it. Works only from the page's own context.
  */
 export function setPlayerSpeed(doc: Document, speed: number): boolean {
-  const api = readPlayerSpeedApi(doc);
+  const api = readPlayerSpeedApi(doc.querySelector(PLAYER));
   if (!api.recognised) return false;
   try {
     api.value.setPlaybackRate(speed);
@@ -174,13 +193,14 @@ export function setPlayerSpeed(doc: Document, speed: number): boolean {
 
 /**
  * Calls `onChange` whenever the player's speed may have changed or its API may have
- * become available. YouTube applies every speed change to its video, whichever control
- * made it, and starts its player before the video loads or plays. Listening on the
- * document catches the video even after YouTube swaps it for another.
+ * become available, in the watch page or the miniplayer. YouTube applies every speed
+ * change to its video, whichever control made it, and starts its player before the video
+ * loads or plays. Listening on the document catches the video even after YouTube swaps it
+ * for another.
  */
 export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: AbortSignal): void {
   const listener = (event: Event) => {
-    if (event.target instanceof Element && event.target.closest(PLAYER)) onChange();
+    if (event.target instanceof Element && event.target.closest(`${PLAYER}, ${MINIPLAYER_PLAYER}`)) onChange();
   };
   for (const type of ['ratechange', 'loadedmetadata', 'playing']) {
     doc.addEventListener(type, listener, { capture: true, signal });
@@ -205,6 +225,14 @@ const AD_BREAK = 'ad-showing';
 const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
 
 /**
+ * Whether a player flags itself as in an ad break, so its video, speed and length are the
+ * ad's. YouTube flags its player so in the miniplayer too.
+ */
+function isFlaggedAdBreak(player: Element): boolean {
+  return player.classList.contains(AD_BREAK);
+}
+
+/**
  * Whether YouTube's player is playing an ad, in the watch page's own video element. An ad
  * break counts only when the player's ads module has rendered the ad: a player flagged as
  * in an ad break without one is markup Chrono doesn't know, and isn't trusted to pause.
@@ -212,7 +240,7 @@ const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
 export function readAdBreak(doc: Document): Reading<boolean> {
   const player = doc.querySelector(PLAYER);
   if (!player) return unrecognised('ads');
-  if (!player.classList.contains(AD_BREAK)) return recognised(false);
+  if (!isFlaggedAdBreak(player)) return recognised(false);
   const ads = player.querySelector(ADS_MODULE);
   return ads && ads.childElementCount > 0 ? recognised(true) : unrecognised('ads');
 }

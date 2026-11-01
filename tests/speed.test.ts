@@ -256,6 +256,56 @@ describe('Speed', () => {
     expect(runningWork()).toEqual(expected);
   });
 
+  describe('after the viewer leaves the watch page and comes back', () => {
+    const PLAYLIST_URL = 'https://www.youtube.com/playlist?list=PL398E6B0278A8F204';
+
+    it('keeps in sync in Chrome, which moves the player into the miniplayer and back', async () => {
+      const page = openSavedPage('watch-delhi', WATCH_URL);
+      page.video.load({ duration: 1000 });
+      page.video.play();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      await startNavigation(PLAYLIST_URL);
+      page.movePlayer('miniplayer');
+      await finishNavigation();
+      // The miniplayer has YouTube's speed menu too.
+      page.player.setSpeed(1.25);
+      await startNavigation(WATCH_URL);
+      page.movePlayer('watch-page');
+      await finishNavigation();
+      const panel = queryPanel()!;
+      panel.getByText('1.25×');
+
+      page.player.setSpeed(1.75);
+      panel.getByText('1.75×');
+      panel.getByRole('button', { name: 'Faster' }).click();
+      expect(page.player.speed).toBe(2);
+    });
+
+    it('keeps in sync in Firefox, which keeps the player in the watch page and empties its video', async () => {
+      const page = openSavedPage('watch-delhi', WATCH_URL);
+      page.video.load({ duration: 1000 });
+      page.video.play();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      await startNavigation(PLAYLIST_URL);
+      page.video.startLoading();
+      await finishNavigation();
+      await startNavigation(WATCH_URL);
+      page.video.load({ duration: 1000 });
+      await finishNavigation();
+      const panel = queryPanel()!;
+      panel.getByText('1.5×');
+
+      page.player.setSpeed(1.75);
+      panel.getByText('1.75×');
+      panel.getByRole('button', { name: 'Faster' }).click();
+      expect(page.player.speed).toBe(2);
+    });
+  });
+
   it('connects to YouTube\'s player when the content script runs first', async () => {
     const page = openSavedPage('watch-delhi', WATCH_URL);
     page.video.load({ duration: 1000 });

@@ -438,6 +438,49 @@ describe('Playlist summary', () => {
     });
   });
 
+  describe("while YouTube's miniplayer holds its player", () => {
+    // In Chrome, YouTube moved its player, API and all, into the miniplayer when the viewer
+    // left a playing video, in Oct 2026. On this saved page the miniplayer plays a video
+    // from another playlist. The first 100 entries are 50:00:40 in all, of 138.
+    const LIKED_URL = 'https://www.youtube.com/playlist?list=LL';
+
+    it("adds the watch time at the speed of YouTube's player in the miniplayer", async () => {
+      const page = openSavedPage('playlist-liked', LIKED_URL);
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('50h 1m total · 33h 20m at 1.5× · first 100 of 138 counted');
+    });
+
+    it('shows no speed while the miniplayer plays an ad, whose speed is not the viewer\'s', async () => {
+      const page = openSavedPage('playlist-liked', LIKED_URL);
+      page.startAdBreak();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('50h 1m total · first 100 of 138 counted');
+    });
+
+    it('keeps the speed it read before an ad starts in the miniplayer', async () => {
+      const page = openSavedPage('playlist-liked', LIKED_URL);
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      page.startAdBreak();
+      page.player.setSpeed(1);
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('50h 1m total · 33h 20m at 1.5× · first 100 of 138 counted');
+    });
+
+    it("doesn't report YouTube's speed as unrecognised", async () => {
+      openSavedPage('playlist-liked', LIKED_URL);
+      await startChrono();
+
+      expect(await reportedFailures()).not.toContain('speed');
+    });
+  });
+
   describe("on a page that mixes YouTube's old and new elements", () => {
     // Each saved page has the stats three times: in the new header's copy for each layout, and
     // in the old header YouTube keeps hidden. It also has YouTube's hidden watch page, with
