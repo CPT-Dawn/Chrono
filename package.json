@@ -19,10 +19,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "postinstall": "wxt prepare",
-    "trim-page": "bun scripts/trim-youtube-page.ts"
+    "trim-page": "bun scripts/trim-youtube-page.ts",
+    "icons": "bun scripts/icons.ts"
   },
   "devDependencies": {
-    "@fontsource-variable/sora": "^5.3.0",
+    "@fontsource/roboto": "^5.3.0",
     "@testing-library/dom": "^10.4.2",
     "@types/node": "^24.19.2",
     "happy-dom": "^21.0.3",

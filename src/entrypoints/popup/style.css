@@ -1,113 +1,146 @@
 /*
- * The popup isn't on YouTube, so it is Chrono's own space: it follows the browser's light or
- * dark preference, sets its name in Sora, and wears the dawn palette the Panel uses for
- * progress and actions. Night indigo, rose and sunrise amber; rose marks what can be acted on.
+ * The popup isn't on YouTube, so it is Chrono's own space, but it speaks YouTube's language:
+ * the page background, Roboto, list rows, switches and chips, and the tokens of the UI spec
+ * (docs/design/ui-spec.md). It follows the browser's light or dark preference.
  */
+
+/* Roboto, as YouTube loads it: Latin, 400, 500 and 700, in woff2 only. */
+@font-face {
+  font-family: Roboto;
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('@fontsource/roboto/files/roboto-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Roboto;
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url('@fontsource/roboto/files/roboto-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Roboto;
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('@fontsource/roboto/files/roboto-latin-700-normal.woff2') format('woff2');
+}
+
 :root {
   --bg: #fff;
-  --text: rgb(15, 15, 15);
-  --text-secondary: #5f5b6b;
-  --surface: #f4f3f8;
-  --surface-hover: #ebe9f2;
-  --track: #e2e0ea;
-  --thumb: #fff;
-  --thumb-shadow: 0 1px 3px rgba(30, 20, 70, 0.22), 0 0 0 0.5px rgba(30, 20, 70, 0.08);
-  --line: rgba(30, 20, 70, 0.08);
-  --accent: #c8325a;
-  --accent-soft: rgba(200, 50, 90, 0.1);
-  --dawn-1: #4f3cc9;
-  --dawn-2: #e2446c;
-  --dawn-3: #ff9f1c;
-  --dawn: linear-gradient(90deg, var(--dawn-1), var(--dawn-2) 62%, var(--dawn-3));
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --text: #0f0f0f;
+  --text-secondary: #606060;
+  --tonal: rgba(0, 0, 0, 0.05);
+  --tonal-hover: rgba(0, 0, 0, 0.1);
+  --outline: rgba(0, 0, 0, 0.1);
+  --inverse: #0f0f0f;
+  --on-inverse: #fff;
+  --inverse-hover: #272727;
+  --press: rgba(0, 0, 0, 0.1);
+  --link: #065fd4;
+  --playhead: #f03;
+  --switch-off: rgba(0, 0, 0, 0.3);
+  --knob-off: #fff;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121118;
-    --text: #f1f0f5;
-    --text-secondary: #a6a2b4;
-    --surface: #1c1a24;
-    --surface-hover: #26232f;
-    --track: #2c2936;
-    --thumb: #45405a;
-    --thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-    --line: rgba(255, 255, 255, 0.08);
-    --accent: #ff7e95;
-    --accent-soft: rgba(255, 126, 149, 0.13);
-    --dawn-1: #7c6cff;
-    --dawn-2: #ff5c85;
-    --dawn-3: #ffb547;
+    --bg: #0f0f0f;
+    --text: #f1f1f1;
+    --text-secondary: #aaa;
+    --tonal: rgba(255, 255, 255, 0.1);
+    --tonal-hover: rgba(255, 255, 255, 0.2);
+    --outline: rgba(255, 255, 255, 0.2);
+    --inverse: #f1f1f1;
+    --on-inverse: #0f0f0f;
+    --inverse-hover: #d9d9d9;
+    --press: rgba(255, 255, 255, 0.1);
+    --link: #3ea6ff;
+    --switch-off: rgba(255, 255, 255, 0.2);
+    --knob-off: #aaa;
 
     color-scheme: dark;
   }
 }
 
 body {
-  width: 340px;
+  width: 360px;
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13px;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 14px;
   line-height: 20px;
+  -webkit-font-smoothing: antialiased;
 }
 
 main {
-  position: relative;
-  padding: 20px 16px 16px;
-  /* First light, just under the horizon. */
-  background: radial-gradient(120% 110px at 30% 0%, color-mix(in srgb, var(--dawn-2) 12%, transparent), transparent);
+  padding: 8px 0;
 }
 
-/* The popup's one entrance: the horizon draws across while the dial's hand sweeps round. */
-.horizon {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 3px;
-  background: var(--dawn);
-  transform-origin: left;
-  animation: draw 0.9s var(--ease-out) both;
-}
-
-@keyframes draw {
-  from {
-    scale: 0 1;
-  }
-}
+/* The header: the app icon, Chrono's name and the note. */
 
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 20px;
+  padding: 12px 16px 16px;
 }
 
-.brand-mark {
+/* The app icon: the mark in white on a near-black rounded square, as in the toolbar. */
+.app-icon {
   display: grid;
   flex: none;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-
-.brand-mark .mark {
   width: 32px;
   height: 32px;
+  border-radius: calc(32px * 5.5 / 24);
+  background: #0f0f0f;
+  color: #fff;
 }
 
-.mark-hand {
+@media (prefers-color-scheme: dark) {
+  /* Near-black on the near-black page: a hairline keeps the square's edge. */
+  .app-icon {
+    box-shadow: inset 0 0 0 1px var(--outline);
+  }
+}
+
+.app-icon .mark {
+  width: 25.6px;
+  height: 25.6px;
+}
+
+/*
+ * The brand moment: once, as the popup opens, the playhead travels round the clock from
+ * twelve to where it rests, and the ring fills in behind it.
+ */
+.app-icon .mark-ring {
+  stroke-dasharray: 1 2;
+  animation: fill-ring 0.9s var(--ease-decelerate) 0.1s both;
+}
+
+.app-icon .mark-playhead {
   transform-box: view-box;
   transform-origin: 50% 50%;
-  animation: sweep 1.2s var(--ease-out) 0.1s both;
+  animation: sweep 0.9s var(--ease-decelerate) 0.1s both;
+}
+
+@keyframes fill-ring {
+  from {
+    stroke-dashoffset: 1;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 @keyframes sweep {
@@ -116,57 +149,93 @@ main {
   }
 }
 
+.brand-text {
+  min-width: 0;
+}
+
 h1 {
   margin: 0;
-  font-family: 'Sora Variable', system-ui, sans-serif;
-  font-size: 22px;
-  font-weight: 650;
-  line-height: 28px;
-  letter-spacing: -0.03em;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
 .note {
-  margin: 2px 0 0;
+  margin: 0;
   color: var(--text-secondary);
   font-size: 12px;
-  line-height: 17px;
+  line-height: 18px;
   text-wrap: pretty;
 }
 
+/* Section headings, as YouTube's menus head a group. */
 h2 {
-  margin: 0 0 8px 4px;
-  font-family: 'Sora Variable', system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
+  margin: 0;
+  padding: 8px 16px 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
 form {
   display: flex;
   flex-direction: column;
-  padding: 4px;
-  border-radius: 16px;
-  background: var(--surface);
 }
 
-label.toggle {
+/* List rows: settings, and the links below them. */
+
+.row {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 40px;
-  padding: 0 10px 0 12px;
-  border-radius: 12px;
+  gap: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color 150ms var(--ease-standard);
 }
 
-label.toggle:hover {
-  background: var(--surface-hover);
+.row:hover {
+  background: var(--tonal);
+  transition-duration: 100ms;
 }
 
-/* Switches */
+/* YouTube's touch feedback: a flat overlay that fades in fast and out slowly. No scaling. */
+.row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--press);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease-standard);
+}
+
+.row:active::after {
+  opacity: 1;
+  transition-duration: 50ms;
+}
+
+.row .label {
+  flex: 1;
+  min-width: 0;
+}
+
+.row:focus-visible,
+.row:has(input:focus-visible) {
+  outline: 2px solid var(--link);
+  outline-offset: -2px;
+}
+
+/* YouTube's switch: on is the inverse track with the knob across. */
 
 .switch {
   position: relative;
@@ -174,18 +243,8 @@ label.toggle:hover {
   width: 36px;
   height: 20px;
   border-radius: 10px;
-  background: var(--track);
-  transition: background-color 0.2s;
-}
-
-.switch::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--dawn);
-  opacity: 0;
-  transition: opacity 0.25s;
+  background: var(--switch-off);
+  transition: background-color 150ms var(--ease-standard);
 }
 
 .switch::after {
@@ -196,172 +255,103 @@ label.toggle:hover {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: var(--knob-off);
   transition:
-    translate 0.3s var(--ease-spring),
-    width 0.15s;
+    translate 150ms var(--ease-standard),
+    background-color 150ms var(--ease-standard);
 }
 
-label.toggle:active .switch::after {
-  width: 20px;
-}
-
-input:checked + .switch::before {
-  opacity: 1;
+input:checked + .switch {
+  background: var(--inverse);
 }
 
 input:checked + .switch::after {
   translate: 16px;
+  background: var(--on-inverse);
 }
 
-label.toggle:active input:checked + .switch::after {
-  translate: 12px;
-}
-
-input:focus-visible + .switch {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* The clock format: a segmented control whose thumb slides to the chosen option. */
+/* The clock format: a row of YouTube's chips under its label. */
 
 fieldset {
-  margin: 4px 0;
-  padding: 6px 8px 8px 12px;
+  margin: 0;
+  padding: 0 16px 12px;
   border: none;
 }
 
 legend {
   float: left;
   width: 100%;
-  margin-bottom: 6px;
-  padding: 0;
+  padding: 14px 0 10px;
 }
 
-.segmented {
-  position: relative;
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-auto-flow: column;
+.chips {
+  display: flex;
   clear: both;
-  padding: 3px;
-  border-radius: 10px;
-  background: var(--track);
+  gap: 8px;
 }
 
-.segmented::before {
-  content: '';
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / var(--count, 3));
-  border-radius: 7px;
-  background: var(--thumb);
-  box-shadow: var(--thumb-shadow);
-  translate: calc(var(--selected, 0) * 100%);
-  transition: translate 0.35s var(--ease-spring);
-}
-
-.segmented label {
+.chip {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 28px;
-  border-radius: 7px;
-  color: var(--text-secondary);
-  font-size: 12px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--tonal);
   font-weight: 500;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.segmented label:has(input:checked) {
-  color: var(--text);
-}
-
-.segmented label:has(input:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-/* Links */
-
-.links {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 10px;
-  border: none;
-  border-radius: 12px;
   white-space: nowrap;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: 500;
   cursor: pointer;
   transition:
-    background-color 0.15s,
-    scale 0.15s var(--ease-spring);
+    background-color 200ms var(--ease-standard),
+    color 200ms var(--ease-standard);
 }
 
-.pill svg {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  transition: scale 0.25s var(--ease-spring);
+.chip:hover {
+  background: var(--tonal-hover);
 }
 
-.pill:hover {
-  background: var(--surface-hover);
+.chip:has(input:checked) {
+  background: var(--inverse);
+  color: var(--on-inverse);
 }
 
-.pill:hover svg {
-  scale: 1.15;
+.chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--press);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease-standard);
 }
 
-.pill:active {
-  scale: 0.96;
+.chip:active::after {
+  opacity: 1;
+  transition-duration: 50ms;
 }
 
-.pill:focus-visible {
-  outline: 2px solid var(--accent);
+.chip:has(input:focus-visible) {
+  outline: 2px solid var(--link);
   outline-offset: 2px;
 }
 
-/* Support is the one link that asks something of the viewer, so it wears the accent. */
-.pill[data-link='tip'] {
-  background: var(--accent-soft);
-  color: var(--accent);
+/* The links: menu rows behind a divider. */
+
+.links {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--outline);
 }
 
-.pill[data-link='tip']:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+.links .row {
+  min-height: 40px;
 }
 
-/* Reporting is for when something's off: quieter, across the whole width. */
-.pill[data-link='report'] {
-  grid-column: 1 / -1;
-  height: 36px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-weight: 400;
-}
-
-.pill[data-link='report']:hover {
-  background: var(--surface);
-  color: var(--text);
+.links svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
 }
 
 .visually-hidden {
@@ -374,11 +364,24 @@ legend {
   white-space: nowrap;
 }
 
+/* Reduced motion: nothing moves, and fades stay short. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation: none !important;
+    transition-duration: 0s !important;
+  }
+
+  .row,
+  .row::after,
+  .chip,
+  .chip::after,
+  .switch {
+    transition-duration: 100ms !important;
+  }
+
+  .switch::after {
     transition-duration: 0s !important;
   }
 }
