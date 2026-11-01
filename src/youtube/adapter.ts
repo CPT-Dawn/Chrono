@@ -579,6 +579,16 @@ const ENTRY_BADGES = ':scope :is(ytd-thumbnail, yt-thumbnail-view-model) badge-s
  * viewer's language, for screen readers.
  */
 const ENTRY_NOW_PLAYING = ':scope yt-thumbnail-view-model badge-shape lottie-component';
+/**
+ * The length overlay on an entry's thumbnail in the older list design. In Oct 2026 YouTube
+ * drew the badge inside it only once the entry neared the screen: on a Watch Later page
+ * loaded without scrolling, the first 8 of 34 entries had their badges, and the others
+ * this overlay, empty. A deleted or private video has no length, so Chrono takes an entry
+ * with no overlay at all as unavailable. (No saved page shows such an entry: YouTube hid
+ * them all, saying only how many.) The entry's title still says its length, but only in
+ * words for screen readers, in the viewer's language, so Chrono doesn't read it there.
+ */
+const ENTRY_LENGTH_OVERLAY = ':scope ytd-thumbnail ytd-thumbnail-overlay-time-status-renderer';
 const PAGE_ENTRY_LINK = ':scope a[href*="/watch?"]';
 
 export interface PlaylistPage {
@@ -589,7 +599,8 @@ export interface PlaylistPage {
   /**
    * The content time of each entry YouTube has loaded into the list, in seconds, in order.
    * Undefined for an entry that shows no length, as YouTube shows a deleted or private video,
-   * and unknown for the entry YouTube is playing, when Chrono hasn't seen its length.
+   * and unknown for the entry YouTube is playing, when Chrono hasn't seen its length, or
+   * for an entry whose length badge YouTube hasn't drawn yet.
    */
   entryLengths: (number | 'unknown' | undefined)[];
   /** Whether YouTube loads more entries when the viewer scrolls to the end of the list. */
@@ -615,8 +626,9 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
       return length;
     }
     const remembered = videoId ? lengths.get(videoId) : undefined;
-    if (remembered === undefined && entry.querySelector(ENTRY_NOW_PLAYING)) return 'unknown';
-    return remembered;
+    if (remembered !== undefined) return remembered;
+    if (entry.querySelector(ENTRY_NOW_PLAYING) || lengthNotDrawn(entry)) return 'unknown';
+    return undefined;
   };
 
   return (doc) => {
@@ -638,6 +650,12 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     if (entryCount < entryLengths.length) return unrecognised('summary');
     return recognised({ stats, entryCount, entryLengths, moreToLoad: list.moreToLoad });
   };
+}
+
+/** Whether the entry has a length overlay that YouTube hasn't drawn a badge in yet. */
+function lengthNotDrawn(entry: Element): boolean {
+  const overlay = entry.querySelector(ENTRY_LENGTH_OVERLAY);
+  return overlay !== null && !overlay.textContent?.trim();
 }
 
 /** The playlist's list, in whichever design YouTube served. */
