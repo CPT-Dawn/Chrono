@@ -418,6 +418,9 @@ const ENTRY_NUMBER = ':scope #index';
 const ENTRY_LINK = ':scope a#wc-endpoint';
 const ENTRY_TIME_STATUS = ':scope ytd-thumbnail-overlay-time-status-renderer :is(badge-shape, #text)';
 const ENTRY_UNPLAYABLE = ':scope #unplayableText:not([hidden])';
+// An entry that is live now. In Nov 2026 YouTube drew one with no time on its thumbnail
+// at all, marking the thumbnail is-live-video and putting a LIVE badge by the channel name.
+const ENTRY_LIVE = ':scope ytd-thumbnail[is-live-video]';
 
 /**
  * The playlist the watch page is playing, or undefined when it isn't playing one. YouTube
@@ -468,7 +471,7 @@ function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
   const read = [...panel.querySelectorAll(PLAYLIST_ENTRIES)].map((entry) => {
     const href = entry.querySelector(ENTRY_LINK)?.getAttribute('href') ?? '';
     // The thumbnail says how long the entry is, or has a word such as LIVE or UPCOMING
-    // when the entry has no fixed length yet.
+    // when the entry has no fixed length yet, or is marked live and says nothing.
     const timeStatus = [...entry.querySelectorAll(ENTRY_TIME_STATUS)].map((element) => element.textContent?.trim() ?? '');
     const playable = !entry.querySelector(ENTRY_UNPLAYABLE);
     return {
@@ -476,7 +479,7 @@ function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
       number: Number(entry.querySelector(ENTRY_NUMBER)?.textContent?.trim()) || undefined,
       duration: playable ? timeStatus.map(parseDuration).find((seconds) => seconds !== undefined) : undefined,
       playable,
-      hasTimeStatus: timeStatus.some(Boolean),
+      hasTimeStatus: timeStatus.some(Boolean) || Boolean(entry.querySelector(ENTRY_LIVE)),
       selected: entry.hasAttribute('selected'),
       videoId: new URLSearchParams(href.split('?')[1] ?? '').get('v') ?? undefined,
     };
