@@ -71,6 +71,12 @@ export interface SavedPage {
   startAdBreak(): void;
   /** YouTube ends the ad break. It hides the ad's overlay rather than removing it. */
   endAdBreak(): void;
+  /**
+   * YouTube fills in its list of the video's chapters, and gives its progress bar a segment
+   * per chapter, as it does once the video loads. During an ad break a watch page holds the
+   * list only as an empty shell, and the progress bar has the ad's one segment.
+   */
+  loadChapters(chapters: { title: string; start: number }[]): void;
   /** YouTube's playlist panel on a watch page in a playlist. */
   readonly playlistPanel: Element;
   /**
@@ -122,9 +128,11 @@ export function renderSavedPage(
   document.appendChild(document.importNode(saved.documentElement, true));
   if (document.querySelector(PLAYLIST_PAGE)) setPlaylistLayout('wide');
 
-  // Pages other than watch pages have no watch page, or only a hidden one.
-  const player = document.querySelector('ytd-watch-flexy #movie_player');
-  const playerHome = player?.parentElement;
+  // Pages other than watch pages have no watch page, or only a hidden one. A page saved
+  // with the miniplayer open in Chrome has YouTube's player there instead.
+  const watchPagePlayer = document.querySelector('ytd-watch-flexy #movie_player');
+  const player = watchPagePlayer ?? document.querySelector('ytd-miniplayer #movie_player');
+  const playerHome = watchPagePlayer?.parentElement;
   const sidebar = document.querySelector('ytd-watch-flexy #secondary-inner');
   const videoElement = player?.querySelector('video');
   let video = videoElement && new FakeVideo(videoElement);
@@ -195,6 +203,15 @@ export function renderSavedPage(
       const playerElement = fromWatchPage(player);
       playerElement.classList.remove('ad-showing', 'ad-interrupting');
       for (const overlay of playerElement.querySelectorAll<HTMLElement>('.video-ads > *')) overlay.style.display = 'none';
+    },
+    loadChapters(chapters) {
+      const videoId = new URLSearchParams(location.search).get('v');
+      const list = required('ytd-watch-flexy #panels > [target-id="engagement-panel-macro-markers-description-chapters"]');
+      list.querySelector(':scope > #content')?.remove();
+      list.insertAdjacentHTML('beforeend', chapterListContent(videoId!, chapters));
+      required('ytd-watch-flexy #movie_player .ytp-chapters-container').innerHTML = chapters
+        .map(() => CHAPTER_SEGMENT)
+        .join('');
     },
     get playlistPanel() {
       return required('ytd-watch-flexy ytd-playlist-panel-renderer#playlist');
@@ -286,6 +303,39 @@ const AD_OVERLAY =
   '<div class="ytp-ad-player-overlay-layout__ad-info-container"></div>' +
   '<div class="ytp-ad-player-overlay-layout__skip-or-preview-container"></div>' +
   '</div>';
+
+// A chapter list and a progress bar segment, as YouTube's Delhi player built them in Oct 2026
+// (tests/pages/watch-chapters-delhi.html), without the buttons and styles Chrono doesn't read.
+function chapterListContent(videoId: string, chapters: { title: string; start: number }[]): string {
+  const items = chapters.map(({ title, start }) => {
+    const href = `/watch?v=${videoId}${start === 0 ? '' : `&amp;t=${start}s`}`;
+    const time = `${Math.floor(start / 60)}:${String(start % 60).padStart(2, '0')}`;
+    return (
+      '<ytd-macro-markers-list-item-renderer class="style-scope ytd-macro-markers-list-renderer">' +
+      `<a id="endpoint" class="yt-simple-endpoint style-scope ytd-macro-markers-list-item-renderer" href="${href}">` +
+      '<div id="thumbnail" class="style-scope ytd-macro-markers-list-item-renderer"></div>' +
+      '<div id="details" class="style-scope ytd-macro-markers-list-item-renderer">' +
+      `<h3 class="macro-markers style-scope ytd-macro-markers-list-item-renderer" title="${title}">${title}</h3>` +
+      `<h3 class="problem-walkthroughs style-scope ytd-macro-markers-list-item-renderer" hidden title="${title}">${title}</h3>` +
+      `<div id="time" class="style-scope ytd-macro-markers-list-item-renderer">${time}</div>` +
+      '</div></a>' +
+      '<div id="share-button" class="style-scope ytd-macro-markers-list-item-renderer"></div>' +
+      '<div id="repeat-button" class="style-scope ytd-macro-markers-list-item-renderer"></div>' +
+      '</ytd-macro-markers-list-item-renderer>'
+    );
+  });
+  return (
+    '<div id="content" class="style-scope ytd-engagement-panel-section-list-renderer">' +
+    '<ytd-macro-markers-list-renderer class="style-scope ytd-engagement-panel-section-list-renderer" ' +
+    'panel-target-id="engagement-panel-macro-markers-description-chapters">' +
+    `<div id="contents" class="style-scope ytd-macro-markers-list-renderer">${items.join('')}</div>` +
+    '</ytd-macro-markers-list-renderer></div>'
+  );
+}
+
+const CHAPTER_SEGMENT =
+  '<div class="ytp-chapter-hover-container ytp-exp-chapter-hover-container">' +
+  '<div class="ytp-progress-bar-padding"></div><div class="ytp-progress-list"></div></div>';
 
 /**
  * YouTube starts following a link without a reload: it fires yt-navigate-start, then

@@ -41,7 +41,9 @@ export function readPage(location: Location): Page {
 }
 
 // Queries are scoped to the watch page's own element, because YouTube keeps other
-// players (hover previews, the miniplayer) and duplicate ids elsewhere in the page.
+// players (hover previews, the miniplayer) and duplicate ids elsewhere in the page. The one
+// exception is the miniplayer itself (MINIPLAYER_PLAYER, MINIPLAYER_POSITION): away from the
+// watch page, the speed and the playing playlist entry's length are read from it.
 const WATCH_PAGE = 'ytd-watch-flexy';
 
 /** The watch page's main video element. */
@@ -121,6 +123,18 @@ interface PlayerSpeedApi {
 
 const PLAYER = `${WATCH_PAGE} #movie_player`;
 
+// In Chrome, when the viewer left a playing video, YouTube moved its player, API, video
+// and all, into its miniplayer, and moved it back when the viewer expanded it (Oct 2026).
+// Firefox kept the player in the hidden watch page and emptied its video instead. Only
+// the speed, and on a playlist page the playing entry's length, are read from here; every
+// other read stays with the watch page's player.
+const MINIPLAYER_PLAYER = 'ytd-miniplayer #movie_player';
+
+/** YouTube's player while its miniplayer holds it. */
+function miniplayerPlayer(doc: Document): Element | null {
+  return doc.querySelector(MINIPLAYER_PLAYER);
+}
+
 /** Which of YouTube's two players the watch page has: the legacy one or the redesigned (Delhi) one. */
 export type PlayerVariant = 'legacy' | 'delhi';
 
@@ -139,16 +153,26 @@ export function readPlayerVariant(doc: Document): Reading<PlayerVariant> {
   return recognised(variantOf(player));
 }
 
-function readPlayerSpeedApi(doc: Document): Reading<PlayerSpeedApi> {
-  const player = doc.querySelector(PLAYER) as Partial<PlayerSpeedApi> | null;
-  const hasApi = typeof player?.getPlaybackRate === 'function' && typeof player.setPlaybackRate === 'function';
-  return hasApi ? recognised(player as PlayerSpeedApi) : unrecognised('speed');
+function readPlayerSpeedApi(player: Element | null): Reading<PlayerSpeedApi> {
+  const api = player as Partial<PlayerSpeedApi> | null;
+  const hasApi = typeof api?.getPlaybackRate === 'function' && typeof api.setPlaybackRate === 'function';
+  return hasApi ? recognised(api as PlayerSpeedApi) : unrecognised('speed');
 }
 
-/** YouTube's player speed. Works only from the page's own context. */
-export function readPlayerSpeed(doc: Document): Reading<number> {
-  const api = readPlayerSpeedApi(doc);
+/** The watch page's player while YouTube shows the watch page, not keeps it hidden behind another page. */
+const SHOWN_PLAYER = `${WATCH_PAGE}:not([hidden]) #movie_player`;
+
+/**
+ * YouTube's player speed, from its player in the watch page, or else in its miniplayer.
+ * Away from the watch page, as on a playlist page, a player in an ad break has the ad's
+ * speed, not the viewer's, so there is no speed to read: the value is `undefined`. Works
+ * only from the page's own context.
+ */
+export function readPlayerSpeed(doc: Document): Reading<number | undefined> {
+  const player = doc.querySelector(PLAYER) ?? miniplayerPlayer(doc);
+  const api = readPlayerSpeedApi(player);
   if (!api.recognised) return api;
+  if (player && !player.matches(SHOWN_PLAYER) && isFlaggedAdBreak(player)) return recognised(undefined);
   try {
     const speed = api.value.getPlaybackRate();
     return Number.isFinite(speed) ? recognised(speed) : unrecognised('speed');
@@ -162,7 +186,7 @@ export function readPlayerSpeed(doc: Document): Reading<number> {
  * took it. Works only from the page's own context.
  */
 export function setPlayerSpeed(doc: Document, speed: number): boolean {
-  const api = readPlayerSpeedApi(doc);
+  const api = readPlayerSpeedApi(doc.querySelector(PLAYER));
   if (!api.recognised) return false;
   try {
     api.value.setPlaybackRate(speed);
@@ -174,13 +198,14 @@ export function setPlayerSpeed(doc: Document, speed: number): boolean {
 
 /**
  * Calls `onChange` whenever the player's speed may have changed or its API may have
- * become available. YouTube applies every speed change to its video, whichever control
- * made it, and starts its player before the video loads or plays. Listening on the
- * document catches the video even after YouTube swaps it for another.
+ * become available, in the watch page or the miniplayer. YouTube applies every speed
+ * change to its video, whichever control made it, and starts its player before the video
+ * loads or plays. Listening on the document catches the video even after YouTube swaps it
+ * for another.
  */
 export function watchPlayerSpeed(doc: Document, onChange: () => void, signal: AbortSignal): void {
   const listener = (event: Event) => {
-    if (event.target instanceof Element && event.target.closest(PLAYER)) onChange();
+    if (event.target instanceof Element && event.target.closest(`${PLAYER}, ${MINIPLAYER_PLAYER}`)) onChange();
   };
   for (const type of ['ratechange', 'loadedmetadata', 'playing']) {
     doc.addEventListener(type, listener, { capture: true, signal });
@@ -200,19 +225,35 @@ export function watchPlayerAnnounced(doc: Document, onAnnounced: () => void, sig
 }
 
 // YouTube's player marks an ad break on its own element, and renders the ad's overlay
-// into its ads module. Both were so in player 0229cd64 (Oct 2026).
+// into its ads module. Both were so in player 0229cd64 (Oct 2026), and in a real ad break
+// saved from the Delhi player 11a45ffb on 1 Nov 2026 (tests/pages/watch-ad.html): the
+// player carried ad-created ad-showing ad-interrupting, and its time display showed the
+// ad's own times.
 const AD_BREAK = 'ad-showing';
 const ADS_MODULE = ':scope .video-ads.ytp-ad-module';
 
 /**
+ * Whether a player flags itself as in an ad break, so its video, speed and length may be the
+ * ad's. YouTube flags its player so in the miniplayer too. Away from the watch page, the
+ * speed and the miniplayer entry's length trust this flag alone, unlike `readAdBreak`:
+ * skipping a read for nothing costs only a moment of the last speed or an uncounted entry,
+ * while taking an ad's speed or length would show a wrong time.
+ */
+function isFlaggedAdBreak(player: Element): boolean {
+  return player.classList.contains(AD_BREAK);
+}
+
+/**
  * Whether YouTube's player is playing an ad, in the watch page's own video element. An ad
  * break counts only when the player's ads module has rendered the ad: a player flagged as
- * in an ad break without one is markup Chrono doesn't know, and isn't trusted to pause.
+ * in an ad break without one is markup Chrono doesn't know, and isn't trusted to pause
+ * Chrono's times, which a flag YouTube stopped clearing would pause for good. The reads
+ * that only need to keep an ad's values out are more cautious (`isFlaggedAdBreak`).
  */
 export function readAdBreak(doc: Document): Reading<boolean> {
   const player = doc.querySelector(PLAYER);
   if (!player) return unrecognised('ads');
-  if (!player.classList.contains(AD_BREAK)) return recognised(false);
+  if (!isFlaggedAdBreak(player)) return recognised(false);
   const ads = player.querySelector(ADS_MODULE);
   return ads && ads.childElementCount > 0 ? recognised(true) : unrecognised('ads');
 }
@@ -297,7 +338,10 @@ export interface Chapter {
 // YouTube lists a video's chapters in a panel it keeps beside the video, whichever player
 // it serves: one panel for chapters the creator wrote, another for chapters YouTube made.
 // Its progress bar has a segment per chapter, and one segment for a video without them.
-// All were so on the legacy and Delhi players in Oct 2026.
+// All were so on the legacy and Delhi players in Oct 2026. During an ad break YouTube keeps
+// the panel only as an empty shell, and its progress bar has the ad's one segment, as in a
+// real ad break saved on 1 Nov 2026 (tests/pages/watch-ad.html). It fills both in once the
+// video loads after the ad, so until then the video reads as having no chapters.
 const CHAPTER_LIST = [
   'engagement-panel-macro-markers-description-chapters',
   'engagement-panel-macro-markers-auto-chapters',
@@ -315,16 +359,18 @@ const YOUTUBE = 'https://www.youtube.com/';
  * The chapters of `videoId`, the watch page's video, in order. An empty list for a video
  * without chapters. The list only counts when YouTube's progress bar agrees about how many
  * chapters there are, so a list YouTube hasn't yet replaced after navigating never does.
+ * No list, or a list with nothing in it, is a video without chapters when the progress
+ * bar has one segment.
  */
 export function readChapters(doc: Document, videoId: string): Reading<Chapter[]> {
   const segments = doc.querySelector(PLAYER)?.querySelector(CHAPTER_SEGMENTS);
   if (!segments) return unrecognised('chapters');
   const segmentCount = segments.querySelectorAll(CHAPTER_SEGMENT).length;
-  const list = doc.querySelector(CHAPTER_LIST);
-  if (!list) return segmentCount === 1 ? recognised([]) : unrecognised('chapters');
+  const items = doc.querySelector(CHAPTER_LIST)?.querySelectorAll(CHAPTER_ITEM) ?? [];
+  if (items.length === 0) return segmentCount === 1 ? recognised([]) : unrecognised('chapters');
 
   const chapters: Chapter[] = [];
-  for (const item of list.querySelectorAll(CHAPTER_ITEM)) {
+  for (const item of items) {
     const chapter = readChapter(item, videoId);
     // Each chapter starts after the one before, and the first at the very start.
     const previous = chapters.at(-1);
@@ -377,12 +423,24 @@ export function readMediaSource(video: HTMLVideoElement): string {
 // Every query is scoped to that panel: YouTube keeps other lists of the same videos in the
 // page, such as the playlist page the viewer came from, hidden but complete.
 
+/**
+ * What Chrono knows of a playlist entry's length: its content time in seconds; live when it
+ * is live now and has no length yet; unavailable when YouTube can't play it, as a deleted or
+ * private video; or unknown when YouTube can play it but Chrono can't read how long it is.
+ */
+export type EntryLength = number | 'live' | 'unavailable' | 'unknown';
+
+/** The parameters of a link to a video, e.g. `/watch?v=aircAruvnKk&list=PL1&index=2`. */
+function linkParams(href: string | null | undefined): URLSearchParams {
+  return new URLSearchParams(href?.split('?')[1] ?? '');
+}
+
 /** An entry in a playlist, as YouTube's playlist panel lists it. */
 export interface PlaylistEntry {
   /** The number YouTube shows beside the entry. YouTube doesn't number entries it hides. */
   number: number;
-  /** The entry's length in seconds of content time, or undefined when YouTube can't play it. */
-  duration: number | undefined;
+  /** The entry's length. Never unknown: Chrono doesn't recognise a panel whose lengths it can't read. */
+  length: Exclude<EntryLength, 'unknown'>;
   /** Whether this is the entry YouTube is playing. */
   selected: boolean;
   /** The video the entry plays. */
@@ -418,6 +476,9 @@ const ENTRY_NUMBER = ':scope #index';
 const ENTRY_LINK = ':scope a#wc-endpoint';
 const ENTRY_TIME_STATUS = ':scope ytd-thumbnail-overlay-time-status-renderer :is(badge-shape, #text)';
 const ENTRY_UNPLAYABLE = ':scope #unplayableText:not([hidden])';
+// An entry that is live now. In Nov 2026 YouTube drew one with no time on its thumbnail
+// at all, marking the thumbnail is-live-video and putting a LIVE badge by the channel name.
+const ENTRY_LIVE = ':scope ytd-thumbnail[is-live-video]';
 
 /**
  * The playlist the watch page is playing, or undefined when it isn't playing one. YouTube
@@ -466,19 +527,21 @@ function readShuffle(panel: Element): boolean | undefined {
  */
 function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
   const read = [...panel.querySelectorAll(PLAYLIST_ENTRIES)].map((entry) => {
-    const href = entry.querySelector(ENTRY_LINK)?.getAttribute('href') ?? '';
     // The thumbnail says how long the entry is, or has a word such as LIVE or UPCOMING
-    // when the entry has no fixed length yet.
+    // when the entry has no fixed length yet, or is marked live and says nothing.
     const timeStatus = [...entry.querySelectorAll(ENTRY_TIME_STATUS)].map((element) => element.textContent?.trim() ?? '');
     const playable = !entry.querySelector(ENTRY_UNPLAYABLE);
+    const live = Boolean(entry.querySelector(ENTRY_LIVE));
+    const seconds = timeStatus.map(parseDuration).find((time) => time !== undefined);
+    const length: PlaylistEntry['length'] = !playable ? 'unavailable' : (seconds ?? (live ? 'live' : 'unavailable'));
     return {
       // The playing entry shows ▶ in place of its number.
       number: Number(entry.querySelector(ENTRY_NUMBER)?.textContent?.trim()) || undefined,
-      duration: playable ? timeStatus.map(parseDuration).find((seconds) => seconds !== undefined) : undefined,
+      length,
       playable,
-      hasTimeStatus: timeStatus.some(Boolean),
+      hasTimeStatus: timeStatus.some(Boolean) || live,
       selected: entry.hasAttribute('selected'),
-      videoId: new URLSearchParams(href.split('?')[1] ?? '').get('v') ?? undefined,
+      videoId: linkParams(entry.querySelector(ENTRY_LINK)?.getAttribute('href')).get('v') ?? undefined,
     };
   });
   const playable = read.filter((entry) => entry.playable);
@@ -486,17 +549,17 @@ function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
   // means YouTube changed how it shows lengths.
   const lengthsKnown =
     playable.every((entry) => entry.hasTimeStatus) &&
-    (playable.length === 0 || playable.some((entry) => entry.duration !== undefined));
+    (playable.length === 0 || playable.some((entry) => typeof entry.length === 'number'));
   if (!read.some((entry) => entry.selected) || !lengthsKnown) return undefined;
 
   // Entries are numbered one after another, so a missing number follows from its neighbours.
-  return read.map(({ number, duration, selected, videoId }, i) => {
+  return read.map(({ number, length, selected, videoId }, i) => {
     const before = read.slice(0, i).findLastIndex((e) => e.number !== undefined);
     const after = read.findIndex((e, j) => j > i && e.number !== undefined);
     const filled =
       number ??
       (before !== -1 ? read[before]!.number! + (i - before) : after !== -1 ? read[after]!.number! - (after - i) : i + 1);
-    return { number: filled, duration, selected, videoId };
+    return { number: filled, length, selected, videoId };
   });
 }
 
@@ -579,7 +642,32 @@ const ENTRY_BADGES = ':scope :is(ytd-thumbnail, yt-thumbnail-view-model) badge-s
  * viewer's language, for screen readers.
  */
 const ENTRY_NOW_PLAYING = ':scope yt-thumbnail-view-model badge-shape lottie-component';
+/**
+ * The length overlay on an entry's thumbnail in the older list design. In Oct 2026 YouTube
+ * drew the badge inside it only once the entry neared the screen: on a Watch Later page
+ * loaded without scrolling, the first 8 of 34 entries had their badges, and the others
+ * this overlay, empty. A deleted or private video has no length, so Chrono takes an entry
+ * with no overlay at all as unavailable. (No saved page shows such an entry: YouTube hid
+ * them all, saying only how many.) The entry's title still says its length, but only in
+ * words for screen readers, in the viewer's language, so Chrono doesn't read it there.
+ */
+const ENTRY_LENGTH_OVERLAY = ':scope ytd-thumbnail ytd-thumbnail-overlay-time-status-renderer';
+/**
+ * A playlist page's entry that is live now, which has no length yet. In Nov 2026 a lockup
+ * showed a LIVE badge, styled as live, in place of its length. No saved page shows one in
+ * the older list design; its thumbnail is the one the watch page's playlist panel marks
+ * is-live-video.
+ */
+const PAGE_ENTRY_LIVE = [ENTRY_LIVE, ':scope yt-thumbnail-view-model badge-shape.ytBadgeShapeThumbnailLive'].join(', ');
 const PAGE_ENTRY_LINK = ':scope a[href*="/watch?"]';
+/**
+ * The miniplayer's playlist position, e.g. "38 / 2480", in its info bar, and its player's
+ * Next and Previous buttons, whose links name the playlist. In Nov 2026 the miniplayer
+ * named its own video nowhere in its markup.
+ */
+const MINIPLAYER_POSITION = 'ytd-miniplayer .ytdMiniplayerInfoBarPlaylistIndex';
+const MINIPLAYER_PLAYLIST_LINK = ':scope :is(a.ytp-next-button, a.ytp-prev-button)[href*="list="]';
+const MINIPLAYER_VIDEO = ':scope video.html5-main-video';
 
 export interface PlaylistPage {
   /** YouTube's stats under the playlist's title, e.g. "Playlist • 412 videos • 3,021 views". */
@@ -587,11 +675,12 @@ export interface PlaylistPage {
   /** How many entries the stats say the playlist has, counting any YouTube hides. */
   entryCount: number;
   /**
-   * The content time of each entry YouTube has loaded into the list, in seconds, in order.
-   * Undefined for an entry that shows no length, as YouTube shows a deleted or private video,
-   * and unknown for the entry YouTube is playing, when Chrono hasn't seen its length.
+   * The length of each entry YouTube has loaded into the list, in order. Unavailable for an
+   * entry that shows no length, as YouTube shows a deleted or private video, and unknown for
+   * the entry YouTube is playing, when Chrono hasn't seen its length, or for an entry whose
+   * length badge YouTube hasn't drawn yet.
    */
-  entryLengths: (number | 'unknown' | undefined)[];
+  entryLengths: EntryLength[];
   /** Whether YouTube loads more entries when the viewer scrolls to the end of the list. */
   moreToLoad: boolean;
 }
@@ -605,9 +694,9 @@ export interface PlaylistPage {
 export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistPage> {
   const lengths = new Map<string, number>();
 
-  const readLength = (entry: Element): number | 'unknown' | undefined => {
-    const href = entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href') ?? '';
-    const videoId = new URLSearchParams(href.split('?')[1]).get('v');
+  const readLength = (entry: Element, playing: MiniplayerEntry | undefined): EntryLength => {
+    const params = linkParams(entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href'));
+    const videoId = params.get('v');
     for (const badge of entry.querySelectorAll(ENTRY_BADGES)) {
       const length = parseDuration(badge.textContent?.trim() ?? '');
       if (length === undefined) continue;
@@ -615,8 +704,11 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
       return length;
     }
     const remembered = videoId ? lengths.get(videoId) : undefined;
-    if (remembered === undefined && entry.querySelector(ENTRY_NOW_PLAYING)) return 'unknown';
-    return remembered;
+    if (remembered !== undefined) return remembered;
+    if (entry.querySelector(PAGE_ENTRY_LIVE)) return 'live';
+    if (entry.querySelector(ENTRY_NOW_PLAYING)) return playing && linksToEntry(params, playing) ? playing.length : 'unknown';
+    if (lengthNotDrawn(entry)) return 'unknown';
+    return 'unavailable';
   };
 
   return (doc) => {
@@ -633,11 +725,49 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     const empty = list && list.entries.length === 0 && !list.moreToLoad;
     const entryCount = empty ? 0 : shown && readEntryCount(shown.element, shown.parts);
     if (!stats || entryCount === undefined || !list) return unrecognised('summary');
-    const entryLengths = list.entries.map(readLength);
+    const playing = readMiniplayerEntry(doc);
+    const entryLengths = list.entries.map((entry) => readLength(entry, playing));
     // Stats that count fewer entries than the list has aren't the stats Chrono knows.
     if (entryCount < entryLengths.length) return unrecognised('summary');
     return recognised({ stats, entryCount, entryLengths, moreToLoad: list.moreToLoad });
   };
+}
+
+interface MiniplayerEntry {
+  /** The playlist the miniplayer is playing. */
+  listId: string;
+  /** Which of the playlist's entries it is playing, counting from 1. */
+  position: number;
+  /** The length of the miniplayer's video, in seconds. */
+  length: number;
+}
+
+/**
+ * The playlist entry the miniplayer is playing, with its length, or undefined when the
+ * miniplayer isn't open, plays no playlist or doesn't know the length yet. Never during an
+ * ad break, when the video's length is the ad's.
+ */
+function readMiniplayerEntry(doc: Document): MiniplayerEntry | undefined {
+  const player = miniplayerPlayer(doc);
+  if (!player || isFlaggedAdBreak(player)) return undefined;
+  const listId = linkParams(player.querySelector(MINIPLAYER_PLAYLIST_LINK)?.getAttribute('href')).get('list');
+  const position = /(\d+)\s*\//.exec(doc.querySelector(MINIPLAYER_POSITION)?.textContent ?? '')?.[1];
+  const length = player.querySelector<HTMLVideoElement>(MINIPLAYER_VIDEO)?.duration;
+  if (!listId || position === undefined || length === undefined || !Number.isFinite(length) || length <= 0) {
+    return undefined;
+  }
+  return { listId, position: Number(position), length };
+}
+
+/** Whether a link with these parameters is to the playlist entry the miniplayer is playing. */
+function linksToEntry(params: URLSearchParams, playing: MiniplayerEntry): boolean {
+  return params.get('list') === playing.listId && params.get('index') === String(playing.position);
+}
+
+/** Whether the entry has a length overlay that YouTube hasn't drawn a badge in yet. */
+function lengthNotDrawn(entry: Element): boolean {
+  const overlay = entry.querySelector(ENTRY_LENGTH_OVERLAY);
+  return overlay !== null && !overlay.textContent?.trim();
 }
 
 /** The playlist's list, in whichever design YouTube served. */

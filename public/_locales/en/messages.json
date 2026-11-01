@@ -137,6 +137,13 @@
       "total": { "content": "$2", "example": "412" }
     }
   },
+  "playlistLive": {
+    "message": "$COUNT$ live",
+    "description": "Note in the Playlist scope: how many entries it counts are live streams airing now, which have no length yet and add nothing to its time, e.g. \"1 live\".",
+    "placeholders": {
+      "count": { "content": "$1", "example": "1" }
+    }
+  },
   "playlistUnavailable": {
     "message": "$COUNT$ unavailable",
     "description": "Note in the Playlist scope: how many private, deleted or otherwise unavailable entries it skips, e.g. \"3 unavailable\".",
@@ -270,6 +277,13 @@
     "placeholders": {
       "time": { "content": "$1", "example": "2h 48m" },
       "speed": { "content": "$2", "example": "1.5×" }
+    }
+  },
+  "playlistSummaryLive": {
+    "message": "$COUNT$ live",
+    "description": "Playlist summary: how many entries are live streams airing now, which have no length yet and add nothing to the total, e.g. \"1 live\".",
+    "placeholders": {
+      "count": { "content": "$1", "example": "1" }
     }
   },
   "playlistSummaryUnavailable": {

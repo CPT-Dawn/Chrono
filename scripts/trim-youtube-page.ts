@@ -1,13 +1,14 @@
 // Turns a YouTube page saved from a real browser into a small, readable saved page for tests.
 //
-//   node scripts/trim-youtube-page.ts <saved.html> tests/pages/<name>.html
+//   bun run trim-page -- <saved.html> tests/pages/<name>.html
 //
-// It removes what tests never need (scripts, styles, icons) and anything personal
-// (the signed-in masthead, the subscriptions guide, comments, live chat), keeps only
-// the first few related and recommended videos, and writes one element per line so diffs
-// stay readable.
+// It saves links nested in links as <span>s so parsing keeps the page's structure, removes
+// what tests never need (scripts, styles, icons, inline data: images, SingleFile's markup)
+// and anything personal (the signed-in masthead, the subscriptions guide, comments, live
+// chat, the query of ad click-tracking links), keeps only the first few related and
+// recommended videos, and writes one element per line so diffs stay readable.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { Window } from 'happy-dom';
+import { trimPage } from './saved-page';
 
 const [input, output] = process.argv.slice(2);
 if (!input || !output) {
@@ -15,104 +16,15 @@ if (!input || !output) {
   process.exit(1);
 }
 
-const REMOVE = [
-  'script',
-  'style',
-  'link',
-  'meta',
-  'noscript',
-  'iframe',
-  'svg',
-  'iron-iconset-svg',
-  '#masthead-container',
-  'tp-yt-app-drawer#guide',
-  'ytd-mini-guide-renderer',
-  'ytd-comments',
-  '#chat-container > *',
-];
-// Lists of other videos: the watch page's related videos, and the player's recommendations.
-const VIDEO_LISTS = [
-  'ytd-watch-next-secondary-results-renderer ytd-item-section-renderer > #contents',
-  '.ytFullscreenVideoRecommendationsHost',
-];
-const VIDEO_LIST_KEEP = 3;
-// A playlist page lists up to a hundred entries at once, all of which tests need. Inside
-// each, these parts only make the saved page huge: images, avatars, the channel and view
-// count, empty badge slots, menus and hover effects. Titles, links and lengths stay.
-const PLAYLIST_ENTRIES = 'ytd-playlist-video-renderer, yt-lockup-view-model';
-const PLAYLIST_ENTRY_CLUTTER = [
-  'img',
-  'yt-image',
-  'yt-icon',
-  'dom-repeat',
-  'tp-yt-paper-tooltip',
-  'yt-interaction',
-  'yt-touch-feedback-shape',
-  'ytd-menu-renderer',
-  'button-view-model',
-  'ytd-badge-supported-renderer',
-  'ytd-video-meta-block',
-  'yt-content-metadata-view-model',
-  'ytd-thumbnail-overlay-now-playing-renderer',
-  'thumbnail-overlay-avatar-stack-view-model',
-  'yt-thumbnail-hover-overlay-toggle-actions-view-model',
-  'yt-decorated-avatar-view-model',
-];
-const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'source', 'track', 'wbr']);
-
-const window = new Window({
-  url: 'https://www.youtube.com/',
-  settings: {
-    disableJavaScriptEvaluation: true,
-    disableJavaScriptFileLoading: true,
-    disableCSSFileLoading: true,
-  },
-});
-const doc = new window.DOMParser().parseFromString(readFileSync(input, 'utf8'), 'text/html');
-
-for (const el of doc.querySelectorAll(REMOVE.join(','))) el.remove();
-for (const list of doc.querySelectorAll(VIDEO_LISTS.join(','))) {
-  for (const item of [...list.children].slice(VIDEO_LIST_KEEP)) item.remove();
-}
-for (const entry of doc.querySelectorAll(PLAYLIST_ENTRIES)) {
-  for (const el of entry.querySelectorAll(PLAYLIST_ENTRY_CLUTTER.join(','))) el.remove();
-}
-// The video's blob: source means nothing outside the browser that saved the page.
-for (const video of doc.querySelectorAll('video')) video.removeAttribute('src');
-
-writeFileSync(output, `<!DOCTYPE html>\n${serialize(doc.documentElement, 0)}`);
+const raw = readFileSync(input, 'utf8');
+const { page, nestedLinks } = trimPage(raw);
+writeFileSync(output, page);
 console.log(`Wrote ${output}`);
+console.log(`  ${nestedLinks} nested ${nestedLinks === 1 ? 'link' : 'links'} saved as <span>`);
+console.log(`  ${formatSize(Buffer.byteLength(raw))} → ${formatSize(Buffer.byteLength(page))}`);
 
-type SavedElement = (typeof doc)['documentElement'];
-
-function serialize(el: SavedElement, depth: number): string {
-  const indent = ' '.repeat(depth);
-  const tag = el.tagName.toLowerCase();
-  const attrs = [...el.attributes]
-    .map((a) => (a.value ? ` ${a.name}="${escapeHtml(a.value, true)}"` : ` ${a.name}`))
-    .join('');
-  const open = `${indent}<${tag}${attrs}>`;
-  if (VOID.has(tag)) return `${open}\n`;
-
-  const parts: string[] = [];
-  for (const child of el.childNodes) {
-    if (child.nodeType === child.ELEMENT_NODE) {
-      parts.push(serialize(child as SavedElement, depth + 1));
-    } else if (child.nodeType === child.TEXT_NODE) {
-      const text = (child.textContent ?? '').replace(/\s+/g, ' ').trim();
-      if (text) parts.push(`${indent} ${escapeHtml(text, false)}\n`);
-    }
-  }
-  // Keep short text-only elements on one line, e.g. <span>10:34</span>.
-  const only = el.childNodes.length === 1 ? el.childNodes[0] : undefined;
-  if (only !== undefined && only.nodeType === only.TEXT_NODE && parts.length === 1) {
-    return `${open}${parts[0]!.trim()}</${tag}>\n`;
-  }
-  if (parts.length === 0) return `${open}</${tag}>\n`;
-  return `${open}\n${parts.join('')}${indent}</${tag}>\n`;
-}
-
-function escapeHtml(text: string, attribute: boolean): string {
-  const out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return attribute ? out.replace(/"/g, '&quot;') : out;
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

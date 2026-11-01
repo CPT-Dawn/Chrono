@@ -73,6 +73,28 @@ describe('Playlist summary', () => {
       expect(queryPlaylistSummary()).toBe('2h 44m total · 1h 22m at 2× · 2 unavailable');
     });
 
+    it("shows no speed while the hidden player plays an ad, whose speed is not the viewer's", async () => {
+      // In Firefox, YouTube kept its player in the hidden watch page, where it can play an ad.
+      const page = openSavedPage('playlist-lockups', LOCKUPS_URL);
+      page.startAdBreak();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
+    });
+
+    it('keeps the speed it read before an ad starts in the hidden player', async () => {
+      const page = openSavedPage('playlist-lockups', LOCKUPS_URL);
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      page.startAdBreak();
+      page.player.setSpeed(1);
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('2h 44m total · 1h 49m at 1.5× · 2 unavailable');
+    });
+
     it("leaves the watch time out at 1×, when it's the total", async () => {
       openSavedPage('playlist-lockups', LOCKUPS_URL);
       await startChrono();
@@ -131,22 +153,84 @@ describe('Playlist summary', () => {
   });
 
   describe('on Watch Later and Liked videos', () => {
-    // TODO: these are public playlist pages opened at Watch Later's and Liked videos'
-    // addresses, because a headless browser can't sign in and no signed-in pages have been
-    // saved yet (deferred in Oct 2026). Replace them with real pages saved from a signed-in
-    // browser.
     it('works on Watch Later', async () => {
-      openSavedPage('playlist-legacy-long', 'https://www.youtube.com/playlist?list=WL');
+      // Saved signed in, in the older list design: 31 entries, 15:05:45 in all; the header
+      // says 32, and YouTube hides 1 unavailable video.
+      openSavedPage('playlist-watch-later', 'https://www.youtube.com/playlist?list=WL');
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('6h 38m total · first 100 of 139 counted');
+      expect(queryPlaylistSummary()).toBe('15h 6m total · 1 unavailable');
+    });
+
+    describe("before YouTube draws every entry's length badge", () => {
+      // On a Watch Later page saved in Oct 2026 without scrolling, YouTube had drawn the
+      // length badges of the first 8 entries only, in the older list design. The others had
+      // their length overlay, empty, until they neared the screen.
+      function openWatchLaterUndrawn() {
+        const page = openSavedPage('playlist-legacy-long', 'https://www.youtube.com/playlist?list=WL');
+        // The whole list: 135 entries listed, of the 139 the header counts.
+        page.loadMoreEntries('playlist-legacy-long-more', { last: true });
+        const overlays = [
+          ...document.querySelectorAll('ytd-browse ytd-playlist-video-renderer ytd-thumbnail-overlay-time-status-renderer'),
+        ].slice(8);
+        const badges = overlays.map((overlay) => [...overlay.childNodes]);
+        for (const overlay of overlays) overlay.replaceChildren();
+        return {
+          drawBadges: () => overlays.forEach((overlay, i) => overlay.replaceChildren(...badges[i]!)),
+        };
+      }
+
+      it("doesn't count the entries whose badge isn't drawn yet as unavailable", async () => {
+        openWatchLaterUndrawn();
+        await startChrono();
+
+        // The first 8 entries, 34:36 in all, and the 4 entries YouTube hides.
+        expect(queryPlaylistSummary()).toBe('35m total · 4 unavailable · 12 of 139 counted');
+      });
+
+      it('counts them once YouTube draws their badges', async () => {
+        const page = openWatchLaterUndrawn();
+        await startChrono();
+
+        page.drawBadges();
+        await settle();
+
+        expect(queryPlaylistSummary()).toBe('9h 45m total · 4 unavailable');
+      });
+
+      it('still counts an entry with no length overlay at all as unavailable', async () => {
+        openWatchLaterUndrawn();
+        // A deleted or private video, shown in the list: it has no length to overlay.
+        document.querySelector('ytd-browse ytd-playlist-video-renderer ytd-thumbnail-overlay-time-status-renderer')!.remove();
+        await startChrono();
+
+        // The first entry, 3:39, is now the unavailable one.
+        expect(queryPlaylistSummary()).toBe('31m total · 5 unavailable · 12 of 139 counted');
+      });
+    });
+
+    it('names an entry that is live now as live, not unavailable, in the older list design', async () => {
+      // No saved page has a live entry in this design, so the first entry (3:39) becomes one
+      // the way the watch page's playlist panel draws it: its thumbnail marked is-live-video,
+      // with no length overlay.
+      const page = openSavedPage('playlist-legacy-long', LEGACY_LONG_URL);
+      page.loadMoreEntries('playlist-legacy-long-more', { last: true });
+      const thumbnail = document.querySelector('ytd-browse ytd-playlist-video-renderer ytd-thumbnail')!;
+      thumbnail.setAttribute('is-live-video', '');
+      thumbnail.querySelector('ytd-thumbnail-overlay-time-status-renderer')!.remove();
+      await startChrono();
+
+      // The other 134 entries, 9:41:15 in all, and the 4 YouTube hides.
+      expect(queryPlaylistSummary()).toBe('9h 41m total · 4 unavailable · 1 live');
     });
 
     it('works on Liked videos', async () => {
-      openSavedPage('playlist-lockups', 'https://www.youtube.com/playlist?list=LL');
+      // Saved signed in, in lockups: the first 100 entries, 50:00:40 in all, of the 138 the
+      // header counts.
+      openSavedPage('playlist-liked', 'https://www.youtube.com/playlist?list=LL');
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
+      expect(queryPlaylistSummary()).toBe('50h 1m total · first 100 of 138 counted');
     });
   });
 
@@ -388,6 +472,107 @@ describe('Playlist summary', () => {
       await startChrono();
 
       expect(await reportedFailures()).toEqual([]);
+    });
+  });
+
+  describe('while the miniplayer plays one of the entries on screen', () => {
+    // Saved in Chrome in Nov 2026, signed out, with the miniplayer playing entry 38 of the
+    // 2,480 (8:59:16), whose lockup says "Now playing" in place of its length. The other 98
+    // with a length are 363:41:09 in all. The first is live now, with no length, and the
+    // summary names it as live, not unavailable.
+    const STREAMS_URL = 'https://www.youtube.com/playlist?list=PL9E9945kkf2AoDFiFrz3UNO0wv5NFh_5q';
+    const PLAYING_LENGTH = 8 * 3600 + 59 * 60 + 16;
+
+    it("counts the playing entry at the length of the miniplayer's video", async () => {
+      const page = openSavedPage('playlist-miniplayer', STREAMS_URL);
+      page.video.load({ duration: PLAYING_LENGTH });
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('372h 40m total · 1 live · first 100 of 2,480 counted');
+    });
+
+    it('counts it once the miniplayer has loaded the video, and leaves it out until then', async () => {
+      const page = openSavedPage('playlist-miniplayer', STREAMS_URL);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 live · 99 of 2,480 counted');
+
+      page.video.load({ duration: PLAYING_LENGTH });
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('372h 40m total · 1 live · first 100 of 2,480 counted');
+    });
+
+    it("doesn't take an ad's length for the entry's while the miniplayer plays an ad", async () => {
+      const page = openSavedPage('playlist-miniplayer', STREAMS_URL);
+      page.startAdBreak();
+      page.video.load({ duration: 15 });
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 live · 99 of 2,480 counted');
+    });
+
+    it('takes no length from a miniplayer playing a video from another playlist', async () => {
+      // The miniplayer on the Liked videos page plays entry 1 of another playlist.
+      const page = openSavedPage('playlist-liked', 'https://www.youtube.com/playlist?list=LL');
+      page.video.load({ duration: 389 });
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('50h 1m total · first 100 of 138 counted');
+    });
+
+    it('leaves the playing entry out when the miniplayer plays that video from another playlist', async () => {
+      const page = openSavedPage('playlist-miniplayer', STREAMS_URL);
+      for (const link of document.querySelectorAll('ytd-miniplayer a.ytp-next-button')) {
+        link.setAttribute('href', 'https://www.youtube.com/watch?list=WL&v=HorEH3HYuw4');
+      }
+      page.video.load({ duration: PLAYING_LENGTH });
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 live · 99 of 2,480 counted');
+    });
+  });
+
+  describe("while YouTube's miniplayer holds its player", () => {
+    // In Chrome, YouTube moved its player, API and all, into the miniplayer when the viewer
+    // left a playing video, in Oct 2026. On this saved page the miniplayer plays a video
+    // from another playlist. The first 100 entries are 50:00:40 in all, of 138.
+    const LIKED_URL = 'https://www.youtube.com/playlist?list=LL';
+
+    it("adds the watch time at the speed of YouTube's player in the miniplayer", async () => {
+      const page = openSavedPage('playlist-liked', LIKED_URL);
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('50h 1m total · 33h 20m at 1.5× · first 100 of 138 counted');
+    });
+
+    it('shows no speed while the miniplayer plays an ad, whose speed is not the viewer\'s', async () => {
+      const page = openSavedPage('playlist-liked', LIKED_URL);
+      page.startAdBreak();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('50h 1m total · first 100 of 138 counted');
+    });
+
+    it('keeps the speed it read before an ad starts in the miniplayer', async () => {
+      const page = openSavedPage('playlist-liked', LIKED_URL);
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      page.startAdBreak();
+      page.player.setSpeed(1);
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('50h 1m total · 33h 20m at 1.5× · first 100 of 138 counted');
+    });
+
+    it("doesn't report YouTube's speed as unrecognised", async () => {
+      openSavedPage('playlist-liked', LIKED_URL);
+      await startChrono();
+
+      expect(await reportedFailures()).not.toContain('speed');
     });
   });
 

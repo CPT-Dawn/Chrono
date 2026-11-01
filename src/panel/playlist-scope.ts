@@ -87,6 +87,7 @@ export function createPlaylistScope(
         scope.partial &&
           browser.i18n.getMessage('playlistPartial', [count(scope.partial.counted), count(scope.partial.total)]),
         scope.unavailable > 0 && browser.i18n.getMessage('playlistUnavailable', count(scope.unavailable)),
+        scope.live > 0 && browser.i18n.getMessage('playlistLive', count(scope.live)),
       ].filter((text): text is string => Boolean(text));
       notes.textContent = noteTexts.join(' · ');
       notes.hidden = noteTexts.length === 0;

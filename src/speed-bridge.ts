@@ -66,7 +66,8 @@ export function servePlayerSpeed(doc: Document): () => void {
     const speed = readPlayerSpeed(doc);
     if (speed.recognised) {
       stopAwaitingApi();
-      send(doc, MESSAGES.speed, speed.value);
+      // In an ad break, the content script keeps the last speed it had, or none.
+      if (speed.value !== undefined) send(doc, MESSAGES.speed, speed.value);
     } else {
       send(doc, MESSAGES.unrecognised);
       awaitApi();
