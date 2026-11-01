@@ -124,7 +124,8 @@ const PLAYER = `${WATCH_PAGE} #movie_player`;
 // In Chrome, when the viewer left a playing video, YouTube moved its player, API, video
 // and all, into its miniplayer, and moved it back when the viewer expanded it (Oct 2026).
 // Firefox kept the player in the hidden watch page and emptied its video instead. Only
-// the speed is read from here; every other read stays with the watch page's player.
+// the speed, and on a playlist page the playing entry's length, are read from here; every
+// other read stays with the watch page's player.
 const MINIPLAYER_PLAYER = 'ytd-miniplayer #movie_player';
 
 /** YouTube's player while its miniplayer holds it. */
@@ -621,6 +622,14 @@ const ENTRY_NOW_PLAYING = ':scope yt-thumbnail-view-model badge-shape lottie-com
  */
 const ENTRY_LENGTH_OVERLAY = ':scope ytd-thumbnail ytd-thumbnail-overlay-time-status-renderer';
 const PAGE_ENTRY_LINK = ':scope a[href*="/watch?"]';
+/**
+ * The miniplayer's playlist position, e.g. "38 / 2480", in its info bar, and its player's
+ * Next and Previous buttons, whose links name the playlist. In Nov 2026 the miniplayer
+ * named its own video nowhere in its markup.
+ */
+const MINIPLAYER_POSITION = 'ytd-miniplayer .ytdMiniplayerInfoBarPlaylistIndex';
+const MINIPLAYER_PLAYLIST_LINK = ':scope :is(a.ytp-next-button, a.ytp-prev-button)[href*="list="]';
+const MINIPLAYER_VIDEO = ':scope video.html5-main-video';
 
 export interface PlaylistPage {
   /** YouTube's stats under the playlist's title, e.g. "Playlist • 412 videos • 3,021 views". */
@@ -647,9 +656,10 @@ export interface PlaylistPage {
 export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistPage> {
   const lengths = new Map<string, number>();
 
-  const readLength = (entry: Element): number | 'unknown' | undefined => {
+  const readLength = (entry: Element, playing: MiniplayerEntry | undefined): number | 'unknown' | undefined => {
     const href = entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href') ?? '';
-    const videoId = new URLSearchParams(href.split('?')[1]).get('v');
+    const params = new URLSearchParams(href.split('?')[1]);
+    const videoId = params.get('v');
     for (const badge of entry.querySelectorAll(ENTRY_BADGES)) {
       const length = parseDuration(badge.textContent?.trim() ?? '');
       if (length === undefined) continue;
@@ -658,7 +668,12 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     }
     const remembered = videoId ? lengths.get(videoId) : undefined;
     if (remembered !== undefined) return remembered;
-    if (entry.querySelector(ENTRY_NOW_PLAYING) || lengthNotDrawn(entry)) return 'unknown';
+    if (entry.querySelector(ENTRY_NOW_PLAYING)) {
+      const isPlaying =
+        playing && params.get('list') === playing.listId && params.get('index') === String(playing.position);
+      return isPlaying ? playing.length : 'unknown';
+    }
+    if (lengthNotDrawn(entry)) return 'unknown';
     return undefined;
   };
 
@@ -676,11 +691,39 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     const empty = list && list.entries.length === 0 && !list.moreToLoad;
     const entryCount = empty ? 0 : shown && readEntryCount(shown.element, shown.parts);
     if (!stats || entryCount === undefined || !list) return unrecognised('summary');
-    const entryLengths = list.entries.map(readLength);
+    const playing = readMiniplayerEntry(doc);
+    const entryLengths = list.entries.map((entry) => readLength(entry, playing));
     // Stats that count fewer entries than the list has aren't the stats Chrono knows.
     if (entryCount < entryLengths.length) return unrecognised('summary');
     return recognised({ stats, entryCount, entryLengths, moreToLoad: list.moreToLoad });
   };
+}
+
+interface MiniplayerEntry {
+  /** The playlist the miniplayer is playing. */
+  listId: string;
+  /** Which of the playlist's entries it is playing, counting from 1. */
+  position: number;
+  /** The length of the miniplayer's video, in seconds. */
+  length: number;
+}
+
+/**
+ * The playlist entry the miniplayer is playing, with its length, or undefined when the
+ * miniplayer isn't open, plays no playlist or doesn't know the length yet. Never during an
+ * ad break, when the video's length is the ad's.
+ */
+function readMiniplayerEntry(doc: Document): MiniplayerEntry | undefined {
+  const player = miniplayerPlayer(doc);
+  if (!player || isFlaggedAdBreak(player)) return undefined;
+  const href = player.querySelector(MINIPLAYER_PLAYLIST_LINK)?.getAttribute('href') ?? '';
+  const listId = new URLSearchParams(href.split('?')[1]).get('list');
+  const position = /(\d+)\s*\//.exec(doc.querySelector(MINIPLAYER_POSITION)?.textContent ?? '')?.[1];
+  const length = player.querySelector<HTMLVideoElement>(MINIPLAYER_VIDEO)?.duration;
+  if (!listId || position === undefined || length === undefined || !Number.isFinite(length) || length <= 0) {
+    return undefined;
+  }
+  return { listId, position: Number(position), length };
 }
 
 /** Whether the entry has a length overlay that YouTube hasn't drawn a badge in yet. */
