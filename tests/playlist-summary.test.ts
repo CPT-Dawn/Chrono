@@ -142,6 +142,53 @@ describe('Playlist summary', () => {
       expect(queryPlaylistSummary()).toBe('6h 38m total · first 100 of 139 counted');
     });
 
+    describe("before YouTube draws every entry's length badge", () => {
+      // On a Watch Later page saved in Oct 2026 without scrolling, YouTube had drawn the
+      // length badges of the first 8 entries only, in the older list design. The others had
+      // their length overlay, empty, until they neared the screen.
+      function openWatchLaterUndrawn() {
+        const page = openSavedPage('playlist-legacy-long', 'https://www.youtube.com/playlist?list=WL');
+        // The whole list: 135 entries listed, of the 139 the header counts.
+        page.loadMoreEntries('playlist-legacy-long-more', { last: true });
+        const overlays = [
+          ...document.querySelectorAll('ytd-browse ytd-playlist-video-renderer ytd-thumbnail-overlay-time-status-renderer'),
+        ].slice(8);
+        const badges = overlays.map((overlay) => [...overlay.childNodes]);
+        for (const overlay of overlays) overlay.replaceChildren();
+        return {
+          drawBadges: () => overlays.forEach((overlay, i) => overlay.replaceChildren(...badges[i]!)),
+        };
+      }
+
+      it("doesn't count the entries whose badge isn't drawn yet as unavailable", async () => {
+        openWatchLaterUndrawn();
+        await startChrono();
+
+        // The first 8 entries, 34:36 in all, and the 4 entries YouTube hides.
+        expect(queryPlaylistSummary()).toBe('35m total · 4 unavailable · 12 of 139 counted');
+      });
+
+      it('counts them once YouTube draws their badges', async () => {
+        const page = openWatchLaterUndrawn();
+        await startChrono();
+
+        page.drawBadges();
+        await settle();
+
+        expect(queryPlaylistSummary()).toBe('9h 45m total · 4 unavailable');
+      });
+
+      it('still counts an entry with no length overlay at all as unavailable', async () => {
+        openWatchLaterUndrawn();
+        // A deleted or private video, shown in the list: it has no length to overlay.
+        document.querySelector('ytd-browse ytd-playlist-video-renderer ytd-thumbnail-overlay-time-status-renderer')!.remove();
+        await startChrono();
+
+        // The first entry, 3:39, is now the unavailable one.
+        expect(queryPlaylistSummary()).toBe('31m total · 5 unavailable · 12 of 139 counted');
+      });
+    });
+
     it('works on Liked videos', async () => {
       openSavedPage('playlist-lockups', 'https://www.youtube.com/playlist?list=LL');
       await startChrono();
