@@ -5,8 +5,8 @@
 // It saves links nested in links as <span>s so parsing keeps the page's structure, removes
 // what tests never need (scripts, styles, icons, inline data: images, SingleFile's markup)
 // and anything personal (the signed-in masthead, the subscriptions guide, comments, live
-// chat), keeps only the first few related and recommended videos, and writes one element
-// per line so diffs stay readable.
+// chat, the query of ad click-tracking links), keeps only the first few related and
+// recommended videos, and writes one element per line so diffs stay readable.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { trimPage } from './saved-page';
 

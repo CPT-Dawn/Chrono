@@ -79,7 +79,10 @@ export function trimPage(raw: string): TrimmedPage {
   // A capture inlines every image as a data: URI, which is most of its size, and SingleFile
   // marks up what it touched with data-sf-* attributes. Tests need neither. The hidden
   // attribute and the sf-hidden class stay: they record what YouTube's styles hid on screen.
-  for (const el of doc.querySelectorAll('*')) dropCaptureAttributes(el);
+  for (const el of doc.querySelectorAll('*')) {
+    dropCaptureAttributes(el);
+    redactAdTracking(el);
+  }
 
   const comment = leadingComment(readSingleFileHeader(raw), rewritten);
   return { page: `<!DOCTYPE html>\n${comment}${serialize(doc.documentElement, 0)}`, nestedLinks: rewritten };
@@ -102,6 +105,17 @@ function dropCaptureAttributes(el: SavedElement): void {
       if (kept.length > 0) el.setAttribute('style', kept.join('; '));
       else el.removeAttribute('style');
     }
+  }
+}
+
+// Google's ad click-tracking hosts. An ad's links go through them with a query that tracks
+// that one impression of the ad, which a saved page has no need to keep.
+const AD_TRACKING = /^(https?:\/\/(?:[\w-]+\.)*(?:googleadservices\.com|doubleclick\.net)\/[^?#]*)[?#].*$/i;
+
+function redactAdTracking(el: SavedElement): void {
+  for (const { name, value } of [...el.attributes]) {
+    const tracked = AD_TRACKING.exec(value ?? '');
+    if (tracked) el.setAttribute(name, `${tracked[1]}?redacted`);
   }
 }
 

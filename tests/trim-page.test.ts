@@ -120,6 +120,20 @@ describe('Trimming a browser capture into a saved page', () => {
     expect(doc.querySelector('#skip')?.className).toBe('ytp-skip sf-hidden');
   });
 
+  it("drops the query of ad click-tracking links, which carries the ad impression's tracking ids", () => {
+    const capture = `<html><body>
+      <a id="ad" href="https://www.googleadservices.com/pagead/aclk?sa=L&amp;ai=CZ-MP&amp;adurl=https://ad.example/">Visit</a>
+      <div id="pixel" data-url="https://ad.doubleclick.net/ddm/trackclk/N123?dc_trk_aid=1#x"></div>
+      <a id="own" href="https://www.youtube.com/watch?v=1&amp;pp=sAgC">Video</a>
+    </body></html>`;
+
+    const doc = readBack(trimPage(capture).page);
+
+    expect(doc.querySelector('#ad')?.getAttribute('href')).toBe('https://www.googleadservices.com/pagead/aclk?redacted');
+    expect(doc.querySelector('#pixel')?.getAttribute('data-url')).toBe('https://ad.doubleclick.net/ddm/trackclk/N123?redacted');
+    expect(doc.querySelector('#own')?.getAttribute('href')).toBe('https://www.youtube.com/watch?v=1&pp=sAgC');
+  });
+
   it('writes no leading comment when there is nothing to say', () => {
     const { page } = trimPage('<html><body><a href="/a">A</a></body></html>');
 
