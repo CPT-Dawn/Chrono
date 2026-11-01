@@ -157,18 +157,20 @@ function readPlayerSpeedApi(player: Element | null): Reading<PlayerSpeedApi> {
   return hasApi ? recognised(api as PlayerSpeedApi) : unrecognised('speed');
 }
 
+/** The watch page's player while YouTube shows the watch page, not keeps it hidden behind another page. */
+const SHOWN_PLAYER = `${WATCH_PAGE}:not([hidden]) #movie_player`;
+
 /**
  * YouTube's player speed, from its player in the watch page, or else in its miniplayer.
- * While the miniplayer's player is in an ad break, its speed is the ad's, not the viewer's,
- * so there is no speed to read: the value is `undefined`. Works only from the page's own
- * context.
+ * Away from the watch page, as on a playlist page, a player in an ad break has the ad's
+ * speed, not the viewer's, so there is no speed to read: the value is `undefined`. Works
+ * only from the page's own context.
  */
 export function readPlayerSpeed(doc: Document): Reading<number | undefined> {
-  const watchPagePlayer = doc.querySelector(PLAYER);
-  const player = watchPagePlayer ?? miniplayerPlayer(doc);
+  const player = doc.querySelector(PLAYER) ?? miniplayerPlayer(doc);
   const api = readPlayerSpeedApi(player);
   if (!api.recognised) return api;
-  if (!watchPagePlayer && player && isFlaggedAdBreak(player)) return recognised(undefined);
+  if (player && !player.matches(SHOWN_PLAYER) && isFlaggedAdBreak(player)) return recognised(undefined);
   try {
     const speed = api.value.getPlaybackRate();
     return Number.isFinite(speed) ? recognised(speed) : unrecognised('speed');

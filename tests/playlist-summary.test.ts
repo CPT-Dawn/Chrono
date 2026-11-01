@@ -73,6 +73,28 @@ describe('Playlist summary', () => {
       expect(queryPlaylistSummary()).toBe('2h 44m total · 1h 22m at 2× · 2 unavailable');
     });
 
+    it("shows no speed while the hidden player plays an ad, whose speed is not the viewer's", async () => {
+      // In Firefox, YouTube kept its player in the hidden watch page, where it can play an ad.
+      const page = openSavedPage('playlist-lockups', LOCKUPS_URL);
+      page.startAdBreak();
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
+    });
+
+    it('keeps the speed it read before an ad starts in the hidden player', async () => {
+      const page = openSavedPage('playlist-lockups', LOCKUPS_URL);
+      page.player.setSpeed(1.5);
+      await startChrono();
+
+      page.startAdBreak();
+      page.player.setSpeed(1);
+      await settle();
+
+      expect(queryPlaylistSummary()).toBe('2h 44m total · 1h 49m at 1.5× · 2 unavailable');
+    });
+
     it("leaves the watch time out at 1×, when it's the total", async () => {
       openSavedPage('playlist-lockups', LOCKUPS_URL);
       await startChrono();
