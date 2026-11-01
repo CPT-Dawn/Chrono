@@ -31,7 +31,7 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
 
   return {
     element,
-    show({ contentTime, atSpeed, unavailable, partial }) {
+    show({ contentTime, atSpeed, unavailable, live, partial }) {
       const parts = [browser.i18n.getMessage('playlistSummaryTotal', formatHoursMinutes(contentTime, locale))];
       if (atSpeed) {
         const watchTime = formatHoursMinutes(atSpeed.watchTime, locale);
@@ -40,6 +40,7 @@ export function createPlaylistSummary(locale: string): PlaylistSummaryLine {
       if (unavailable > 0) {
         parts.push(browser.i18n.getMessage('playlistSummaryUnavailable', formatCount(unavailable, locale)));
       }
+      if (live > 0) parts.push(browser.i18n.getMessage('playlistSummaryLive', formatCount(live, locale)));
       if (partial) {
         const message = partial.first ? 'playlistSummaryPartial' : 'playlistSummaryCounted';
         parts.push(browser.i18n.getMessage(message, [formatCount(partial.counted, locale), formatCount(partial.of, locale)]));

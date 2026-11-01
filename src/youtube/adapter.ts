@@ -410,8 +410,11 @@ export function readMediaSource(video: HTMLVideoElement): string {
 export interface PlaylistEntry {
   /** The number YouTube shows beside the entry. YouTube doesn't number entries it hides. */
   number: number;
-  /** The entry's length in seconds of content time, or undefined when YouTube can't play it. */
-  duration: number | undefined;
+  /**
+   * The entry's length in seconds of content time, live when it is live now and has no
+   * length yet, or undefined when YouTube can't play it.
+   */
+  duration: number | 'live' | undefined;
   /** Whether this is the entry YouTube is playing. */
   selected: boolean;
   /** The video the entry plays. */
@@ -503,12 +506,14 @@ function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
     // when the entry has no fixed length yet, or is marked live and says nothing.
     const timeStatus = [...entry.querySelectorAll(ENTRY_TIME_STATUS)].map((element) => element.textContent?.trim() ?? '');
     const playable = !entry.querySelector(ENTRY_UNPLAYABLE);
+    const live = Boolean(entry.querySelector(ENTRY_LIVE));
+    const length = timeStatus.map(parseDuration).find((seconds) => seconds !== undefined);
     return {
       // The playing entry shows ▶ in place of its number.
       number: Number(entry.querySelector(ENTRY_NUMBER)?.textContent?.trim()) || undefined,
-      duration: playable ? timeStatus.map(parseDuration).find((seconds) => seconds !== undefined) : undefined,
+      duration: !playable ? undefined : (length ?? (live ? ('live' as const) : undefined)),
       playable,
-      hasTimeStatus: timeStatus.some(Boolean) || Boolean(entry.querySelector(ENTRY_LIVE)),
+      hasTimeStatus: timeStatus.some(Boolean) || live,
       selected: entry.hasAttribute('selected'),
       videoId: new URLSearchParams(href.split('?')[1] ?? '').get('v') ?? undefined,
     };
@@ -518,7 +523,7 @@ function readPlaylistEntries(panel: Element): PlaylistEntry[] | undefined {
   // means YouTube changed how it shows lengths.
   const lengthsKnown =
     playable.every((entry) => entry.hasTimeStatus) &&
-    (playable.length === 0 || playable.some((entry) => entry.duration !== undefined));
+    (playable.length === 0 || playable.some((entry) => typeof entry.duration === 'number'));
   if (!read.some((entry) => entry.selected) || !lengthsKnown) return undefined;
 
   // Entries are numbered one after another, so a missing number follows from its neighbours.
@@ -621,6 +626,16 @@ const ENTRY_NOW_PLAYING = ':scope yt-thumbnail-view-model badge-shape lottie-com
  * words for screen readers, in the viewer's language, so Chrono doesn't read it there.
  */
 const ENTRY_LENGTH_OVERLAY = ':scope ytd-thumbnail ytd-thumbnail-overlay-time-status-renderer';
+/**
+ * A playlist page's entry that is live now, which has no length yet. In Nov 2026 a lockup
+ * showed a LIVE badge, styled as live, in place of its length. No saved page shows one in
+ * the older list design; its thumbnail is the one the watch page's playlist panel marks
+ * is-live-video.
+ */
+const PAGE_ENTRY_LIVE = [
+  ':scope ytd-thumbnail[is-live-video]',
+  ':scope yt-thumbnail-view-model badge-shape.ytBadgeShapeThumbnailLive',
+].join(', ');
 const PAGE_ENTRY_LINK = ':scope a[href*="/watch?"]';
 /**
  * The miniplayer's playlist position, e.g. "38 / 2480", in its info bar, and its player's
@@ -639,10 +654,10 @@ export interface PlaylistPage {
   /**
    * The content time of each entry YouTube has loaded into the list, in seconds, in order.
    * Undefined for an entry that shows no length, as YouTube shows a deleted or private video,
-   * and unknown for the entry YouTube is playing, when Chrono hasn't seen its length, or
-   * for an entry whose length badge YouTube hasn't drawn yet.
+   * live for an entry that is live now, and unknown for the entry YouTube is playing, when
+   * Chrono hasn't seen its length, or for an entry whose length badge YouTube hasn't drawn yet.
    */
-  entryLengths: (number | 'unknown' | undefined)[];
+  entryLengths: (number | 'live' | 'unknown' | undefined)[];
   /** Whether YouTube loads more entries when the viewer scrolls to the end of the list. */
   moreToLoad: boolean;
 }
@@ -656,7 +671,7 @@ export interface PlaylistPage {
 export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistPage> {
   const lengths = new Map<string, number>();
 
-  const readLength = (entry: Element, playing: MiniplayerEntry | undefined): number | 'unknown' | undefined => {
+  const readLength = (entry: Element, playing: MiniplayerEntry | undefined): number | 'live' | 'unknown' | undefined => {
     const href = entry.querySelector(PAGE_ENTRY_LINK)?.getAttribute('href') ?? '';
     const params = new URLSearchParams(href.split('?')[1]);
     const videoId = params.get('v');
@@ -668,6 +683,7 @@ export function createPlaylistPageReader(): (doc: Document) => Reading<PlaylistP
     }
     const remembered = videoId ? lengths.get(videoId) : undefined;
     if (remembered !== undefined) return remembered;
+    if (entry.querySelector(PAGE_ENTRY_LIVE)) return 'live';
     if (entry.querySelector(ENTRY_NOW_PLAYING)) {
       const isPlaying =
         playing && params.get('list') === playing.listId && params.get('index') === String(playing.position);

@@ -152,6 +152,8 @@ export type PlaylistScope =
       partial: { counted: number; total: number } | undefined;
       /** How many unavailable entries the scope skips. */
       unavailable: number;
+      /** How many entries the scope counts that are live now, and add no length to it. */
+      live: number;
     };
 
 export interface PlaylistState {
@@ -167,7 +169,7 @@ export interface PlaylistState {
 /**
  * The Playlist scope: the current video's remaining plus every following entry up to and
  * including the target entry. Only entries YouTube has loaded count, and unavailable ones
- * are skipped.
+ * are skipped. An entry that is live now has no length to add, and is named as live.
  */
 export function playlistScope({ video, playlist, targetEntry, target }: PlaylistState): PlaylistScope {
   const scope = videoScope(video);
@@ -184,7 +186,10 @@ export function playlistScope({ video, playlist, targetEntry, target }: Playlist
   const last = loaded >= total ? lastLoaded : Math.max(lastLoaded, total - hiddenUnavailable);
   const until = Math.min(Math.max(targetEntry ?? last, current), last);
   const following = entries.slice(playing + 1).filter((entry) => entry.number <= until);
-  const followingLength = following.reduce((sum, entry) => sum + (entry.duration ?? 0), 0);
+  const followingLength = following.reduce(
+    (sum, entry) => sum + (typeof entry.duration === 'number' ? entry.duration : 0),
+    0,
+  );
   const contentLeft = Math.max(0, video.duration - video.position) + followingLength;
   return {
     kind: 'times',
@@ -197,6 +202,7 @@ export function playlistScope({ video, playlist, targetEntry, target }: Playlist
     // them when it runs to the end of the playlist.
     unavailable:
       following.filter((entry) => entry.duration === undefined).length + (until === last ? hiddenUnavailable : 0),
+    live: following.filter((entry) => entry.duration === 'live').length,
   };
 }
 
@@ -258,9 +264,10 @@ export interface PlaylistPageState {
   entryCount: number;
   /**
    * The content time of each entry YouTube has loaded: undefined for an unavailable entry,
-   * and unknown for an available one whose length Chrono can't read.
+   * live for one that is live now, and unknown for an available one whose length Chrono
+   * can't read.
    */
-  entryLengths: (number | 'unknown' | undefined)[];
+  entryLengths: (number | 'live' | 'unknown' | undefined)[];
   /** Whether YouTube has more entries to load. */
   moreToLoad: boolean;
   /** The viewer's YouTube speed, when Chrono can read it. */
@@ -275,6 +282,8 @@ export interface PlaylistSummary {
   atSpeed?: { watchTime: number; speed: number };
   /** How many entries are unavailable: shown with no length, or hidden by YouTube. */
   unavailable: number;
+  /** How many entries are live now, which have no length yet. */
+  live: number;
   /**
    * When the summary counts only part of the playlist: how many entries were counted, of
    * how many, and whether those are the first ones, because YouTube hasn't loaded the rest.
@@ -287,13 +296,15 @@ export interface PlaylistSummary {
  * unavailable entries out of the list but not out of its count, so once the whole list
  * has loaded, the entries missing from it are the unavailable ones. Before then, the
  * summary can only say how far it got. An available entry whose length Chrono can't read
- * is left out of the total, and the summary says so too.
+ * is left out of the total, and the summary says so too. An entry that is live now has no
+ * length to add, so it is counted but adds nothing to the total, and the summary names it.
  */
 export function summarisePlaylist({ entryCount, entryLengths, moreToLoad, speed }: PlaylistPageState): PlaylistSummary | undefined {
   if (entryCount === 0) return undefined;
   const lengths = entryLengths.filter((length) => typeof length === 'number');
   const contentTime = lengths.reduce((sum, length) => sum + length, 0);
   const unknown = entryLengths.filter((length) => length === 'unknown').length;
+  const live = entryLengths.filter((length) => length === 'live').length;
   const loaded = entryLengths.length;
   const loading = moreToLoad && loaded < entryCount;
   const hidden = loading ? 0 : Math.max(0, entryCount - loaded);
@@ -303,7 +314,8 @@ export function summarisePlaylist({ entryCount, entryLengths, moreToLoad, speed 
   return {
     contentTime,
     atSpeed: knownSpeed ? { watchTime: contentTime / speed, speed } : undefined,
-    unavailable: loaded - lengths.length - unknown + hidden,
+    unavailable: loaded - lengths.length - unknown - live + hidden,
+    live,
     partial: counted < entryCount ? { counted, of: entryCount, first: unknown === 0 } : undefined,
   };
 }

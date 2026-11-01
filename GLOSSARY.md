@@ -65,12 +65,16 @@ The short finish time Chrono appends to the player's own time display. It is opt
 _Avoid_: Inline time, time-display injection
 
 **Playlist summary**:
-The one-line total that Chrono adds to a playlist page, covering the playlist's content time, its watch time at the viewer's speed, and how many entries are unavailable. It is unrelated to the playlist scope.
+The one-line total that Chrono adds to a playlist page, covering the playlist's content time, its watch time at the viewer's speed, and how many entries are unavailable or live. It is unrelated to the playlist scope.
 _Avoid_: Playlist total, playlist duration
 
 **Counted note**:
 The part of the Playlist summary that says how many of the playlist's entries its total covers, as "38 of 39 counted", when it can't cover them all: YouTube hasn't loaded the rest ("first 100 of 412 counted"), or Chrono can't read some entries' lengths.
 _Avoid_: Partial count, loaded count
+
+**Live entry**:
+A playlist entry that is a live stream airing now, so it has no length yet. The Playlist summary and the Playlist scope count it but add nothing to their time for it, and name it as "1 live". It is not unavailable.
+_Avoid_: Live video (when meaning a playlist entry), unavailable
 
 **Ad break**:
 A period during which YouTube plays an ad in the player. Chrono pauses its calculations for its duration.

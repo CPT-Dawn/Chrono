@@ -62,6 +62,28 @@ describe('Stream recording', () => {
     expect(await reportedFailures()).toEqual([]);
   });
 
+  it('names an entry that is live now as live, not unavailable', async () => {
+    // Entry 1 is live now, but comes before the playing entry. Entry 4 (1:35:47) becomes
+    // live the same way: its thumbnail marked is-live-video, with no time on it.
+    const page = openSavedPage('watch-stream-recording', RECORDING);
+    const entry = document.querySelectorAll('ytd-playlist-panel-video-renderer')[3]!;
+    const thumbnail = entry.querySelector('ytd-thumbnail')!;
+    thumbnail.setAttribute('is-live-video', '');
+    thumbnail.querySelector('ytd-thumbnail-overlay-time-status-renderer')!.remove();
+    page.video.load({ duration: LENGTH });
+    page.video.seek(1000);
+    await startChrono();
+    const panel = queryPanel()!;
+    fireEvent.click(panel.getByRole('button', { name: 'Details' }));
+
+    // 2,837,521 s, less entry 4's 5,747 s: 2,831,774 s.
+    const scope = within(panel.getByRole('group', { name: 'Playlist' }));
+    scope.getByText('first 202 of 2,480 counted · 1 live');
+    expect(scope.queryByText(/unavailable/)).toBeNull();
+    scope.getByText('786:36:14 left at 1×');
+    expect(await reportedFailures()).toEqual([]);
+  });
+
   it('finds its place below the video in a narrow window, with the chat replay there too', async () => {
     const page = await openRecording();
 

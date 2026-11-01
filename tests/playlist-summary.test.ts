@@ -187,6 +187,21 @@ describe('Playlist summary', () => {
       });
     });
 
+    it('names an entry that is live now as live, not unavailable, in the older list design', async () => {
+      // No saved page has a live entry in this design, so the first entry (3:39) becomes one
+      // the way the watch page's playlist panel draws it: its thumbnail marked is-live-video,
+      // with no length overlay.
+      const page = openSavedPage('playlist-legacy-long', LEGACY_LONG_URL);
+      page.loadMoreEntries('playlist-legacy-long-more', { last: true });
+      const thumbnail = document.querySelector('ytd-browse ytd-playlist-video-renderer ytd-thumbnail')!;
+      thumbnail.setAttribute('is-live-video', '');
+      thumbnail.querySelector('ytd-thumbnail-overlay-time-status-renderer')!.remove();
+      await startChrono();
+
+      // The other 134 entries, 9:41:15 in all, and the 4 YouTube hides.
+      expect(queryPlaylistSummary()).toBe('9h 41m total · 4 unavailable · 1 live');
+    });
+
     it('works on Liked videos', async () => {
       // Saved signed in, in lockups: the first 100 entries, 50:00:40 in all, of the 138 the
       // header counts.
@@ -441,8 +456,8 @@ describe('Playlist summary', () => {
   describe('while the miniplayer plays one of the entries on screen', () => {
     // Saved in Chrome in Nov 2026, signed out, with the miniplayer playing entry 38 of the
     // 2,480 (8:59:16), whose lockup says "Now playing" in place of its length. The other 98
-    // with a length are 363:41:09 in all. The first is live now, with no length, which
-    // Chrono counts as unavailable.
+    // with a length are 363:41:09 in all. The first is live now, with no length, and the
+    // summary names it as live, not unavailable.
     const STREAMS_URL = 'https://www.youtube.com/playlist?list=PL9E9945kkf2AoDFiFrz3UNO0wv5NFh_5q';
     const PLAYING_LENGTH = 8 * 3600 + 59 * 60 + 16;
 
@@ -451,19 +466,19 @@ describe('Playlist summary', () => {
       page.video.load({ duration: PLAYING_LENGTH });
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('372h 40m total · 1 unavailable · first 100 of 2,480 counted');
+      expect(queryPlaylistSummary()).toBe('372h 40m total · 1 live · first 100 of 2,480 counted');
     });
 
     it('counts it once the miniplayer has loaded the video, and leaves it out until then', async () => {
       const page = openSavedPage('playlist-miniplayer', STREAMS_URL);
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 unavailable · 99 of 2,480 counted');
+      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 live · 99 of 2,480 counted');
 
       page.video.load({ duration: PLAYING_LENGTH });
       await settle();
 
-      expect(queryPlaylistSummary()).toBe('372h 40m total · 1 unavailable · first 100 of 2,480 counted');
+      expect(queryPlaylistSummary()).toBe('372h 40m total · 1 live · first 100 of 2,480 counted');
     });
 
     it("doesn't take an ad's length for the entry's while the miniplayer plays an ad", async () => {
@@ -472,7 +487,7 @@ describe('Playlist summary', () => {
       page.video.load({ duration: 15 });
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 unavailable · 99 of 2,480 counted');
+      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 live · 99 of 2,480 counted');
     });
 
     it('takes no length from a miniplayer playing a video from another playlist', async () => {
@@ -492,7 +507,7 @@ describe('Playlist summary', () => {
       page.video.load({ duration: PLAYING_LENGTH });
       await startChrono();
 
-      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 unavailable · 99 of 2,480 counted');
+      expect(queryPlaylistSummary()).toBe('363h 41m total · 1 live · 99 of 2,480 counted');
     });
   });
 
