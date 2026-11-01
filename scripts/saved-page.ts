@@ -57,15 +57,16 @@ const window = new Window({
   },
 });
 
-export interface TrimmedPage {
+/** How many links were opened inside another link and saved as a <span>. */
+type NestedLinkCount = { nestedLinks: number };
+
+export type TrimmedPage = NestedLinkCount & {
   /** The saved page's markup. */
   page: string;
-  /** How many links were opened inside another link and saved as a <span>. */
-  nestedLinks: number;
-}
+};
 
 export function trimPage(raw: string): TrimmedPage {
-  const { html, rewritten } = rewriteNestedLinks(raw);
+  const { html, nestedLinks } = rewriteNestedLinks(raw);
   const doc = parse(html);
   for (const el of doc.querySelectorAll(REMOVE.join(','))) el.remove();
   for (const list of doc.querySelectorAll(VIDEO_LISTS.join(','))) {
@@ -84,8 +85,8 @@ export function trimPage(raw: string): TrimmedPage {
     redactAdTracking(el);
   }
 
-  const comment = leadingComment(readSingleFileHeader(raw), rewritten);
-  return { page: `<!DOCTYPE html>\n${comment}${serialize(doc.documentElement, 0)}`, nestedLinks: rewritten };
+  const comment = leadingComment(readSingleFileHeader(raw), nestedLinks);
+  return { page: `<!DOCTYPE html>\n${comment}${serialize(doc.documentElement, 0)}`, nestedLinks };
 }
 
 // A style declaration whose value is an inline data: URI, e.g. a background image.
@@ -132,26 +133,23 @@ function readSingleFileHeader(raw: string): SingleFileHeader | undefined {
   return url && savedDate ? { url, savedDate } : undefined;
 }
 
+/** Why and how `rewriteNestedLinks` kept links nested in links, as a saved page tells its reader. */
+const NESTED_LINKS_NOTE = [
+  "HTML can't hold a link inside a link, and YouTube builds playlist entries that way from",
+  'script, so each link nested in another was saved as a <span> with the same attributes.',
+];
+
 // In the style of the saved pages' own leading comments: where and when the page was
 // saved, and how links nested in links were kept.
 function leadingComment(header: SingleFileHeader | undefined, nestedLinks: number): string {
   const lines: string[] = [];
   if (header) lines.push(`Saved with SingleFile from ${header.url}`, `on ${header.savedDate}.`);
-  if (nestedLinks > 0) {
-    lines.push(
-      "HTML can't hold a link inside a link, and YouTube builds playlist entries that way from",
-      'script, so each link nested in another was saved as a <span> with the same attributes.',
-    );
-  }
+  if (nestedLinks > 0) lines.push(...NESTED_LINKS_NOTE);
   if (lines.length === 0) return '';
   return `<!--\n${lines.map((line) => `  ${line}\n`).join('')}-->\n`;
 }
 
-export interface RewrittenLinks {
-  html: string;
-  /** How many links were opened inside another link and saved as a <span>. */
-  rewritten: number;
-}
+export type RewrittenLinks = NestedLinkCount & { html: string };
 
 // Comments and the raw text of scripts and styles pass through untouched; any tag is
 // matched whole, quoted attribute values included, so a ">" inside one can't end it early.
@@ -159,27 +157,26 @@ const MARKUP =
   /<!--[\s\S]*?-->|<(script|style)\b(?:[^>"']|"[^"]*"|'[^']*')*>[\s\S]*?<\/\1\s*>|<(\/?)([a-zA-Z][\w-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
 
 /**
- * HTML can't hold a link inside a link, but YouTube builds some entries that way from
- * script, and a browser saves them nested. Parsing would close the outer link early and
- * move what follows it, so each link opened inside another becomes a <span> with the same
- * attributes, closing tag included.
+ * Saves each link opened inside another as a <span> with the same attributes, closing tag
+ * included (`NESTED_LINKS_NOTE` says why). A browser saves such links nested, and parsing
+ * them would close the outer link early and move what follows it.
  */
 export function rewriteNestedLinks(html: string): RewrittenLinks {
-  // One entry per open <a>: whether it was saved as a <span>.
-  const open: boolean[] = [];
-  let rewritten = 0;
+  // One entry per <a> still open, outermost first: whether it was saved as a <span>.
+  const openLinksSavedAsSpan: boolean[] = [];
+  let nestedLinks = 0;
   const out = html.replace(MARKUP, (tag, _raw, closing: string | undefined, name: string | undefined, rest: string) => {
     if (name?.toLowerCase() !== 'a') return tag;
     if (closing) {
-      return open.pop() ? `</span${rest}>` : tag;
+      return openLinksSavedAsSpan.pop() ? `</span${rest}>` : tag;
     }
-    const nested = open.length > 0;
-    open.push(nested);
+    const nested = openLinksSavedAsSpan.length > 0;
+    openLinksSavedAsSpan.push(nested);
     if (!nested) return tag;
-    rewritten++;
+    nestedLinks++;
     return `<span${rest}>`;
   });
-  return { html: out, rewritten };
+  return { html: out, nestedLinks };
 }
 
 function parse(html: string) {

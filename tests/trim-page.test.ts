@@ -25,14 +25,14 @@ describe('Rewriting nested links before parsing', () => {
 
     expect(rewriteNestedLinks(html)).toEqual({
       html: '<a id="wc-endpoint" href="/watch?v=1"><b>1</b><span id="thumbnail" href="/watch?v=1">x</span></a>',
-      rewritten: 1,
+      nestedLinks: 1,
     });
   });
 
   it('leaves links side by side as links', () => {
     const html = '<p><a href="/a">A</a> <A HREF="/b">B</A><a href="/c"></a></p>';
 
-    expect(rewriteNestedLinks(html)).toEqual({ html, rewritten: 0 });
+    expect(rewriteNestedLinks(html)).toEqual({ html, nestedLinks: 0 });
   });
 
   it('saves every link below the outermost as a <span>, however deep', () => {
@@ -40,7 +40,7 @@ describe('Rewriting nested links before parsing', () => {
 
     expect(rewriteNestedLinks(html)).toEqual({
       html: '<a id="1"><span id="2"><span id="3">deep</span></span><span id="4">next</span></a><a id="5">after</a>',
-      rewritten: 3,
+      nestedLinks: 3,
     });
   });
 
@@ -53,7 +53,7 @@ describe('Rewriting nested links before parsing', () => {
       '</a>',
     ].join('');
 
-    expect(rewriteNestedLinks(html)).toEqual({ html, rewritten: 0 });
+    expect(rewriteNestedLinks(html)).toEqual({ html, nestedLinks: 0 });
   });
 });
 
