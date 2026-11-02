@@ -4,6 +4,7 @@
 //
 // v3 starts fresh: the keys v2 stored (is24HourMode, showVideoCard, …) are never read.
 
+import { removeExtensionListener } from '@/extension-listeners';
 import type { MessageName } from '@/messages';
 
 /** How clock times are written. Automatic follows the browser's language and region. */
@@ -120,6 +121,6 @@ export function watchSettings(onChange: (settings: Settings) => void, signal: Ab
     const unwatch = storageItems[key].watch(async () => {
       if (!signal.aborted) onChange(await readSettings());
     });
-    signal.addEventListener('abort', unwatch, { once: true });
+    signal.addEventListener('abort', () => removeExtensionListener(unwatch), { once: true });
   }
 }

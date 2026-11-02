@@ -1,6 +1,7 @@
 // How the Panel and the popup get a link opened. Only the background script can open a
 // tab and read the browser's details, so the others ask it to; and only the content
 // script knows what Chrono detected on a YouTube page, so the popup asks the tab for that.
+import { removeExtensionListener } from '@/extension-listeners';
 import type { OutwardLink, PageReport } from '@/links';
 
 /** A content script or the popup asks the background script to open a link. */
@@ -59,5 +60,7 @@ export function answerPageReports(readPageReport: () => PageReport | undefined, 
     return true;
   };
   browser.runtime.onMessage.addListener(listener);
-  signal.addEventListener('abort', () => browser.runtime.onMessage.removeListener(listener));
+  signal.addEventListener('abort', () =>
+    removeExtensionListener(() => browser.runtime.onMessage.removeListener(listener)),
+  );
 }

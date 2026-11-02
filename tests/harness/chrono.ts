@@ -107,13 +107,25 @@ export function stopContentScript(): void {
 /**
  * The extension is updated, disabled or removed. Chrome leaves the running content script
  * in the page, cut off from the extension: its code still runs, but `browser.runtime.id`
- * is gone. Unlike `stopChrono`, nothing tells Chrono; it has to notice.
+ * is gone. Unlike `stopChrono`, nothing tells Chrono; it has to notice. Chrome also
+ * throws "Extension context invalidated." from the extension APIs, even from removing a
+ * listener, so the fake does too.
  */
 export function invalidateExtensionContext(): void {
   const { id } = fakeBrowser.runtime;
   fakeBrowser.runtime.id = undefined as unknown as string;
+  const invalidated = () => {
+    throw new Error('Extension context invalidated.');
+  };
+  const { onChanged } = fakeBrowser.storage;
+  const { onMessage } = fakeBrowser.runtime;
+  const removers = { onChanged: onChanged.removeListener, onMessage: onMessage.removeListener };
+  onChanged.removeListener = invalidated;
+  onMessage.removeListener = invalidated;
   onTestFinished(() => {
     fakeBrowser.runtime.id = id;
+    onChanged.removeListener = removers.onChanged;
+    onMessage.removeListener = removers.onMessage;
   });
 }
 
