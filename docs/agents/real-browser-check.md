@@ -39,11 +39,15 @@ Playwright can't navigate Firefox to `about:` or `moz-extension://` pages (they 
   ```
 
   Check the result: `#movie_player` must not have the class `ytp-delhi-modern`.
+
+  As of Nov 2026 this no longer works: the watch page carries only about 10 `delhi` flags set to `true`, and flipping them all still leaves the Delhi player. Check the legacy player by hand, with an account or profile that gets it.
+- If `page.route(...).fetch()` fails with `HPE_HEADER_OVERFLOW`, run the script under Node with `--max-http-header-size=262144`. YouTube's response headers are larger than the default limit.
 - Dark theme: add the cookie `PREF=f6=400` on `.youtube.com`.
 - The Panel is a `<section>` with an open shadow root containing `.panel`.
 - Pre-roll ads are common: wait while `#movie_player` has `ad-showing` before checking times.
 - Headless Chromium and Firefox report every tab as `visible`, so background-tab behaviour can only be tested at Seam 1.
-- Headless Firefox doesn't enter fullscreen on `f`; check fullscreen in Chromium.
+- Neither headless browser enters fullscreen. In headless Chromium, `requestFullscreen()` rejects with "not granted" (Nov 2026), and headless Firefox ignores `f`. Check fullscreen by hand.
+- A watch page that autoplays its next video often lands on an ad. The Panel says "Paused for ad" until it ends, which is correct.
 - For in-page navigation, click a visible link (e.g. a related video) or use `page.goBack()`. Don't synthesise `yt-navigate` events.
 - To catch sub-frame flashes, use `context.addInitScript` to observe the Panel's shadow root and log every text change; 50 ms polling misses them.
 - `context.setOffline(true)` shows how YouTube behaves when a navigation fails.
