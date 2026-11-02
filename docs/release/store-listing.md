@@ -12,22 +12,25 @@ See how long a YouTube video really takes at your speed, and when you'll finish.
 
 ## Description (both stores)
 
-How long will this video actually take at 1.5×? When will I finish this playlist? What speed do I need to be done by 6 PM?
+How long will this video actually take at 1.5×? When will I finish this playlist? What speed do I need to be done by 6 PM? And why does YouTube stop at 2×?
 
 Chrono answers these right inside YouTube.
 
 PANEL
-A compact block at the top of YouTube's sidebar, styled like YouTube's own panels. At a glance: the video's remaining watch time at your speed, its finish time, and speed − / + buttons. Expand it for more:
+A compact block at the top of YouTube's sidebar, styled like YouTube's own panels. At a glance: the video's remaining watch time at your speed, its finish time, and speed − / + buttons that go from 0.25× all the way to 4×, past YouTube's 2× limit. Expand it for more:
 • Speed table: remaining and finish time at every common speed.
 • Chapter scope: remaining and finish time for the chapter you're in.
 • Playlist scope: remaining and finish time up to any entry you pick.
-• Targets: set a finish time or the watch time you have, and Chrono shows the required speed.
+• Targets: set a finish time or the watch time you have, and Chrono shows the required speed, up to 4×.
 
 PLAYER BADGE
 An optional "/ ends 3:45 PM" after the player's own time, visible in fullscreen too.
 
 PLAYLIST SUMMARY
 One line on playlist pages: total content time, watch time at your speed, and how many entries are unavailable.
+
+SPEEDS UP TO 4×
+YouTube's player stops at 2×. Chrono's + keeps going in 0.25× steps up to 4×, and every time and finish estimate follows. Pick a speed in YouTube's own menu and it takes over again. A speed above 2× lasts until you reload the page, and YouTube's menu keeps reading 2× while it plays.
 
 ALSO
 • Chrono's speed is always YouTube's speed. Change it in either place.

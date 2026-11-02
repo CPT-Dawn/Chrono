@@ -32,6 +32,7 @@ YouTube serves two players, legacy and Delhi (the redesign). Check both where yo
 - [ ] **Ads**: Chrono pauses during an ad break and picks up again when the video resumes.
 - [ ] **Playlist summary**: on a playlist page, the line shows content time, watch time at your speed and the number of unavailable entries.
 - [ ] **Speed sync**: changing speed in YouTube's menu updates Chrono, and Chrono's − / + changes YouTube's speed.
+- [ ] **Above 2×**: + keeps going past 2× and stops at 4×. The video really plays faster, the times follow, and picking a speed in YouTube's menu takes over again.
 - [ ] **Light / dark**: switch YouTube's theme. The Panel follows.
 - [ ] **Theater** and **fullscreen**: the Panel and the Player badge behave in both.
 - [ ] **Popup and ⋮ menu**: settings save, and "Support Chrono" and "Get help" open the right chrono.cptdawn.dev pages. "Get help" pre-fills the version, browser and OS; "Report it" also adds `player`, `layout` and `failed`, and neither carries a video ID, title or address.
