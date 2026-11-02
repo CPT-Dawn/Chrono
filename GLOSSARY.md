@@ -9,7 +9,7 @@ A length of video measured as YouTube shows it, independent of playback speed.
 _Avoid_: Duration (when ambiguous), video time
 
 **Speed**:
-The playback rate applied to the video, written with a multiplication sign (e.g. 1.5×).
+The playback rate applied to the video, written with a multiplication sign (e.g. 1.5×). Chrono's speeds run from 0.25× to 4×, in 0.05× steps; above YouTube's fastest, 2×, Chrono plays the video faster itself.
 _Avoid_: Playback rate (in UI), rate, multiplier
 
 **Watch time**:

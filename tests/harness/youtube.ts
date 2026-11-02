@@ -500,6 +500,11 @@ export class FakeVideo {
     this.element.playbackRate = speed;
   }
 
+  /** The speed the video element plays at. */
+  get speed(): number {
+    return this.#speed;
+  }
+
   play(): void {
     if (!this.#paused) return;
     this.#paused = false;
@@ -537,7 +542,8 @@ export class FakeVideo {
 
 /**
  * YouTube's player element and the part of its API that reads and sets speed. Like
- * YouTube's, it applies its speed to the video element.
+ * YouTube's, it applies its speed to the video element, and clamps speeds faster than its
+ * fastest, 2×, as YouTube's did in Nov 2026.
  */
 export class FakePlayer {
   #speed = 1;
@@ -565,7 +571,12 @@ export class FakePlayer {
 
   /** Changes speed the way YouTube's speed menu and its Shift+< / Shift+> shortcuts do. */
   setSpeed(speed: number): void {
-    this.#speed = speed;
-    this.video().setSpeed(speed);
+    this.#speed = Math.min(speed, 2);
+    this.video().setSpeed(this.#speed);
+  }
+
+  /** YouTube puts its own speed back on its video, as it does when it loads another. */
+  applySpeedToVideo(): void {
+    this.video().setSpeed(this.#speed);
   }
 }

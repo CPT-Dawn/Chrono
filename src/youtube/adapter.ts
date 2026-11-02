@@ -175,25 +175,69 @@ export function readPlayerSpeed(doc: Document): Reading<number | undefined> {
   if (player && !player.matches(SHOWN_PLAYER) && isFlaggedAdBreak(player)) return recognised(undefined);
   try {
     const speed = api.value.getPlaybackRate();
-    return Number.isFinite(speed) ? recognised(speed) : unrecognised('speed');
+    if (!Number.isFinite(speed)) return unrecognised('speed');
+    // At its fastest, YouTube's player may be playing its video faster still: see
+    // setPlayerSpeed.
+    const videoSpeed = player ? playerVideo(player)?.playbackRate : undefined;
+    return recognised(speed === PLAYER_FASTEST && videoSpeed && videoSpeed > speed ? videoSpeed : speed);
   } catch {
     return unrecognised('speed');
   }
 }
 
 /**
- * Sets YouTube's player speed, so YouTube's menu shows it too. Returns whether the player
- * took it. Works only from the page's own context.
+ * YouTube's player's fastest speed. Its API clamps faster speeds to this and its menu stops
+ * here (Nov 2026, player 11a45ffb), but the video element itself plays faster.
+ */
+export const PLAYER_FASTEST = 2;
+
+/** The video element in one of YouTube's players. */
+function playerVideo(player: Element): HTMLVideoElement | null {
+  return player.querySelector<HTMLVideoElement>('video');
+}
+
+/**
+ * Sets YouTube's player speed, so YouTube's menu shows it too. Above YouTube's fastest,
+ * the player goes to its fastest and its video element plays faster than that; YouTube's
+ * menu then shows its fastest. Returns whether the player took it. Works only from the
+ * page's own context.
  */
 export function setPlayerSpeed(doc: Document, speed: number): boolean {
-  const api = readPlayerSpeedApi(doc.querySelector(PLAYER));
+  const player = doc.querySelector(PLAYER);
+  const api = readPlayerSpeedApi(player);
   if (!api.recognised) return false;
   try {
-    api.value.setPlaybackRate(speed);
+    api.value.setPlaybackRate(Math.min(speed, PLAYER_FASTEST));
+    // YouTube applies a speed its player can play to its video, unless its player is
+    // already at that speed: then a video left faster than the player needs bringing back.
+    const video = player && playerVideo(player);
+    if (video && (speed > PLAYER_FASTEST || video.playbackRate > PLAYER_FASTEST)) video.playbackRate = speed;
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Keeps a speed above YouTube's fastest, which `setPlayerSpeed` set, on the player's video:
+ * YouTube puts its own speed back on the video when it loads another. Returns false once
+ * the player has left its fastest speed, as it does when the viewer picks a speed in
+ * YouTube's menu or uses its shortcuts, so the speed is YouTube's again. In an ad break it
+ * leaves the ad's speed alone. Works only from the page's own context.
+ */
+export function keepSpeedAbovePlayer(doc: Document, speed: number): boolean {
+  const player = doc.querySelector(PLAYER) ?? miniplayerPlayer(doc);
+  const api = readPlayerSpeedApi(player);
+  if (!player || !api.recognised) return true;
+  if (isFlaggedAdBreak(player)) return true;
+  try {
+    if (api.value.getPlaybackRate() !== PLAYER_FASTEST) return false;
+  } catch {
+    return true;
+  }
+  const video = playerVideo(player);
+  if (video && video.playbackRate !== speed) video.playbackRate = speed;
+  return true;
 }
 
 /**

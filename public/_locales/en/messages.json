@@ -226,11 +226,11 @@
     }
   },
   "requiredSpeedTooFast": {
-    "message": "Needs $SPEED$ · beyond YouTube's $LIMIT$ limit",
-    "description": "The speed a target needs, rounded to 0.05×, when it is faster than YouTube can play, e.g. \"Needs 2.6× · beyond YouTube's 2× limit\".",
+    "message": "Needs $SPEED$ · beyond Chrono's $LIMIT$ limit",
+    "description": "The speed a target needs, rounded to 0.05×, when it is faster than Chrono can play, e.g. \"Needs 4.6× · beyond Chrono's 4× limit\".",
     "placeholders": {
-      "speed": { "content": "$1", "example": "2.6×" },
-      "limit": { "content": "$2", "example": "2×" }
+      "speed": { "content": "$1", "example": "4.6×" },
+      "limit": { "content": "$2", "example": "4×" }
     }
   },
   "requiredSpeedTooSlow": {

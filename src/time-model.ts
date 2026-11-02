@@ -52,7 +52,7 @@ export type Target =
 export type RequiredSpeed =
   /** YouTube's player can play at this speed, rounded up to its 0.05× steps. */
   | { kind: 'in-range'; speed: number }
-  /** The target needs this speed, rounded up to 0.05× steps, which is faster than YouTube's fastest. */
+  /** The target needs this speed, rounded up to 0.05× steps, which is faster than Chrono's fastest. */
   | { kind: 'too-fast'; speed: number }
   /** The target needs a speed slower than YouTube's slowest. */
   | { kind: 'too-slow' }
@@ -63,9 +63,12 @@ export type RequiredSpeed =
   /** The scope has nothing left to watch, so any speed meets the target. */
   | { kind: 'finished' };
 
-/** YouTube's speed range. */
+/**
+ * Chrono's speed range: YouTube's slowest to twice YouTube's fastest, which Chrono plays on
+ * YouTube's video itself (docs/adr/0004-speeds-above-youtubes-fastest.md).
+ */
 export const MIN_SPEED = 0.25;
-export const MAX_SPEED = 2;
+export const MAX_SPEED = 4;
 /** YouTube's speed menu works in 0.05× steps: 20 to each 1×. */
 const STEPS_PER_SPEED = 20;
 

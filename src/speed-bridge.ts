@@ -1,7 +1,8 @@
 // The Speed bridge. Chrono's speed is YouTube's player speed, so YouTube's menu, its
-// shortcuts and hold-for-2× stay in sync with Chrono. Only a script in the page's own
-// context can reach YouTube's player, so this module has two halves that talk through
-// events on the document:
+// shortcuts and hold-for-2× stay in sync with Chrono. Above YouTube's fastest, 2×, Chrono
+// plays YouTube's video faster itself (docs/adr/0004-speeds-above-youtubes-fastest.md).
+// Only a script in the page's own context can reach YouTube's player, so this module has
+// two halves that talk through events on the document:
 //
 // - `servePlayerSpeed` runs in the page's context and talks to YouTube's player;
 // - `connectSpeedBridge` runs in the content script and gives Chrono the speed.
@@ -10,6 +11,8 @@
 // message carries a plain number or nothing.
 import { MAX_SPEED, MIN_SPEED, roundToSpeedStep } from '@/time-model';
 import {
+  keepSpeedAbovePlayer,
+  PLAYER_FASTEST,
   type Reading,
   readPlayerSpeed,
   setPlayerSpeed,
@@ -61,8 +64,14 @@ export function servePlayerSpeed(doc: Document): () => void {
    * and the API isn't recognised.
    */
   let awaitingApi: AbortController | undefined;
+  /**
+   * The speed above YouTube's fastest that the viewer chose through Chrono, which YouTube's
+   * player can't hold itself, until the viewer changes speed through YouTube.
+   */
+  let aboveYouTube: number | undefined;
 
   const report = () => {
+    if (aboveYouTube !== undefined && !keepSpeedAbovePlayer(doc, aboveYouTube)) aboveYouTube = undefined;
     const speed = readPlayerSpeed(doc);
     if (speed.recognised) {
       stopAwaitingApi();
@@ -112,7 +121,9 @@ export function servePlayerSpeed(doc: Document): () => void {
     MESSAGES.set,
     (event) => {
       const speed = numberIn(event);
-      if (speed !== undefined) setPlayerSpeed(doc, speed);
+      if (speed === undefined) return;
+      aboveYouTube = speed > PLAYER_FASTEST ? speed : undefined;
+      setPlayerSpeed(doc, speed);
     },
     { signal },
   );
@@ -122,7 +133,7 @@ export function servePlayerSpeed(doc: Document): () => void {
 }
 
 export interface SpeedBridge {
-  /** Sets YouTube's speed, clamped to YouTube's range and rounded to 0.05× steps. */
+  /** Sets YouTube's speed, clamped to Chrono's range and rounded to 0.05× steps. */
   set(speed: number): void;
 }
 
@@ -155,12 +166,12 @@ export function connectSpeedBridge(
 
   return {
     set(speed) {
-      send(doc, MESSAGES.set, toYouTubeSpeed(speed));
+      send(doc, MESSAGES.set, toPlayableSpeed(speed));
     },
   };
 }
 
-/** A speed YouTube's menu can show: within 0.25×–2×, in 0.05× steps. */
-function toYouTubeSpeed(speed: number): number {
+/** A speed Chrono plays: within 0.25×–4×, in YouTube's 0.05× steps. */
+function toPlayableSpeed(speed: number): number {
   return roundToSpeedStep(Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed)));
 }

@@ -74,20 +74,101 @@ describe('Speed', () => {
     panel.getByText('0.25×');
   });
 
-  it("stops at YouTube's fastest speed, 2×", async () => {
-    const page = openSavedPage('watch-delhi', WATCH_URL);
-    page.video.load({ duration: 1000 });
-    await startChrono();
-    page.player.setSpeed(1.9);
-    const panel = queryPanel()!;
-    const faster = panel.getByRole('button', { name: 'Faster' });
+  describe('above YouTube\'s fastest speed, 2×', () => {
+    async function openAtSpeed(speed: number) {
+      const page = openSavedPage('watch-delhi', WATCH_URL);
+      page.video.load({ duration: 1000 });
+      page.video.seek(250);
+      await startChrono();
+      page.player.setSpeed(speed);
+      const panel = queryPanel()!;
+      return { page, panel, faster: panel.getByRole('button', { name: 'Faster' }) };
+    }
 
-    faster.click();
-    expect(page.player.speed).toBe(2);
-    panel.getByText('2×');
+    it('speeds up past 2× on the video itself, with YouTube\'s player at 2×', async () => {
+      const { page, panel, faster } = await openAtSpeed(2);
 
-    faster.click();
-    expect(page.player.speed).toBe(2);
+      faster.click();
+
+      expect(page.player.speed).toBe(2);
+      expect(page.video.speed).toBe(2.25);
+      panel.getByText('2.25×');
+      // 750 s of content at 2.25× takes 333.3 s, shown rounded up.
+      panel.getByText('5:34 left');
+    });
+
+    it('stops at 4×', async () => {
+      const { page, panel, faster } = await openAtSpeed(2);
+
+      for (let i = 0; i < 10; i++) faster.click();
+
+      expect(page.video.speed).toBe(4);
+      panel.getByText('4×');
+    });
+
+    it('slows back down to 2× and below', async () => {
+      const { page, panel, faster } = await openAtSpeed(2);
+      faster.click();
+      const slower = panel.getByRole('button', { name: 'Slower' });
+
+      slower.click();
+      expect(page.video.speed).toBe(2);
+      panel.getByText('2×');
+
+      slower.click();
+      expect(page.player.speed).toBe(1.75);
+      expect(page.video.speed).toBe(1.75);
+      panel.getByText('1.75×');
+    });
+
+    it('keeps the speed when YouTube puts its own back on the next video', async () => {
+      const { page, panel, faster } = await openAtSpeed(2);
+      faster.click();
+      faster.click();
+
+      page.video.startLoading();
+      page.player.applySpeedToVideo();
+      page.video.load({ duration: 1000 });
+
+      expect(page.video.speed).toBe(2.5);
+      panel.getByText('2.5×');
+    });
+
+    it("hands the speed back to YouTube once the viewer changes it in YouTube's menu", async () => {
+      const { page, panel, faster } = await openAtSpeed(2);
+      faster.click();
+
+      page.player.setSpeed(1.5);
+      expect(page.video.speed).toBe(1.5);
+      panel.getByText('1.5×');
+
+      // YouTube's own 2× is no longer Chrono's to raise.
+      page.player.setSpeed(2);
+      page.player.applySpeedToVideo();
+      expect(page.video.speed).toBe(2);
+      panel.getByText('2×');
+    });
+
+    it("leaves an ad's speed alone, and puts the speed back after the ad", async () => {
+      const { page, panel, faster } = await openAtSpeed(2);
+      faster.click();
+
+      page.startAdBreak();
+      page.video.startLoading();
+      page.video.setSpeed(1);
+      page.video.load({ duration: 30 });
+      await settle();
+      expect(page.video.speed).toBe(1);
+
+      page.endAdBreak();
+      page.video.startLoading();
+      page.player.applySpeedToVideo();
+      page.video.load({ duration: 1000 });
+      await settle();
+
+      expect(page.video.speed).toBe(2.25);
+      panel.getByText('2.25×');
+    });
   });
 
   it("rounds the speed it sets to YouTube's 0.05× steps", async () => {

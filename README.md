@@ -12,7 +12,7 @@ Website: [chrono.cptdawn.dev](https://chrono.cptdawn.dev/)
   - **targets**: set a finish time to meet or the watch time you have, and Chrono shows the **required speed**.
 - **Player badge** (optional): "/ ends 3:45 PM" after the player's own time display, visible in fullscreen too.
 - **Playlist summary**: one line on playlist pages, e.g. "4h 12m total · 2h 48m at 1.5× · 3 unavailable".
-- **Speed sync**: Chrono's speed and YouTube's speed are always the same.
+- **Speed sync**: Chrono's speed and YouTube's speed are always the same, up to YouTube's 2×. Chrono's + goes on to 4×, which it keeps from video to video until you change speed through YouTube.
 - Chrono follows YouTube's light or dark theme, and pauses its calculations during an **ad break**.
 
 ## Supported browsers

@@ -162,13 +162,13 @@ describe('Targets', () => {
       queryPanel()!.getByText('10:00 left');
     });
 
-    it("explains a required speed beyond YouTube's 2× limit, with nothing to apply", async () => {
+    it("explains a required speed beyond Chrono's 4× limit, with nothing to apply", async () => {
       await openVideo();
 
-      // 750 s of content into 5 minutes.
-      setWatchTime('Video target', 0, 5);
+      // 750 s of content into 2 minutes.
+      setWatchTime('Video target', 0, 2);
 
-      target('Video target').getByText("Needs 2.5× · beyond YouTube's 2× limit");
+      target('Video target').getByText("Needs 6.25× · beyond Chrono's 4× limit");
       expect(target('Video target').queryByRole('button', { name: /Apply/ })).toBeNull();
     });
 
@@ -182,22 +182,34 @@ describe('Targets', () => {
       expect(target('Video target').queryByRole('button', { name: /Apply/ })).toBeNull();
     });
 
-    it('applies a required speed of exactly 2×, but not one just over it', async () => {
+    it('applies a required speed above YouTube\'s 2× on the video itself', async () => {
       const page = await openVideo();
-      // 750 s of content into 6 minutes needs 2.083×.
-      setWatchTime('Video target', 0, 6);
-      target('Video target').getByText("Needs 2.1× · beyond YouTube's 2× limit");
+      // 750 s of content into 5 minutes.
+      setWatchTime('Video target', 0, 5);
 
-      // 727 s of content into 6 minutes needs 2.019×, which 2× would miss.
+      target('Video target').getByText('Needs 2.5×');
+      fireEvent.click(target('Video target').getByRole('button', { name: 'Apply 2.5×' }));
+
+      expect(page.player.speed).toBe(2);
+      expect(page.video.speed).toBe(2.5);
+    });
+
+    it('applies a required speed of exactly 4×, but not one just over it', async () => {
+      const page = await openVideo();
+      // 750 s of content into 3 minutes needs 4.167×.
+      setWatchTime('Video target', 0, 3);
+      target('Video target').getByText("Needs 4.2× · beyond Chrono's 4× limit");
+
+      // 727 s of content into 3 minutes needs 4.039×, which 4× would miss.
       page.video.seek(273);
-      target('Video target').getByText("Needs 2.05× · beyond YouTube's 2× limit");
+      target('Video target').getByText("Needs 4.05× · beyond Chrono's 4× limit");
 
-      // 720 s of content into 6 minutes needs 2×.
+      // 720 s of content into 3 minutes needs 4×.
       page.video.seek(280);
 
-      target('Video target').getByText('Needs 2×');
-      fireEvent.click(target('Video target').getByRole('button', { name: 'Apply 2×' }));
-      expect(page.player.speed).toBe(2);
+      target('Video target').getByText('Needs 4×');
+      fireEvent.click(target('Video target').getByRole('button', { name: 'Apply 4×' }));
+      expect(page.video.speed).toBe(4);
     });
 
     it('says when the finish time has already passed', async () => {
@@ -518,7 +530,7 @@ describe('Targets', () => {
       enter('Video target', 'Hour', '15');
       enter('Video target', 'Minute', '05');
       // 750 s of content by 15:05, 5 minutes from now.
-      target('Video target').getByText("Needs 2.5× · beyond YouTube's 2× limit");
+      target('Video target').getByText('Needs 2.5×');
     });
 
     it('write the hour the way the Panel writes it on a 24-hour clock', async () => {
