@@ -39,12 +39,18 @@ export function formatHoursMinutes(seconds: number, locale: string): string {
 /**
  * A clock time in the locale's style, e.g. "3:45 PM" or "15:45". `clockFormat` overrides
  * the locale's 12-hour or 24-hour convention. When the time falls on another day than
- * `now`, the day is named too: "Sun 12:20 AM".
+ * `now`, the day is named too: "Sun 12:20 AM", or "Oct 24, 3:20 PM" a week or more on,
+ * where a weekday alone would read as this week's.
  */
 export function formatClockTime(time: Date, now: Date, locale: string, clockFormat: ClockFormat): string {
-  const sameDay = time.toDateString() === now.toDateString();
+  const days = daysBetween(now, time);
+  const thisWeek = days > 0 && days < 7;
+  const dated = days !== 0 && !thisWeek;
   return new Intl.DateTimeFormat(locale, {
-    weekday: sameDay ? undefined : 'short',
+    weekday: thisWeek ? 'short' : undefined,
+    month: dated ? 'short' : undefined,
+    day: dated ? 'numeric' : undefined,
+    year: dated && time.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     hour: 'numeric',
     minute: '2-digit',
     hourCycle: HOUR_CYCLES[clockFormat],
@@ -85,6 +91,13 @@ export function timeSeparator(locale: string): string {
   const parts = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).formatToParts(new Date(2026, 0, 1, 15, 45));
   const hour = parts.findIndex((part) => part.type === 'hour');
   return parts[hour + 1]?.type === 'literal' ? parts[hour + 1]!.value : ':';
+}
+
+/** How many calendar days `to` falls after `from`, in local time. */
+function daysBetween(from: Date, to: Date): number {
+  const midnight = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  // Rounded, as a day that changes the clocks is an hour short or long.
+  return Math.round((midnight(to) - midnight(from)) / 86_400_000);
 }
 
 const HOUR_CYCLES: Record<ClockFormat, Intl.DateTimeFormatOptions['hourCycle']> = {

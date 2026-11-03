@@ -71,6 +71,38 @@ describe('Panel on a watch page', () => {
     queryPanel()!.getByText('Ends Sun 12:20 AM · at 1×');
   });
 
+  it('names only the day when the video finishes within the week', async () => {
+    vi.setSystemTime(new Date(2026, 9, 17, 15, 0, 0)); // a Saturday
+    const page = openSavedPage('watch-delhi', WATCH_URL);
+    page.video.load({ duration: 6 * 86_400 + 20 * 60 });
+
+    await startChrono();
+
+    queryPanel()!.getByText('Ends Fri 3:20 PM · at 1×');
+  });
+
+  it('names the date when the video finishes a week or more away, where a day alone would mislead', async () => {
+    vi.setSystemTime(new Date(2026, 9, 17, 15, 0, 0)); // a Saturday
+    const page = openSavedPage('watch-delhi', WATCH_URL);
+    page.video.load({ duration: 7 * 86_400 + 20 * 60 });
+
+    await startChrono();
+
+    // Not "Sat 3:20 PM", which reads as today's Saturday.
+    queryPanel()!.getByText('Ends Oct 24, 3:20 PM · at 1×');
+  });
+
+  it("writes a far-off date in the browser's locale", async () => {
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-GB');
+    vi.setSystemTime(new Date(2026, 9, 17, 15, 0, 0));
+    const page = openSavedPage('watch-delhi', WATCH_URL);
+    page.video.load({ duration: 7 * 86_400 + 20 * 60 });
+
+    await startChrono();
+
+    queryPanel()!.getByText('Ends 24 Oct, 15:20 · at 1×');
+  });
+
   it("fills in once the video's length is known", async () => {
     const page = openSavedPage('watch-delhi', WATCH_URL);
     await startChrono();
