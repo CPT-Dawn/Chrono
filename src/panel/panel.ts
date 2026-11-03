@@ -157,6 +157,13 @@ export function createPanel({
   const panel = create('div', 'panel');
   panel.append(row, detailsFrame, menu.popup);
   element.attachShadow({ mode: 'open' }).append(style, panel);
+  // YouTube's page-wide shortcuts see a key pressed in the shadow root as pressed on the
+  // Panel itself, not in a field, so typing "3" would seek and Space would pause. Keys
+  // pressed in the Panel, its ⋮ menu included, are the Panel's alone; its own handlers have
+  // run by the time they bubble here, Escape in the menu among them.
+  for (const type of ['keydown', 'keypress', 'keyup']) {
+    element.addEventListener(type, (event) => event.stopPropagation());
+  }
 
   /** The Video scope's latest times, for the details to show when they're expanded. */
   let videoTimes: { times: ScopeTimes; now: Date } | undefined;

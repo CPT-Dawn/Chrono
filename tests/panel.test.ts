@@ -1,4 +1,4 @@
-import { fireEvent } from '@testing-library/dom';
+import { fireEvent, within } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { queryPanel, settle, startChrono, stopChrono } from './harness/chrono';
 import { openSavedPage } from './harness/youtube';
@@ -65,6 +65,66 @@ describe('Panel shell', () => {
     ];
     expect(panel.getAllByRole('button')).toEqual(named);
     for (const control of named) expect(control.tabIndex).toBe(0);
+  });
+
+  describe("YouTube's keyboard shortcuts", () => {
+    /** The keys that reach YouTube's page-wide shortcut handler. */
+    function listenAsYouTube() {
+      const heard: string[] = [];
+      const listener = (event: KeyboardEvent) => heard.push(`${event.type} ${event.key}`);
+      for (const type of ['keydown', 'keypress', 'keyup'] as const) document.addEventListener(type, listener);
+      return heard;
+    }
+
+    function press(element: Element, key: string) {
+      fireEvent.keyDown(element, { key });
+      fireEvent.keyPress(element, { key, charCode: key.charCodeAt(0) });
+      fireEvent.keyUp(element, { key });
+    }
+
+    it("don't hear digits typed into a target's fields", async () => {
+      const { panel } = await openWatchPage();
+      fireEvent.click(panel.getByRole('button', { name: 'Details' }));
+      const target = within(panel.getByRole('group', { name: 'Video target' }));
+      fireEvent.change(target.getByRole('combobox', { name: 'Target' }), { target: { value: 'watch-time' } });
+      const heard = listenAsYouTube();
+
+      press(target.getByRole('spinbutton', { name: 'Hours' }), '3');
+      press(target.getByRole('spinbutton', { name: 'Minutes' }), 'ArrowUp');
+
+      expect(heard).toEqual([]);
+    });
+
+    it("don't hear Space or k on the Panel's buttons", async () => {
+      const { panel } = await openWatchPage();
+      const heard = listenAsYouTube();
+
+      press(panel.getByRole('button', { name: 'Faster' }), ' ');
+      press(panel.getByRole('button', { name: 'Details' }), 'k');
+
+      expect(heard).toEqual([]);
+    });
+
+    it("don't hear arrow keys in the ⋮ menu, which still moves between its items", async () => {
+      const { panel } = await openWatchPage();
+      fireEvent.click(panel.getByRole('button', { name: 'More actions' }));
+      const menu = panel.getByRole('menu');
+      const heard = listenAsYouTube();
+
+      press(menu, 'ArrowDown');
+
+      expect(heard).toEqual([]);
+      expect(panel.element.shadowRoot!.activeElement?.getAttribute('role')).toMatch(/^menuitem/);
+    });
+
+    it('still hear keys pressed outside the Panel', async () => {
+      const { page } = await openWatchPage();
+      const heard = listenAsYouTube();
+
+      fireEvent.keyDown(page.video.element, { key: 'k' });
+
+      expect(heard).toEqual(['keydown k']);
+    });
   });
 
   // Chrono's own copy of YouTube's text colours: #0f0f0f on light, #f1f1f1 on dark.
