@@ -52,6 +52,10 @@ Chrono is not affiliated with or endorsed by YouTube or Google.
   - Host access to www.youtube.com: where Chrono shows its Panel, Player badge and Playlist summary.
 - Firefox Add-ons: `data_collection_permissions: none` is declared in the manifest.
 
+## Platforms
+
+- Firefox Add-ons: tick Firefox only and untick Android when uploading. Firefox for Android is served m.youtube.com, which Chrono doesn't support, so the manifest declares no `gecko_android`.
+
 ## Links
 
 - Homepage: https://chrono.cptdawn.dev/

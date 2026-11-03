@@ -47,8 +47,8 @@ export default defineConfig({
           strict_min_version: '140.0',
           data_collection_permissions: { required: ['none'] },
         },
-        // Firefox for Android learnt data_collection_permissions in 142.
-        gecko_android: { strict_min_version: '142.0' },
+        // No gecko_android: Firefox for Android gets m.youtube.com, whose markup Chrono
+        // doesn't read and whose address its content scripts don't match.
       },
     }),
   }),
