@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Chrono marquee</title>
+<link rel="stylesheet" href="brand.css">
+<script src="ring.js"></script>
+<style>
+  body { background: radial-gradient(120% 140% at 78% 50%, #19191c 0%, #0d0d0f 48%, #09090a 100%); }
+  .copy { position: absolute; left: 112px; top: 196px; }
+  h1 { font-size: 120px; font-weight: 600; letter-spacing: -0.045em; line-height: 1; }
+  p { margin-top: 26px; font-size: 30px; font-weight: 400; letter-spacing: -0.012em; color: #a3a3a8; }
+  p b { color: var(--white); font-weight: 500; }
+</style></head>
+<body class="grain">
+<div id="art"></div>
+<div class="copy">
+  <h1>Chrono</h1>
+  <p>Know when you’ll <b>finish</b>.</p>
+</div>
+<script>
+  document.getElementById('art').innerHTML = ringSVG({ w: 1400, h: 560, cx: 1050, cy: 296, r: 172, stroke: 15, dot: 25, lead: 0, fadeTo: 0.62 });
+</script>
+</body></html>

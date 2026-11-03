@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>04 Past 2x</title>
+<link rel="stylesheet" href="brand.css"><link rel="stylesheet" href="shot.css"><script src="shot.js"></script>
+<style>
+  .range { position: absolute; left: 566px; top: 404px; width: 572px; height: 190px; z-index: 6; }
+  .track { position: absolute; left: 0; right: 0; top: 76px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); }
+  .track .over { position: absolute; top: 0; bottom: 0; border-radius: 0 3px 3px 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 2px, transparent 2px 6px); }
+  .fill { position: absolute; left: 0; top: 76px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #ff0033 80%, #ff2791); }
+  .head { position: absolute; top: 79px; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: #ff0033; box-shadow: 0 0 0 6px rgba(255,0,51,.18), 0 0 28px rgba(255,0,51,.55); }
+  .tick { position: absolute; top: 104px; transform: translateX(-50%); font-size: 15px; font-weight: 500; color: #77777d; font-variant-numeric: tabular-nums; }
+  .wall { position: absolute; top: 52px; width: 1.5px; height: 40px; margin-left: -.75px; background: rgba(255,255,255,.55); }
+  .note { position: absolute; top: 18px; font-size: 14px; font-weight: 500; letter-spacing: .01em; color: #8e8e94; white-space: nowrap; }
+  .note b { color: var(--white); font-weight: 600; }
+  .bubble { position: absolute; top: 132px; transform: translateX(-50%); padding: 7px 14px; border-radius: 999px; background: #f5f5f4; color: #0f0f0f; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .bubble::before { content: ''; position: absolute; left: 50%; top: -5px; width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+</style></head>
+<body class="dark grain">
+<div class="copy">
+  <script>document.write(lockup('dark'))</script>
+  <h1>Past 2×.<br><span class="soft">All the way to 4×.</span></h1>
+  <p>The player stops at 2×. Chrono’s + keeps going in quarter steps, <b>and every estimate follows.</b></p>
+</div>
+<script>
+  document.write(decoRing({ cx: 846, cy: 352, r: 322, theme: 'dark', opacity: .8 }));
+  document.write(sheet('cap/09b-panel-speed-2.5x-collapsed-dark.png', [792, 182], { x: 1, y: 1, w: 394, h: 89 }, { left: 566, top: 226 }, 1.45, { radius: 17 }));
+  // The speed range, 0.25× to 4×.
+  const W = 572, x = (s) => ((s - 0.25) / 3.75) * W;
+  const ticks = [1, 2, 3, 4].map((s) => `<span class="tick" style="left:${x(s)}px">${s}×</span>`).join('');
+  document.write(`<div class="range">
+    <div class="track"><div class="over" style="left:${x(2)}px;right:0"></div></div>
+    <div class="fill" style="width:${x(2.5)}px"></div>
+    <div class="wall" style="left:${x(2)}px"></div>
+    <span class="note" style="right:${W - x(2) + 12}px">YouTube’s menu stops at <b>2×</b></span>
+    <span class="note" style="left:${x(2) + 12}px">Chrono goes to <b>4×</b></span>
+    ${ticks}
+    <div class="head" style="left:${x(2.5)}px"></div>
+    <span class="bubble" style="left:${x(2.5)}px">2.5×</span>
+  </div>`);
+</script>
+</body></html>

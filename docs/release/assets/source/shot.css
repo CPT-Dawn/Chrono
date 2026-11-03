@@ -1,0 +1,28 @@
+/* The screenshot system: 1280×800, a copy column on the left and a stage on the right.
+   Dark shots sit on ink, light shots on warm paper; both share type, grid and the ring. */
+body { width: 1280px; height: 800px; }
+body.dark { background: radial-gradient(90% 110% at 72% 46%, #1b1b1e 0%, #0e0e10 45%, #08080a 100%); color: var(--white); }
+body.light { background: radial-gradient(90% 110% at 72% 46%, #fbfaf8 0%, #f1efeb 50%, #e9e6e0 100%); color: #0f0f0f; }
+
+.copy { position: absolute; left: 76px; top: 0; bottom: 0; width: 430px; display: flex; flex-direction: column; justify-content: center; z-index: 10; }
+.lockup { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 30px; }
+.lockup svg { width: 26px; height: 26px; }
+h1 { font-size: 54px; font-weight: 600; line-height: 1.04; letter-spacing: -0.038em; }
+h1 em { font-style: normal; color: var(--accent, inherit); }
+.dark h1 .soft { color: #8e8e94; }
+.light h1 .soft { color: #8a8780; }
+.copy p { margin-top: 22px; font-size: 19px; line-height: 1.5; letter-spacing: -0.005em; max-width: 352px; }
+.dark .copy p { color: #a1a1a7; }
+.light .copy p { color: #64615b; }
+.copy p b { font-weight: 500; }
+.dark .copy p b { color: var(--white); }
+.light .copy p b { color: #0f0f0f; }
+
+/* A sheet of the real page: the capture on its own page colour, lifted off the canvas. */
+.sheet { position: absolute; overflow: hidden; border-radius: 20px; z-index: 5; }
+.dark .sheet, .sheet.dark { background: #0f0f0f; box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 30px 60px -12px rgba(0,0,0,.65), 0 18px 36px -18px rgba(0,0,0,.6); }
+.light .sheet, .sheet.light { background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.05), 0 30px 60px -18px rgba(40,30,20,.22), 0 12px 24px -12px rgba(40,30,20,.12); }
+.sheet img { position: absolute; display: block; image-rendering: auto; }
+.sheet.flush { border-radius: 16px; }
+
+.deco { position: absolute; inset: 0; z-index: 1; pointer-events: none; }

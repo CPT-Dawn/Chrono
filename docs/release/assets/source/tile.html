@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Chrono small tile</title>
+<link rel="stylesheet" href="brand.css">
+<script src="ring.js"></script>
+<style>
+  body { background: radial-gradient(130% 150% at 74% 52%, #1a1a1d 0%, #0d0d0f 50%, #09090a 100%); }
+  .copy { position: absolute; left: 34px; bottom: 40px; }
+  h1 { font-size: 50px; font-weight: 600; letter-spacing: -0.045em; line-height: 1; }
+  p { margin-top: 10px; font-size: 15px; color: #a3a3a8; letter-spacing: -0.005em; }
+  p b { color: var(--white); font-weight: 500; }
+</style></head>
+<body class="grain">
+<div id="art"></div>
+<div class="copy"><h1>Chrono</h1><p>Know when you’ll <b>finish</b>.</p></div>
+<script>
+  document.getElementById('art').innerHTML = ringSVG({ w: 440, h: 280, cx: 326, cy: 128, r: 76, stroke: 8, dot: 12.5, lead: 0, fadeTo: 0.5, rings: false });
+</script>
+</body></html>

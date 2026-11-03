@@ -22,8 +22,9 @@ const TOOLBAR_ICONS = [16, 32].map((size) => ({
 export default defineConfig({
   srcDir: 'src',
   zip: {
-    // Firefox reviewers get the source to build from, not agent instructions or research notes.
-    excludeSources: ['CLAUDE.md', 'docs/agents/**', 'docs/research/**'],
+    // Firefox reviewers get the source to build from, not agent instructions, research notes
+    // or the store images.
+    excludeSources: ['CLAUDE.md', 'docs/agents/**', 'docs/research/**', 'docs/release/assets/**'],
   },
   hooks: {
     // Only Firefox reads the SVG icons.
@@ -52,7 +53,9 @@ export default defineConfig({
           data_collection_permissions: { required: ['none'] },
         },
         // No gecko_android: Firefox for Android gets m.youtube.com, whose markup Chrono
-        // doesn't read and whose address its content scripts don't match.
+        // doesn't read and whose address its content scripts don't match. Without it,
+        // web-ext lint warns KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION; that's expected,
+        // as declaring gecko_android would mark Chrono Android-compatible on AMO.
       },
     }),
   }),
