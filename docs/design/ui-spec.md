@@ -100,6 +100,8 @@ Collapsed: one row.
 - **Whole row:** clicking anywhere outside the buttons toggles the details, as YouTube's description box does. Its hover is a `--tonal` wash over the whole Panel.
 - **Progress:** 3px, track `--tonal-hover`, played `--progress`, no glowing head. On hover it grows to 5px over 100ms, as YouTube's bar does.
 - **Live:** "Live" with a static `--live` dot. **Ad break:** "Paused for ad" in secondary text. Neither pulses.
+- **Announcements:** one visually hidden `role="status"` region says the new speed ("Speed 1.5×") when the viewer picks one in the Panel. The once-a-second ticks are never announced.
+- **Keys:** keys pressed in the Panel stay in it, so typing in a field or pressing Space on a button never reaches YouTube's shortcuts.
 
 Expanded: a 1px `--outline` divider under the row, then the sections.
 
