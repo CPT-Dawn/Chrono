@@ -8,6 +8,7 @@ The Chrome Web Store and Firefox Add-ons images, and the sources they're drawn f
 | `06-at-home.png` | 1280×800 | Firefox only (Chrome takes five) |
 | `small-promo-440x280.png` | 440×280 | Chrome |
 | `marquee-1400x560.png` | 1400×560 | Chrome |
+| [The demo video](video/README.md) | 3840×2160, 60 fps | Chrome (as a YouTube link) |
 
 ## The look
 

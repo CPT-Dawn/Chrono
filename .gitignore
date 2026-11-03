@@ -3,3 +3,8 @@ node_modules/
 .wxt/
 web-ext.config.ts
 *.log
+
+# Demo video build output and its borrowed Playwright
+docs/release/assets/video/dist/
+docs/release/assets/video/node_modules
+docs/release/assets/video/out/

@@ -1,0 +1,154 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Chrono demo</title>
+<link rel="stylesheet" href="../source/brand.css">
+<style>
+  @font-face { font-family: Roboto; font-weight: 400; src: url(../../../../node_modules/@fontsource/roboto/files/roboto-latin-400-normal.woff2); }
+  @font-face { font-family: Roboto; font-weight: 500; src: url(../../../../node_modules/@fontsource/roboto/files/roboto-latin-500-normal.woff2); }
+  @font-face { font-family: Roboto; font-weight: 700; src: url(../../../../node_modules/@fontsource/roboto/files/roboto-latin-700-normal.woff2); }
+
+  html, body { width: 1920px; height: 1080px; background: #09090a; }
+  #frame { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(110% 120% at 50% 42%, #18181b 0%, #0d0d0f 50%, #08080a 100%); }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .light-bg { position: absolute; inset: 0; background: radial-gradient(100% 120% at 68% 45%, #fbfaf8 0%, #f1efeb 55%, #e7e4de 100%); }
+
+  /* Open */
+  #open-art { position: absolute; inset: 0; }
+  .wordmark { position: absolute; left: 0; right: 0; text-align: center; font-weight: 600; letter-spacing: -0.045em; }
+  #open-name { top: 640px; font-size: 132px; line-height: 1; }
+  #open-tag { top: 800px; font-size: 38px; font-weight: 400; letter-spacing: -0.015em; color: #a3a3a8; }
+  #open-tag b, .hook b { color: var(--white); font-weight: 500; }
+
+  /* Hook */
+  .hook { position: absolute; left: 0; right: 0; text-align: center; font-size: 84px; font-weight: 600; letter-spacing: -0.042em; line-height: 1.05; }
+  #hook-1 { top: 400px; }
+  #hook-2 { top: 510px; color: #8e8e94; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* Watch page */
+  #world { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; transform-origin: 0 0; }
+  #world > img { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; }
+  #dim { position: absolute; inset: 0; background: #0b0b0c; opacity: 0; }
+  #slot { position: absolute; left: 1028px; top: 68px; width: 396px; background: #0f0f0f; border-radius: 12px; }
+  #scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(9,9,10,.92) 0%, rgba(9,9,10,.75) 34%, rgba(9,9,10,0) 52%); opacity: 0; pointer-events: none; }
+  #range { position: absolute; left: 132px; top: 690px; width: 700px; height: 160px; opacity: 0; }
+  #range .track { position: absolute; left: 0; right: 0; top: 70px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.12); }
+  #range .over { position: absolute; top: 0; bottom: 0; border-radius: 0 4px 4px 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 2px, transparent 2px 7px); }
+  #range .fill { position: absolute; left: 0; top: 70px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #ff0033 80%, #ff2791); }
+  #range .head { position: absolute; top: 74px; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: #ff0033; box-shadow: 0 0 0 8px rgba(255,0,51,.18), 0 0 36px rgba(255,0,51,.55); }
+  #range .tick { position: absolute; top: 98px; transform: translateX(-50%); font-size: 20px; font-weight: 500; color: #77777d; }
+  #range .wall { position: absolute; top: 42px; width: 2px; height: 50px; margin-left: -1px; background: rgba(255,255,255,.55); }
+  #range .note { position: absolute; top: 6px; font-size: 19px; font-weight: 500; color: #8e8e94; white-space: nowrap; }
+  #range .note b { color: var(--white); font-weight: 600; }
+
+  /* Captions */
+  .caption { position: absolute; left: 132px; top: 0; bottom: 0; width: 760px; display: flex; flex-direction: column; justify-content: center; opacity: 0; }
+  .eyebrow { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: #8e8e94; margin-bottom: 26px; }
+  .eyebrow::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: #ff0033; box-shadow: 0 0 14px rgba(255,0,51,.7); }
+  .caption h2 { font-size: 78px; font-weight: 600; line-height: 1.03; letter-spacing: -0.04em; color: var(--white); }
+  .caption h2 span { color: #8e8e94; }
+  .caption.on-light .eyebrow { color: #8a8780; }
+  .caption.on-light h2 { color: #0f0f0f; }
+  .caption.on-light h2 span { color: #8a8780; }
+
+  /* Stills */
+  .sheet { position: absolute; overflow: hidden; }
+  .sheet img { position: absolute; display: block; }
+  .sheet.dark { background: #0f0f0f; box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 40px 80px -20px rgba(0,0,0,.7); }
+  .sheet.light { background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.05), 0 40px 80px -24px rgba(40,30,20,.25), 0 16px 32px -16px rgba(40,30,20,.14); }
+
+  /* Privacy */
+  .claim { position: absolute; left: 0; right: 0; text-align: center; font-size: 96px; font-weight: 600; letter-spacing: -0.045em; opacity: 0; }
+  #claim-1 { top: 300px; } #claim-2 { top: 420px; color: #b9b9be; } #claim-3 { top: 540px; color: #8e8e94; }
+  #claim-sub { position: absolute; left: 0; right: 0; top: 720px; text-align: center; font-size: 30px; color: #77777d; opacity: 0; }
+
+  /* End */
+  #end-mark { position: absolute; left: 50%; top: 250px; width: 168px; height: 168px; margin-left: -84px; }
+  #end-name { top: 470px; font-size: 128px; line-height: 1; }
+  #end-tag { top: 622px; font-size: 36px; font-weight: 400; color: #a3a3a8; letter-spacing: -0.015em; }
+  #end-stores { position: absolute; left: 0; right: 0; top: 730px; display: flex; justify-content: center; gap: 16px; }
+  .store { padding: 14px 26px; border-radius: 999px; font-size: 24px; font-weight: 500; color: #e9e9ea; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.18); background: rgba(255,255,255,.04); }
+  #end-url { position: absolute; left: 0; right: 0; top: 850px; text-align: center; font-size: 24px; color: #77777d; letter-spacing: .02em; }
+
+  /* Cursor */
+  #cursor { position: absolute; left: 0; top: 0; width: 40px; height: 40px; z-index: 100; opacity: 0; will-change: transform; }
+  #cursor svg { width: 40px; height: 40px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); transform-origin: 6px 4px; }
+  #cursor .ripple { position: absolute; left: 6px; top: 4px; width: 0; height: 0; }
+  #cursor .ripple::before { content: ''; position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); opacity: 0; transform: scale(.3); }
+  #cursor.pressing .ripple::before { animation: ripple 520ms cubic-bezier(.05,.7,.1,1) both; }
+  @keyframes ripple { from { opacity: .9; transform: scale(.3); } to { opacity: 0; transform: scale(1); } }
+
+  .grain-layer { position: absolute; inset: 0; z-index: 90; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: .03; mix-blend-mode: screen; }
+  #fade { position: absolute; inset: 0; background: #000; z-index: 95; opacity: 1; pointer-events: none; }
+</style></head>
+<body>
+<div id="frame">
+  <section class="scene" id="s-open">
+    <svg id="open-art" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+    <div class="wordmark" id="open-name">Chrono</div>
+    <div class="wordmark" id="open-tag">Know when you’ll <b>finish</b>.</div>
+  </section>
+
+  <section class="scene" id="s-hook">
+    <div class="hook" id="hook-1">A 15-minute video at <b class="tnum" id="hook-speed">1.5×</b>.</div>
+    <div class="hook" id="hook-2">When will you actually be done?</div>
+  </section>
+
+  <section class="scene" id="s-watch">
+    <div id="world">
+      <img src="../source/cap/01-watch-collapsed-dark.png" alt="">
+      <div id="dim"></div>
+      <div id="slot"></div>
+    </div>
+    <div id="scrim"></div>
+    <div id="range"></div>
+  </section>
+
+  <section class="scene" id="s-playlist">
+    <div class="light-bg"></div>
+    <div class="sheet light" id="pl-card" style="left:930px;top:240px;width:722px;height:266px;border-radius:26px">
+      <img src="../source/cap/08d-playlist-summary-closeup-light.png" style="width:720px;height:304px;left:0;top:-20px">
+      <div id="pl-hi" style="position:absolute;left:34px;top:207px;width:398px;height:35px;border-radius:14px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.8),0 0 0 6px rgba(255,255,255,.12);opacity:0"></div>
+    </div>
+    <div class="sheet light" id="pl-scope" style="left:1120px;top:560px;width:745px;height:278px;border-radius:24px">
+      <img src="../source/cap/05c-playlist-scope-section-light.png" style="width:748px;height:775px;left:-1px;top:-2px">
+    </div>
+  </section>
+
+  <section class="scene" id="s-badge">
+    <div class="sheet dark" id="badge-sheet" style="left:700px;top:250px;width:1494px;height:636px;border-radius:26px">
+      <img id="badge-img" src="../source/cap/07a-player-badge-player-dark.png" style="width:1494px;height:636px;left:0;top:0;transform-origin:30% 93%">
+    </div>
+  </section>
+
+  <section class="scene" id="s-privacy">
+    <div class="claim" id="claim-1">No data collected.</div>
+    <div class="claim" id="claim-2">One permission.</div>
+    <div class="claim" id="claim-3">Open source.</div>
+    <div id="claim-sub">No analytics. No tracking. No account.</div>
+  </section>
+
+  <section class="scene" id="s-end">
+    <svg id="end-mark" viewBox="0 0 24 24"></svg>
+    <div class="wordmark" id="end-name">Chrono</div>
+    <div class="wordmark" id="end-tag">Finish time &amp; speed for YouTube</div>
+    <div id="end-stores"><span class="store">Chrome Web Store</span><span class="store">Firefox Add-ons</span></div>
+    <div id="end-url">chrono.cptdawn.dev</div>
+  </section>
+
+  <div class="caption" id="cap-finish"><div class="eyebrow">Finish time</div><h2>Know exactly<br>when you’ll finish.</h2></div>
+  <div class="caption" id="cap-speeds"><div class="eyebrow">Speed table</div><h2>Every speed,<br><span>side by side.</span></h2></div>
+  <div class="caption" id="cap-target"><div class="eyebrow">Targets</div><h2>Set a deadline.<br><span>Get the speed.</span></h2></div>
+  <div class="caption" id="cap-past"><div class="eyebrow">Up to 4×</div><h2>Past 2×.<br><span>All the way to 4×.</span></h2></div>
+  <div class="caption on-light" id="cap-playlist"><div class="eyebrow">Playlists</div><h2>Whole playlists,<br><span>totalled.</span></h2></div>
+  <div class="caption" id="cap-badge"><div class="eyebrow">Player badge</div><h2>Right in<br><span>the player, too.</span></h2></div>
+
+  <div id="cursor"><div class="ripple"></div><svg viewBox="0 0 40 40"><path d="M6 4 L6 31 L13.2 24.6 L18 35.2 L22.6 33.2 L17.9 22.8 L27.4 22.4 Z" fill="#fff" stroke="#0f0f0f" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+  <div class="grain-layer"></div>
+  <div id="fade"></div>
+</div>
+
+<script src="dist/stage.js"></script>
+<script src="director.js"></script>
+</body></html>

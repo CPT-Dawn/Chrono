@@ -61,6 +61,10 @@ Upload in this order. Chrome takes five; Firefox takes all six, with the caption
 
 Promo images (Chrome only): `small-promo-440x280.png` and `marquee-1400x560.png`.
 
+## Promo video
+
+Chrome takes a YouTube link in the listing's "Promo video" field. Upload the 4K render from [assets/video/](assets/video/README.md) to YouTube (unlisted is fine), titled "Chrono – Finish Time & Speed for YouTube", and paste its link. Firefox Add-ons has no video field; link the video from the homepage instead.
+
 ## Categories and tags
 
 - Chrome Web Store category: **Tools**. Chrono is a viewing utility; "Workflow & Planning" also fits the finish-time targets, but Tools is where people search for speed controls.
@@ -85,7 +89,7 @@ Promo images (Chrome only): `small-promo-440x280.png` and `marquee-1400x560.png`
 
 - Homepage: https://chrono.cptdawn.dev/
 - Support: https://chrono.cptdawn.dev/help
-- Support email (Firefox Add-ons asks for one): fill in before uploading.
+- Support email (both stores): ping@cptdawn.dev
 - Source: https://github.com/CPT-Dawn/Chrono
 
 ## Getting badged
