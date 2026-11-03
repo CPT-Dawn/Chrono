@@ -49,9 +49,6 @@ export const MINUS = svg(line('M6 12h12'));
 
 export const PLUS = svg(line('M12 6v12M6 12h12'));
 
-/** A finish time: a clock face. */
-export const CLOCK = svg(line('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z') + line('M12 7v5l3 2'));
-
 /** The Chapter scope: chapter markers, as in YouTube's chapter list. */
 export const CHAPTERS = svg(line('M4 6h10M4 12h16M4 18h12'));
 
@@ -60,19 +57,8 @@ export const PLAYLIST = svg(
   line('M4 6h13M4 12h9M4 18h7') + '<path d="M16 14.2v5.6a.6.6 0 0 0 .9.5l4.4-2.8a.6.6 0 0 0 0-1l-4.4-2.8a.6.6 0 0 0-.9.5z" fill="currentColor"/>',
 );
 
-/** A target: a flag on its pole, where the viewer wants to be done. */
-export const TARGET = svg(line('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z') + line('M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z') + '<circle cx="12" cy="12" r="1.25" fill="currentColor"/>');
-
-/** Speed: a gauge, as on YouTube's playback speed setting. */
-export const SPEED = svg(line('M4.5 17a8.5 8.5 0 1 1 15 0') + line('M12 14.5l4-5'));
-
 /** A caution: a required speed YouTube can't play, or a target that can't be met. */
 export const CAUTION = svg(line('M12 3.5L2.8 19.5h18.4z') + line('M12 10v4') + '<circle cx="12" cy="17" r="1.1" fill="currentColor"/>');
-
-/** Live, as YouTube marks it: a broadcast dot with waves. */
-export const LIVE = svg(
-  '<circle cx="12" cy="12" r="2.5" fill="currentColor"/>' + line('M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4'),
-);
 
 /** Each outward link's icon: a heart for support, a question for help, a flag for a report. */
 export const LINK_ICONS: Record<OutwardLink, string> = {
