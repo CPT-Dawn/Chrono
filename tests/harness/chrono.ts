@@ -2,7 +2,7 @@
 // what it shows the viewer. It also counts the work Chrono leaves running, which the viewer
 // can't see, so tests can check that Chrono stops all of it on pages it isn't on.
 import { fireEvent, queryAllByRole, queryByRole, within } from '@testing-library/dom';
-import { onTestFinished } from 'vitest';
+import { onTestFinished, vi } from 'vitest';
 import type { MainWorldContentScriptDefinition } from 'wxt';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { ContentScriptContext } from 'wxt/utils/content-script-context';
@@ -132,6 +132,17 @@ export function invalidateExtensionContext(): void {
 /** Lets pending DOM work run: mutation observer callbacks and promise continuations. */
 export async function settle(): Promise<void> {
   for (let i = 0; i < 10; i++) await Promise.resolve();
+}
+
+/**
+ * Lets the next animation frame run, then the DOM work it starts. Chrono reads the
+ * playlist page again at most once a frame, however often YouTube changes it.
+ */
+export async function nextFrame(): Promise<void> {
+  await settle();
+  if (vi.isFakeTimers()) vi.advanceTimersToNextFrame();
+  else await new Promise((resolve) => requestAnimationFrame(resolve));
+  await settle();
 }
 
 /** How many Panels are in the page, including any YouTube has hidden. */

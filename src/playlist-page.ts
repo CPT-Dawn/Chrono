@@ -27,9 +27,25 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
   const readPlaylistPage = createPlaylistPageReader();
   /** What stops Chrono watching the page, while on a playlist page. */
   let watching: AbortController | undefined;
+  /** The animation frame a refresh is waiting for, if one is. */
+  let frame = 0;
+
+  /**
+   * Refreshes in the next animation frame, once however often the page changes before it.
+   * YouTube changes the page in many small batches as it loads entries, and each refresh
+   * reads every entry again.
+   */
+  function refreshSoon(): void {
+    frame ||= requestAnimationFrame(() => {
+      frame = 0;
+      refresh();
+    });
+  }
 
   /** Shows the summary the page calls for, or none. */
   function refresh(): void {
+    cancelAnimationFrame(frame);
+    frame = 0;
     if (ctx.isInvalid) return;
     // With the setting off, Chrono leaves playlist pages alone, as it does every other page.
     if (readPage(location).kind !== 'playlist' || !settings.playlistSummary) {
@@ -38,7 +54,7 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
     }
     if (!watching) {
       watching = new AbortController();
-      watchPlaylistPage(document, refresh, watching.signal);
+      watchPlaylistPage(document, refreshSoon, watching.signal);
     }
     const page = readPlaylistPage(document);
     noteReading('summary', page);
@@ -65,6 +81,8 @@ export async function startPlaylistPage(ctx: ContentScriptContext): Promise<void
    * page or the viewer turns the summary back on.
    */
   function stop(): void {
+    cancelAnimationFrame(frame);
+    frame = 0;
     watching?.abort();
     watching = undefined;
     removeLine();

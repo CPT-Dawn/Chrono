@@ -4,6 +4,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   countObservers,
   countPlaylistSummaries,
+  nextFrame,
   queryPanel,
   queryPlaylistSummary,
   settle,
@@ -48,7 +49,7 @@ describe('Playlist summary', () => {
 
     // In Oct 2026 YouTube took the length badge off a lockup under the pointer.
     document.querySelector('ytd-browse yt-lockup-view-model yt-thumbnail-bottom-overlay-view-model')!.remove();
-    await settle();
+    await nextFrame();
 
     expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
   });
@@ -118,12 +119,31 @@ describe('Playlist summary', () => {
 
       // 20 more entries, 1:17:36 in all.
       page.loadMoreEntries('playlist-legacy-long-more', { count: 20 });
-      await settle();
+      await nextFrame();
       expect(queryPlaylistSummary()).toBe('7h 55m total · first 120 of 139 counted');
 
       // The last 15. YouTube hides 4 unavailable entries, so its list ends at 135.
       page.loadMoreEntries('playlist-legacy-long-more', { last: true });
+      await nextFrame();
+      expect(queryPlaylistSummary()).toBe('9h 45m total · 4 unavailable');
+    });
+
+    it('reads the page once a frame, however many batches YouTube loads in it', async () => {
+      const page = openSavedPage('playlist-legacy-long', LEGACY_LONG_URL);
+      await startChrono();
+      await nextFrame();
+      const reads = vi.spyOn(document, 'querySelector');
+      // Chrono looks for the shown playlist page first each time it reads it.
+      const pageReads = () => reads.mock.calls.filter(([selector]) => selector.endsWith(':not([hidden])')).length;
+
+      page.loadMoreEntries('playlist-legacy-long-more', { count: 20 });
       await settle();
+      page.loadMoreEntries('playlist-legacy-long-more', { last: true });
+      await settle();
+      expect(pageReads()).toBe(0);
+
+      await nextFrame();
+      expect(pageReads()).toBe(1);
       expect(queryPlaylistSummary()).toBe('9h 45m total · 4 unavailable');
     });
 
@@ -141,13 +161,13 @@ describe('Playlist summary', () => {
 
       // 20 more entries, 1:17:47 in all.
       page.loadMoreEntries('playlist-lockups-long-more', { count: 20 });
-      await settle();
+      await nextFrame();
       expect(queryPlaylistSummary()).toBe('8h 18m total · first 120 of 163 counted');
 
       // The last 34, some of them long mixes, then a shelf of recommended playlists. YouTube
       // hides 9 unavailable entries, so its list ends at 154.
       page.loadMoreEntries('playlist-lockups-long-more', { last: true });
-      await settle();
+      await nextFrame();
       expect(queryPlaylistSummary()).toBe('26h 39m total · 9 unavailable');
     });
   });
@@ -193,7 +213,7 @@ describe('Playlist summary', () => {
         await startChrono();
 
         page.drawBadges();
-        await settle();
+        await nextFrame();
 
         expect(queryPlaylistSummary()).toBe('9h 45m total · 4 unavailable');
       });
@@ -321,7 +341,7 @@ describe('Playlist summary', () => {
       expect(countPlaylistSummaries()).toBe(0);
 
       restore();
-      await settle();
+      await nextFrame();
 
       expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
       expect(await reportedFailures()).toEqual([]);
@@ -398,7 +418,7 @@ describe('Playlist summary', () => {
     await startChrono();
     page.loadMoreEntries('playlist-legacy-long-more', { last: true });
     page.setPlaylistLayout('narrow');
-    await settle();
+    await nextFrame();
 
     expect(queryPlaylistSummary()).toBe('9h 45m total · 4 unavailable');
     for (const spy of [...network, ...scrolling]) expect(spy).not.toHaveBeenCalled();
@@ -416,7 +436,7 @@ describe('Playlist summary', () => {
       expect(document.querySelector('ytd-playlist-byline-renderer [role="note"]')).not.toBeNull();
 
       page.setPlaylistLayout('narrow');
-      await settle();
+      await nextFrame();
 
       expect(queryPlaylistSummary()).toBe('33h 25m total · first 100 of 139 counted');
       expect(countPlaylistSummaries()).toBe(1);
@@ -454,13 +474,15 @@ describe('Playlist summary', () => {
     it("reads nothing while only the miniplayer changes, as its time display ticks", async () => {
       openSavedPage('playlist-lockups-now-playing', LOCKUPS_URL);
       await startChrono();
+      // Chrono's own summary is a change to the page, which it reads once more a frame later.
+      await nextFrame();
       const reads = vi.spyOn(document, 'querySelector');
 
       for (const time of document.querySelectorAll('ytd-miniplayer .ytp-time-current')) {
         time.firstChild!.nodeValue = '0:14';
         time.replaceChildren('0:15');
       }
-      await settle();
+      await nextFrame();
 
       expect(reads).not.toHaveBeenCalled();
       expect(queryPlaylistSummary()).toBe('2h 40m total · 2 unavailable · 38 of 39 counted');
@@ -498,7 +520,7 @@ describe('Playlist summary', () => {
       expect(queryPlaylistSummary()).toBe('363h 41m total · 1 live · 99 of 2,480 counted');
 
       page.video.load({ duration: PLAYING_LENGTH });
-      await settle();
+      await nextFrame();
 
       expect(queryPlaylistSummary()).toBe('372h 40m total · 1 live · first 100 of 2,480 counted');
     });
@@ -593,13 +615,13 @@ describe('Playlist summary', () => {
       await startChrono();
 
       page.setPlaylistLayout('narrow');
-      await settle();
+      await nextFrame();
 
       expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
       expect(countPlaylistSummaries()).toBe(1);
 
       page.setPlaylistLayout('wide');
-      await settle();
+      await nextFrame();
 
       expect(queryPlaylistSummary()).toBe('2h 44m total · 2 unavailable');
       expect(countPlaylistSummaries()).toBe(1);
