@@ -7,13 +7,14 @@ Run this yourself before publishing to the Chrome Web Store or Firefox Add-ons. 
 - [ ] `bun run typecheck` and `bun run test` pass.
 - [ ] `bun run package` succeeds and `web-ext lint` reports 0 errors.
 - [ ] The version in `package.json` is the one being released.
-- [ ] These six chrono.cptdawn.dev URLs are live and go where they should:
+- [ ] These seven chrono.cptdawn.dev URLs are live and go where they should:
   - [ ] https://chrono.cptdawn.dev/ (homepage)
   - [ ] https://chrono.cptdawn.dev/welcome
   - [ ] https://chrono.cptdawn.dev/whats-new
   - [ ] https://chrono.cptdawn.dev/help
   - [ ] https://chrono.cptdawn.dev/tip
   - [ ] https://chrono.cptdawn.dev/goodbye
+  - [ ] https://chrono.cptdawn.dev/privacy
 
 ## Checks in Chrome and Firefox
 
