@@ -1,6 +1,8 @@
+import { fireEvent } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   countObservers,
+  countPageListeners,
   countPanels,
   invalidateExtensionContext,
   queryPanel,
@@ -275,6 +277,21 @@ describe('Watch-page lifecycle', () => {
       expect(countObservers()).toBe(0);
       // The video is paused, so any timer left would be Chrono's.
       expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("stops listening for the ⋮ menu's clicks, scrolls and resizes when it was left open", async () => {
+      const page = openSavedPage('watch-delhi', WATCH_URL);
+      page.video.load({ duration: 1000 });
+      await startChrono();
+      await navigate(HOME_URL);
+      const listenersWithoutMenu = countPageListeners();
+      await navigate(WATCH_URL);
+
+      fireEvent.click(queryPanel()!.getByRole('button', { name: 'More actions' }));
+      await navigate(HOME_URL);
+
+      expect(countPanels()).toBe(0);
+      expect(countPageListeners()).toBe(listenersWithoutMenu);
     });
 
     it('stays out of the miniplayer, and comes back when the viewer expands it', async () => {

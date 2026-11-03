@@ -225,7 +225,7 @@ export async function startWatchPage(ctx: ContentScriptContext): Promise<void> {
 
   /** Removes the Panel and stops it following YouTube's theme. */
   function removePanel(): void {
-    panel?.element.remove();
+    panel?.remove();
     panel = undefined;
     themeWatch?.abort();
     themeWatch = undefined;

@@ -11,8 +11,8 @@ import { afterMotion, EASE, playMotion } from './dom';
 export interface Menu {
   button: HTMLButtonElement;
   popup: HTMLElement;
-  /** Closes the menu and puts focus back on its button. */
-  close(): void;
+  /** Closes the menu and, unless told not to, puts focus back on its button. */
+  close(options?: { refocus?: boolean }): void;
   /** Calls `listener` each time the menu opens. */
   onOpen(listener: () => void): void;
 }
@@ -167,7 +167,7 @@ export function createMenu(id: string, label: string): Menu {
   return {
     button,
     popup,
-    close: () => close({ refocus: true }),
+    close: ({ refocus = true } = {}) => close({ refocus }),
     onOpen: (listener) => openListeners.push(listener),
   };
 }

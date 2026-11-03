@@ -44,6 +44,8 @@ export interface PanelOptions {
 export interface Panel {
   /** The element to place in YouTube's page. */
   element: HTMLElement;
+  /** Takes the Panel out of the page, closing its ⋮ menu so the menu stops listening to the page. */
+  remove(): void;
   /** Shows the Video scope: its times, a quiet ad-break or live state, or nothing. */
   showVideo(scope: VideoScope, now: Date): void;
   /** Shows the Chapter scope, or nothing when the video has no chapters Chrono can read. */
@@ -270,6 +272,11 @@ export function createPanel({
 
   return {
     element,
+    remove() {
+      element.remove();
+      // Its button has left the page, so focus has nowhere to go back to.
+      menu.close({ refocus: false });
+    },
     showVideo(scope, now) {
       // During an ad or on live content the speed table has nothing to show either.
       videoTimes = scope.kind === 'times' ? { times: scope.times, now } : undefined;
