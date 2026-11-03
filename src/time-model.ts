@@ -80,6 +80,11 @@ export function roundToSpeedStep(speed: number): number {
   return Math.round(speed * STEPS_PER_SPEED) / STEPS_PER_SPEED;
 }
 
+/** A speed Chrono plays: within 0.25×–4×, in YouTube's 0.05× steps. */
+export function toPlayableSpeed(speed: number): number {
+  return roundToSpeedStep(Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed)));
+}
+
 /**
  * `speed` rounded up to the next of YouTube's 0.05× steps, unless it is one already but for
  * floating-point noise, as 81 / 60 = 1.35 is.

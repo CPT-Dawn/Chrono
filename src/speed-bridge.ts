@@ -9,7 +9,7 @@
 //
 // Firefox hides objects that cross between page scripts and content scripts, so every
 // message carries a plain number or nothing.
-import { MAX_SPEED, MIN_SPEED, roundToSpeedStep } from '@/time-model';
+import { toPlayableSpeed } from '@/time-model';
 import {
   keepSpeedAbovePlayer,
   PLAYER_FASTEST,
@@ -169,9 +169,4 @@ export function connectSpeedBridge(
       send(doc, MESSAGES.set, toPlayableSpeed(speed));
     },
   };
-}
-
-/** A speed Chrono plays: within 0.25×–4×, in YouTube's 0.05× steps. */
-function toPlayableSpeed(speed: number): number {
-  return roundToSpeedStep(Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed)));
 }

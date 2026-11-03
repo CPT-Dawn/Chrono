@@ -63,6 +63,13 @@
     "message": "Faster",
     "description": "Accessible name of the Panel's + button, which raises the speed by 0.25×."
   },
+  "speedAnnouncement": {
+    "message": "Speed $SPEED$",
+    "description": "Announced to screen readers when the viewer changes the speed from the Panel, e.g. \"Speed 1.5×\".",
+    "placeholders": {
+      "speed": { "content": "$1", "example": "1.5×" }
+    }
+  },
   "details": {
     "message": "Details",
     "description": "Accessible name of the Panel's expandable details area and of the button that expands and collapses it."

@@ -1,7 +1,14 @@
 import { CHEVRON, createIcon, LINK_ICONS, MARK, MINUS, PLUS } from '@/icons';
 import { OUTWARD_LINKS, type OutwardLink } from '@/links';
 import type { Settings } from '@/settings';
-import type { ChapterScope, PlaylistScope, ScopeTimes, Target, VideoScope } from '@/time-model';
+import {
+  type ChapterScope,
+  type PlaylistScope,
+  type ScopeTimes,
+  type Target,
+  toPlayableSpeed,
+  type VideoScope,
+} from '@/time-model';
 import type { SidebarMount, Theme } from '@/youtube/adapter';
 import { createChapterScope } from './chapter-scope';
 import { create, createProgress, EASE, isLaidOut, playMotion, prefersLessMotion } from './dom';
@@ -83,6 +90,19 @@ export function createPanel({
   const style = document.createElement('style');
   style.textContent = styles;
 
+  // Screen readers hear the speed the viewer chooses, wherever in the Panel they choose it,
+  // and nothing else: the times tick every second and would drown everything out.
+  const status = create('div', 'visually-hidden');
+  status.setAttribute('role', 'status');
+  const chooseSpeed = (speed: number) => {
+    const playable = toPlayableSpeed(speed);
+    // A press that can't change the speed still says what it is. Live regions stay quiet
+    // when their text doesn't change, so a repeat differs by a trailing no-break space.
+    const text = browser.i18n.getMessage('speedAnnouncement', speedText(playable, locale));
+    status.textContent = status.textContent === text ? `${text}\u00a0` : text;
+    setSpeed(playable);
+  };
+
   // The row: the answer first, then the controls, as YouTube's description box leads with
   // its text. Its finish line runs under the controls, so narrow sidebars don't wrap it.
   const times = createTimes(locale);
@@ -91,8 +111,8 @@ export function createPanel({
   const speedLabel = create('span', 'speed');
   const speedReadout = createRollingText(speedLabel);
   // − and + are icons, not words; their accessible names are translated.
-  const slower = speedButton(MINUS, 'slower', () => setSpeed(currentSpeed - SPEED_STEP));
-  const faster = speedButton(PLUS, 'faster', () => setSpeed(currentSpeed + SPEED_STEP));
+  const slower = speedButton(MINUS, 'slower', () => chooseSpeed(currentSpeed - SPEED_STEP));
+  const faster = speedButton(PLUS, 'faster', () => chooseSpeed(currentSpeed + SPEED_STEP));
   const speedControls = create('div', 'speed-controls');
   speedControls.append(slower, speedLabel, faster);
 
@@ -102,13 +122,13 @@ export function createPanel({
   details.setAttribute('aria-label', browser.i18n.getMessage('details'));
   const detailsFrame = create('div', 'details-frame');
   detailsFrame.append(details);
-  const videoTarget = createTarget('video', locale, (target) => setTarget('video', target), setSpeed);
-  const videoTable = createSpeedTable(locale, setSpeed);
+  const videoTarget = createTarget('video', locale, (target) => setTarget('video', target), chooseSpeed);
+  const videoTable = createSpeedTable(locale, chooseSpeed);
   const videoSection = create('div', 'scope');
   videoSection.dataset.scope = 'video';
   videoSection.append(videoTarget.element, videoTable.element);
-  const chapterView = createChapterScope(locale, setSpeed, (target) => setTarget('chapter', target));
-  const playlistView = createPlaylistScope(locale, setSpeed, setPlaylistTargetEntry, (target) =>
+  const chapterView = createChapterScope(locale, chooseSpeed, (target) => setTarget('chapter', target));
+  const playlistView = createPlaylistScope(locale, chooseSpeed, setPlaylistTargetEntry, (target) =>
     setTarget('playlist', target),
   );
   details.append(videoSection, chapterView.element, playlistView.element);
@@ -155,7 +175,7 @@ export function createPanel({
   });
 
   const panel = create('div', 'panel');
-  panel.append(row, detailsFrame, menu.popup);
+  panel.append(row, detailsFrame, menu.popup, status);
   element.attachShadow({ mode: 'open' }).append(style, panel);
   // YouTube's page-wide shortcuts see a key pressed in the shadow root as pressed on the
   // Panel itself, not in a field, so typing "3" would seek and Space would pause. Keys

@@ -231,6 +231,15 @@ describe('Targets', () => {
       expect(target('Video target').queryByRole('button', { name: /Apply/ })).toBeNull();
     });
 
+    it('tells screen readers the speed it applies', async () => {
+      await openVideo();
+      setWatchTime('Video target', 0, 10);
+
+      fireEvent.click(target('Video target').getByRole('button', { name: 'Apply 1.25×' }));
+
+      expect(queryPanel()!.getByRole('status').textContent).toBe('Speed 1.25×');
+    });
+
     it('counts the watch time the viewer has down with the clock', async () => {
       await openVideo();
       // 750 s of content into 25 minutes.

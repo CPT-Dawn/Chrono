@@ -127,6 +127,48 @@ describe('Panel shell', () => {
     });
   });
 
+  describe('screen reader announcements', () => {
+    it('announce the new speed when the viewer presses − or +', async () => {
+      const { panel } = await openWatchPage();
+      const status = panel.getByRole('status');
+      expect(status.textContent).toBe('');
+
+      fireEvent.click(panel.getByRole('button', { name: 'Faster' }));
+      expect(status.textContent?.trim()).toBe('Speed 1.25×');
+
+      fireEvent.click(panel.getByRole('button', { name: 'Slower' }));
+      await settle();
+      fireEvent.click(panel.getByRole('button', { name: 'Slower' }));
+      expect(status.textContent?.trim()).toBe('Speed 0.75×');
+    });
+
+    it("announce the speed again when it can't go any faster, so a press is never silent", async () => {
+      const { page, panel } = await openWatchPage();
+      page.player.setSpeed(2);
+      await settle();
+      const faster = panel.getByRole('button', { name: 'Faster' });
+      for (let i = 0; i < 8; i++) fireEvent.click(faster);
+      expect(page.video.speed).toBe(4);
+      const status = panel.getByRole('status');
+
+      fireEvent.click(panel.getByRole('button', { name: 'Faster' }));
+      const first = status.textContent;
+      fireEvent.click(panel.getByRole('button', { name: 'Faster' }));
+
+      expect(status.textContent?.trim()).toBe('Speed 4×');
+      expect(status.textContent).not.toBe(first);
+    });
+
+    it('stay quiet while the times tick', async () => {
+      const { page, panel } = await openWatchPage();
+      page.video.play();
+
+      vi.advanceTimersByTime(5000);
+
+      expect(panel.getByRole('status').textContent).toBe('');
+    });
+  });
+
   // Chrono's own copy of YouTube's text colours: #0f0f0f on light, #f1f1f1 on dark.
   const LIGHT_TEXT = 'rgb(15, 15, 15)';
   const DARK_TEXT = 'rgb(241, 241, 241)';
