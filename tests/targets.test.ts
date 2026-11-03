@@ -231,6 +231,40 @@ describe('Targets', () => {
       expect(target('Video target').queryByRole('button', { name: /Apply/ })).toBeNull();
     });
 
+    it('counts the watch time the viewer has down with the clock', async () => {
+      await openVideo();
+      // 750 s of content into 25 minutes.
+      setWatchTime('Video target', 0, 25);
+      target('Video target').getByText('Needs 0.5×');
+
+      // Ten minutes pass with the video paused: 750 s of content into the 15 minutes left.
+      vi.advanceTimersByTime(10 * 60_000);
+
+      expect(fieldValues('Video target')).toEqual({ Hours: '0', Minutes: '15' });
+      target('Video target').getByText('Needs 0.85×');
+    });
+
+    it('counts from when the viewer last changed the watch time', async () => {
+      await openVideo();
+      setWatchTime('Video target', 0, 25);
+      vi.advanceTimersByTime(10 * 60_000);
+
+      // They have 25 minutes again, from now.
+      enter('Video target', 'Minutes', '25');
+
+      target('Video target').getByText('Needs 0.5×');
+    });
+
+    it('says so when the watch time the viewer had runs out', async () => {
+      await openVideo();
+      setWatchTime('Video target', 0, 10);
+
+      vi.advanceTimersByTime(10 * 60_000);
+
+      expect(fieldValues('Video target')).toEqual({ Hours: '0', Minutes: '0' });
+      target('Video target').getByText('Choose a watch time above zero');
+    });
+
     it('asks for more than no watch time at all', async () => {
       await openVideo();
 

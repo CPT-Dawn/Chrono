@@ -45,8 +45,11 @@ export interface ScopeTimes extends TimesAtSpeed {
 export type Target =
   /** Finish the scope by this time. */
   | { kind: 'finish-time'; time: Date }
-  /** The viewer has this much watch time, in seconds, for the rest of the scope. */
-  | { kind: 'watch-time'; seconds: number };
+  /**
+   * The viewer had this much watch time, in seconds, for the rest of the scope when they
+   * set it at `setAt`. It runs down with the clock, paused or not, as their time does.
+   */
+  | { kind: 'watch-time'; seconds: number; setAt: Date };
 
 /** The speed at which a scope's remaining exactly meets its target, or why there is none. */
 export type RequiredSpeed =
@@ -329,9 +332,15 @@ export function summarisePlaylist({ entryCount, entryLengths, moreToLoad, speed 
   };
 }
 
+/** The watch time, in seconds, that `target` leaves the viewer at `now`. */
+export function availableWatchTime(target: Target, now: Date): number {
+  const end = target.kind === 'finish-time' ? target.time : new Date(target.setAt.getTime() + target.seconds * 1000);
+  return (end.getTime() - now.getTime()) / 1000;
+}
+
 /** The speed at which `contentLeft` seconds of content take exactly the watch time `target` allows. */
 function requiredSpeed(contentLeft: number, target: Target, now: Date): RequiredSpeed {
-  const available = target.kind === 'finish-time' ? (target.time.getTime() - now.getTime()) / 1000 : target.seconds;
+  const available = availableWatchTime(target, now);
   if (available <= 0) return { kind: target.kind === 'finish-time' ? 'passed' : 'no-time' };
   if (contentLeft <= 0) return { kind: 'finished' };
   // Rounded up, so that the speed always meets the target, never misses it by a little.
