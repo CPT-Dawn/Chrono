@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "license": "MIT",
+  "packageManager": "bun@1.4.4",
   "engines": {
     "node": ">=22.18"
   },

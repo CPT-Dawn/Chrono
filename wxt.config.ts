@@ -21,6 +21,10 @@ const TOOLBAR_ICONS = [16, 32].map((size) => ({
 
 export default defineConfig({
   srcDir: 'src',
+  zip: {
+    // Firefox reviewers get the source to build from, not agent instructions or research notes.
+    excludeSources: ['CLAUDE.md', 'docs/agents/**', 'docs/research/**'],
+  },
   hooks: {
     // Only Firefox reads the SVG icons.
     'build:publicAssets': (wxt, files) => {
