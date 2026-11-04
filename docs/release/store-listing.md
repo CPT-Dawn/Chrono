@@ -2,7 +2,7 @@
 
 Listing text and settings for the Chrome Web Store and Firefox Add-ons. The name and summary come from the manifest (`public/_locales/en/messages.json`); keep them in step. The images are in [assets/](assets/README.md).
 
-Chrome's listing policy names repeating one keyword more than five times as keyword spam, so the description says "YouTube" three times and otherwise says "the video", "the player" or "the page".
+Chrome's listing policy names repeating one keyword more than five times as keyword spam, so the description says "YouTube" twice and otherwise says "the video", "the player" or "the page".
 
 ## Name
 
@@ -94,6 +94,7 @@ Chrome takes a YouTube link in the listing's "Promo video" field. Upload the 4K 
 
 ## Getting badged
 
+- **Before nominating anywhere**: once 3.x is live, reply in the Chrome developer dashboard to the reviews that blame an update (Feb 2026: times only showing after a reload, "changed for the worse"). Say that 3.0.0 is a rewrite that fixes the reload bug ([#2](https://github.com/CPT-Dawn/Chrono/issues/2)). Replies show under each review, where the authors and everyone reading the listing see them.
 - **Chrome Featured**: nominate through the One Stop Support form ("My item" → nominate for a Featured badge) once 3.x has been live for a few weeks and the rating has recovered. The reviewers weigh design, onboarding, privacy and permissions; lead with no data collected, `storage` as the only permission, a reviewable open-source build, and the native look.
 - **Chrome Established Publisher**: verify the publisher identity in the developer dashboard and set chrono.cptdawn.dev as the item's official URL (verified in Google Search Console).
 - **Firefox Recommended**: needs a public listing first. After a few months of active maintenance, email amo-featured@mozilla.org with the listing link and the case for it. Mozilla runs a security review before accepting, and keeps reviewing afterwards.

@@ -45,3 +45,5 @@ YouTube serves two players, legacy and Delhi (the redesign). Check both where yo
 
 - [ ] Chrome Web Store: upload `chrono-<version>-chrome.zip`, with the listing text from [store-listing.md](store-listing.md).
 - [ ] Firefox Add-ons: upload `chrono-<version>-firefox.zip` and `chrono-<version>-sources.zip`, with the same listing text.
+- [ ] Publish the draft GitHub release for the `v<version>` tag, with the three zips attached, once both stores show the new version.
+- [ ] On a first store listing, set its URL (and reviews URL) in the website's `config.js`, so the homepage stops saying "Coming soon".
