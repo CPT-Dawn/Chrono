@@ -168,7 +168,7 @@ const endGroup = svgEl('g', { transform: 'translate(2.4 2.4) scale(0.8)' });
 endSvg.append(endGroup);
 const endMark = buildMark(endGroup, { cx: 12, cy: 12, r: 8.5, stroke: 2.4, dot: 2.6, lead: null, fadeTo: 0, id: 'e' });
 
-window.DURATION = 59.5;
+window.DURATION = 61.0;
 window.START = () => {
   const scene = (id) => $(`#s-${id}`);
   camera(1.3333, 0, 36, 0, 0, 1);
@@ -257,7 +257,7 @@ window.START = () => {
 
   // 7 · Player badge
   at(43.7, () => fadeIn(scene('badge'), 700));
-  at(43.8, () => { rise($('#badge-sheet'), { duration: 1200, y: 40, blur: 12 }); play($('#badge-img'), [{ transform: 'scale(1)' }, { transform: 'scale(1.16)' }], 4800, { easing: EASE.inOut }); });
+  at(43.8, () => { rise($('#badge-sheet'), { duration: 1200, y: 40, blur: 12 }); play($('#badge-img'), [{ transform: 'scale(1)' }, { transform: 'scale(1.32)' }], 4800, { easing: EASE.inOut }); });
   at(44.1, () => rise($('#cap-badge')));
   at(48.1, () => { sink($('#cap-badge')); fadeOut(scene('badge'), 650, EASE.standard); });
 
@@ -274,5 +274,5 @@ window.START = () => {
   at(54.0, () => rise($('#end-tag'), { duration: 1000 }));
   at(54.4, () => rise($('#end-stores'), { duration: 1000, y: 16, blur: 8 }));
   at(54.7, () => rise($('#end-url'), { duration: 900, y: 10, blur: 6 }));
-  at(58.4, () => fadeIn($('#fade'), 1000, EASE.standard));
+  at(59.3, () => fadeIn($('#fade'), 1300, EASE.standard));
 };

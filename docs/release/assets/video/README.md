@@ -1,6 +1,6 @@
 # Demo video
 
-A 60-second film of Chrono, rendered at 3840×2160 and 60 fps. Chrome's listing takes it as a YouTube link (the "Promo video" field); Firefox Add-ons has no video field, so link it from the description or the homepage instead.
+A 61-second film of Chrono, rendered at 3840×2160 and 60 fps, with an original score. Chrome's listing takes it as a YouTube link (the "Promo video" field); Firefox Add-ons has no video field, so link it from the description or the homepage instead.
 
 ## How it's made
 
@@ -23,7 +23,7 @@ Nothing in it is a screen recording or a mock-up. The Panel is Chrono's own code
 | 38–43 s | Playlist summary and Playlist scope. |
 | 43–48 s | The Player badge. |
 | 48–53 s | No data collected. One permission. Open source. |
-| 53–60 s | End card. |
+| 53–61 s | End card; the score resolves and the picture fades out. |
 
 ## Rendering
 
@@ -37,4 +37,18 @@ node record.mjs comp.html out/chrono-demo-4k60.mp4                    # the film
 ffmpeg -i out/chrono-demo-4k60.mp4 -vf scale=1920:1080:flags=lanczos -c:v libx264 -preset slow -crf 14 -pix_fmt yuv420p -movflags +faststart out/chrono-demo-1080p60.mp4
 ```
 
-Upload the 4K file to YouTube: YouTube gives 4K uploads a better codec at every resolution, 1080p included. The film is silent by design. Add music in YouTube Studio's editor from the YouTube Audio Library, which is licensed for exactly this. A calm, minimal piano or ambient track at about 90–110 BPM suits it.
+## Sound
+
+`score/compose.py` writes the soundtrack, and every sound in it is synthesised there, so the music is ours outright: felt piano, pads, sub and a soft clock tick, at 100 BPM in D♭ major, written to the picture. The sus chord resolves on "Apply"; past 2× the arpeggio doubles and the melody climbs a step with each +; three chords land on the three privacy claims; D♭maj9 opens the end card. `score/tap.py` writes the soft taps under the cursor's presses.
+
+```sh
+python -m venv .venv && .venv/bin/pip install numpy scipy soundfile
+.venv/bin/python score/compose.py out/score   # score_full.wav and stems
+.venv/bin/python score/tap.py out/score       # tap-a/b/c.wav
+```
+
+The SouVi Engine mixes the picture, score, taps and its own whooshes (`souvi sfx whoosh`), masters to −14 LUFS and encodes the upload: HEVC 10-bit 4K60 (`youtube-4k`). Its timeline puts a tap 60 ms after each press in `director.js`.
+
+## Upload
+
+Upload the mastered file, `out/chrono-film.mp4`, to YouTube: YouTube gives 4K uploads a better codec at every resolution, 1080p included. `out/chrono-thumbnail-1280x720.jpg` is the thumbnail (the speed table at 22.6 s).

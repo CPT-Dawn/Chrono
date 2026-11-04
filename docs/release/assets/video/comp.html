@@ -77,6 +77,9 @@
   #cursor.pressing .ripple::before { animation: ripple 520ms cubic-bezier(.05,.7,.1,1) both; }
   @keyframes ripple { from { opacity: .9; transform: scale(.3); } to { opacity: 0; transform: scale(1); } }
 
+  /* Everything that makes an entrance starts hidden, so nothing shows before its cue. */
+  #open-name, #open-tag, .hook, #pl-card, #pl-scope, #badge-sheet, #end-name, #end-tag, #end-stores, #end-url { opacity: 0; }
+
   .grain-layer { position: absolute; inset: 0; z-index: 90; pointer-events: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     opacity: .03; mix-blend-mode: screen; }
@@ -117,8 +120,8 @@
   </section>
 
   <section class="scene" id="s-badge">
-    <div class="sheet dark" id="badge-sheet" style="left:700px;top:250px;width:1494px;height:636px;border-radius:26px">
-      <img id="badge-img" src="../source/cap/07a-player-badge-player-dark.png" style="width:1494px;height:636px;left:0;top:0;transform-origin:30% 93%">
+    <div class="sheet dark" id="badge-sheet" style="left:752px;top:300px;width:1052px;height:480px;border-radius:24px">
+      <img id="badge-img" src="../source/cap/07a-player-badge-player-dark.png" style="width:1128px;height:480px;left:-48px;top:0;transform-origin:26.5% 93%">
     </div>
   </section>
 
