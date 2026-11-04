@@ -76,7 +76,7 @@ Interactions:
 | Mark | the playhead dot travels once round the ring the first time the Panel appears in a page session, 900ms `decelerate` (the brand moment, in the menu header and popup only). |
 | Reduced motion | movement and scale become instant; opacity fades are capped at 100ms. |
 
-Mechanics: CSS transitions where state is a class or attribute, and the Web Animations API (`element.animate`) for one-shot motion such as digit rolls, FLIP and menu exits. No motion library: WAAPI plus `linear()` springs costs 0kB, and the browser runs the animations off the main thread. Avoid `interpolate-size`/`calc-size()`, View Transitions, anchor positioning and `::details-content`: Firefox 140 lacks them. `@starting-style` and `linear()` are fine.
+Mechanics: CSS transitions where state is a class or attribute, and the Web Animations API (`element.animate`) for one-shot motion such as digit rolls, FLIP and menu exits. No motion library: WAAPI plus `linear()` springs costs 0kB, and the browser runs the animations off the main thread. Avoid `interpolate-size`/`calc-size()`, View Transitions, anchor positioning and `::details-content`: Firefox 142 lacks them. `@starting-style` and `linear()` are fine.
 
 ## Surfaces
 

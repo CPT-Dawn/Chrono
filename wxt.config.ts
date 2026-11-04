@@ -48,14 +48,15 @@ export default defineConfig({
       browser_specific_settings: {
         gecko: {
           id: 'chrono@cptdawn.dev',
-          // 140 is the first Firefox that knows data_collection_permissions.
-          strict_min_version: '140.0',
+          // 142 is the first Firefox, desktop and Android alike, that knows
+          // data_collection_permissions. Desktop had it from 140, but with no gecko_android
+          // the linter checks Android against this floor too, and warns below 142.
+          strict_min_version: '142.0',
           data_collection_permissions: { required: ['none'] },
         },
         // No gecko_android: Firefox for Android gets m.youtube.com, whose markup Chrono
-        // doesn't read and whose address its content scripts don't match. Without it,
-        // web-ext lint warns KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION; that's expected,
-        // as declaring gecko_android would mark Chrono Android-compatible on AMO.
+        // doesn't read and whose address its content scripts don't match. Declaring it
+        // would mark Chrono Android-compatible on AMO.
       },
     }),
   }),

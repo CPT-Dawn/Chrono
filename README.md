@@ -18,7 +18,7 @@ Website: [chrono.cptdawn.dev](https://chrono.cptdawn.dev/)
 ## Supported browsers
 
 - Chrome 121 or later. Other Chromium browsers that install from the Chrome Web Store, such as Edge, Brave, Vivaldi and Arc, should work too but aren't tested.
-- Firefox 140 or later, on desktop.
+- Firefox 142 or later, on desktop.
 
 ## Privacy
 
