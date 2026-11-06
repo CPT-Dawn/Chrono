@@ -62,7 +62,7 @@ export const CAUTION = svg(line('M12 3.5L2.8 19.5h18.4z') + line('M12 10v4') + '
 
 /** Each outward link's icon: a heart for support, a question for help, a flag for a report. */
 export const LINK_ICONS: Record<OutwardLink, string> = {
-  tip: svg(line('M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z')),
+  support: svg(line('M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z')),
   help: svg(
     line('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z') + line('M9.4 9.4a2.7 2.7 0 0 1 5.2 1c0 1.8-2.6 2.3-2.6 4') + '<circle cx="12" cy="17.2" r="1.1" fill="currentColor"/>',
   ),

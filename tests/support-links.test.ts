@@ -37,7 +37,7 @@ describe("The Panel's ⋮ menu", () => {
     for (const name of LINKS) queryPanel()!.getByRole('menuitem', { name });
   });
 
-  it('"Support Chrono" opens the tip page and closes the menu', async () => {
+  it('"Support Chrono" opens the support page and closes the menu', async () => {
     await openWatchPage();
     const menu = openMenu();
 
@@ -109,7 +109,7 @@ describe('The toolbar popup', () => {
     }
   });
 
-  it('"Support Chrono" opens the tip page', async () => {
+  it('"Support Chrono" opens the support page', async () => {
     const popup = await openPopup();
 
     fireEvent.click(popup.getByRole('button', { name: 'Support Chrono' }));

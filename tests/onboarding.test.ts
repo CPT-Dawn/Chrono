@@ -51,10 +51,10 @@ describe('Lifecycle pages', () => {
 });
 
 describe('Links', () => {
-  it('"Support Chrono" opens the tip page', async () => {
+  it('"Support Chrono" opens the support page', async () => {
     await startBackground();
 
-    await openLink('tip');
+    await openLink('support');
     await settle();
 
     expect(await openedUrls()).toEqual(['https://chrono.cptdawn.dev/tip']);

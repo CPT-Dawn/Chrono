@@ -1,6 +1,6 @@
 # Outward links go through fixed chrono.cptdawn.dev URLs
 
-Every link the extension opens goes to a fixed path on `chrono.cptdawn.dev`, never straight to a third party. That covers the welcome, what's-new, help, tip and goodbye pages, and the homepage. The site then redirects wherever it needs to (Ko-fi, a ticket form, and so on). A URL shipped inside a released version stays in users' browsers for as long as they keep that version, so the paths are a permanent contract. Swapping a donation or ticket provider must be a website change, not an extension release.
+Every link the extension opens goes to a fixed path on `chrono.cptdawn.dev`, never straight to a third party. That covers the welcome, what's-new, help, support (`/tip`) and goodbye pages, and the homepage. The site then redirects wherever it needs to (a store listing, a ticket form, and so on). A URL shipped inside a released version stays in users' browsers for as long as they keep that version, so the paths are a permanent contract. Swapping a store or ticket provider must be a website change, not an extension release.
 
 ## Consequences
 

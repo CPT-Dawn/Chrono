@@ -363,7 +363,7 @@
   },
   "supportChrono": {
     "message": "Support Chrono",
-    "description": "Link in the Panel's ⋮ menu and the toolbar popup to a page where the viewer can tip Chrono's developer."
+    "description": "Link in the Panel's ⋮ menu and the toolbar popup to a page where the viewer can rate, star or share Chrono."
   },
   "getHelp": {
     "message": "Get help",
